@@ -10,134 +10,104 @@ use std::rc::Rc;
 use std::cell::RefCell;
 use crate::manager::FileManager;
 use crate::typesetter::Typesetter;
+use gio::prelude::*;
+use glib::{types::Type, value::{Value, ToValue}};
+use gdk_pixbuf::Pixbuf;
 
-#[derive(Debug, Clone)]
-pub struct MainMenu {
-    pub popover : PopoverMenu,
-    pub action_new : gio::SimpleAction,
-    pub action_open : gio::SimpleAction,
-    pub action_save : gio::SimpleAction,
-    pub action_save_as : gio::SimpleAction,
-}
+mod doctree;
 
-impl MainMenu {
+mod titlebar;
 
-    fn build() -> Self {
-        let menu = gio::Menu::new();
-        menu.append(Some("New"), Some("win.new_file"));
-        menu.append(Some("Open"), Some("win.open_file"));
-        menu.append(Some("Save"), Some("win.save_file"));
-        menu.append(Some("Save as"), Some("win.save_as_file"));
-        let popover = PopoverMenu::from_model(Some(&menu));
-        let action_new = gio::SimpleAction::new("new_file", None);
-        let action_open = gio::SimpleAction::new("open_file", None);
-        let action_save = gio::SimpleAction::new("save_file", None);
-        let action_save_as = gio::SimpleAction::new("save_as_file", None);
-        Self { popover, action_new, action_open, action_save, action_save_as }
-    }
+mod editor;
 
-}
+pub use titlebar::*;
 
-#[derive(Debug, Clone)]
-pub struct Titlebar {
-    pub header : HeaderBar,
-    pub menu_button : MenuButton,
-    pub main_menu : MainMenu,
-    pub pdf_btn : Button
-}
+pub use doctree::*;
 
-impl Titlebar {
-
-    fn build() -> Self {
-        let header = HeaderBar::new();
-        let menu_button = MenuButton::builder().icon_name("open-menu-symbolic").build();
-
-        let pdf_btn = Button::builder().icon_name("evince-symbolic").build();
-
-        // TODO make this another option at a SpinButton.
-        // let web_btn = ToggleButton::builder().icon_name("globe-symbolic").build();
-
-        header.pack_end(&menu_button);
-        header.pack_end(&pdf_btn);
-        // header.pack_end(&web_btn);
-
-        let main_menu = MainMenu::build();
-        menu_button.set_popover(Some(&main_menu.popover));
-        Self { main_menu, header, menu_button, pdf_btn }
-    }
-}
-
-impl React<Typesetter> for Titlebar {
-
-    fn react(&self, typesetter : &Typesetter) {
-        let btn = self.pdf_btn.clone();
-        typesetter.connect_done({
-            move |_| {
-                btn.set_icon_name("evince-symbolic");
-                btn.set_sensitive(true);
-            }
-        });
-        typesetter.connect_error({
-            let btn = self.pdf_btn.clone();
-            move |_| {
-                btn.set_icon_name("evince-symbolic");
-                btn.set_sensitive(true);
-            }
-        });
-    }
-}
+pub use editor::*;
 
 #[derive(Debug, Clone)]
 pub struct PapersWindow {
     pub window : ApplicationWindow,
     pub titlebar : Titlebar,
     pub editor : PapersEditor,
+    pub doc_tree : DocTree,
     pub open_dialog : OpenDialog,
-    pub save_dialog : SaveDialog
+    pub save_dialog : SaveDialog,
+    pub stack : Stack,
+    pub start_screen : StartScreen
 }
 
-#[derive(Debug, Clone)]
-pub struct PapersEditor {
-    pub view : View,
-    pub scroll : ScrolledWindow
-}
+const ARTICLE_TEMPLATE : &'static str = r#"
+\documentclass[a4,11pt]{article}
 
-impl PapersEditor {
+\begin{document}
 
-    pub fn build() -> Self {
-        let view = View::new();
-        view.set_hexpand(true);
-        configure_view(&view);
-        view.set_width_request(800);
-        view.set_halign(Align::Center);
-        view.set_hexpand(true);
-        view.set_margin_top(98);
-        view.set_margin_bottom(98);
+\end{document}"#;
 
-        let scroll = ScrolledWindow::new();
-        let provider = CssProvider::new();
-        provider.load_from_data("* { background-color : #ffffff; } ".as_bytes());
+const REPORT_TEMPLATE : &'static str = r#"
+\documentclass[a4,11pt]{article}
 
-        // scroll.set_kinetic_scrolling(false);
+\begin{document}
 
-        scroll.style_context().add_provider(&provider, 800);
-        scroll.set_child(Some(&view));
+\end{document}"#;
 
-        Self { scroll, view }
-    }
-}
+const PRESENTATION_TEMPLATE : &'static str = r#"
+\documentclass[a4,11pt]{article}
 
-impl React<FileManager> for PapersEditor {
+\begin{document}
 
-    fn react(&self, manager : &FileManager) {
-        manager.connect_opened({
-            let view = self.view.clone();
-            move |(path, content)| {
-                view.buffer().set_text(&content);
+\end{document}"#;
+
+impl React<StartScreen> for PapersWindow {
+
+    fn react(&self, start_screen : &StartScreen) {
+
+        start_screen.empty_btn.connect_clicked({
+            let (view, stack)  = (self.editor.view.clone(), self.stack.clone());
+            let action_save = self.titlebar.main_menu.action_save.clone();
+            let action_save_as = self.titlebar.main_menu.action_save_as.clone();
+            move |_| {
+                view.buffer().set_text("");
+                stack.set_visible_child_name("editor");
+                action_save.set_enabled(true);
+                action_save_as.set_enabled(true);
+            }
+        });
+        start_screen.article_btn.connect_clicked({
+            let (view, stack)  = (self.editor.view.clone(), self.stack.clone());
+            let action_save = self.titlebar.main_menu.action_save.clone();
+            let action_save_as = self.titlebar.main_menu.action_save_as.clone();
+            move |_| {
+                view.buffer().set_text(ARTICLE_TEMPLATE);
+                stack.set_visible_child_name("editor");
+                action_save.set_enabled(true);
+                action_save_as.set_enabled(true);
+            }
+        });
+        start_screen.report_btn.connect_clicked({
+            let (view, stack)  = (self.editor.view.clone(), self.stack.clone());
+            let action_save = self.titlebar.main_menu.action_save.clone();
+            let action_save_as = self.titlebar.main_menu.action_save_as.clone();
+            move |_| {
+                view.buffer().set_text(REPORT_TEMPLATE);
+                stack.set_visible_child_name("editor");
+                action_save.set_enabled(true);
+                action_save_as.set_enabled(true);
+            }
+        });
+        start_screen.presentation_btn.connect_clicked({
+            let (view, stack)  = (self.editor.view.clone(), self.stack.clone());
+            let action_save = self.titlebar.main_menu.action_save.clone();
+            let action_save_as = self.titlebar.main_menu.action_save_as.clone();
+            move |_| {
+                view.buffer().set_text(PRESENTATION_TEMPLATE);
+                stack.set_visible_child_name("editor");
+                action_save.set_enabled(true);
+                action_save_as.set_enabled(true);
             }
         });
     }
-
 }
 
 // Create tectonic workspace
@@ -162,6 +132,43 @@ impl React<FileManager> for PapersEditor {
 ]
 */
 
+#[derive(Debug, Clone)]
+pub struct StartScreen {
+    bx : Box,
+    empty_btn : Button,
+    article_btn : Button,
+    report_btn : Button,
+    presentation_btn : Button
+}
+
+impl StartScreen {
+
+    pub fn build() -> Self {
+        let bx = Box::new(Orientation::Horizontal, 0);
+        let empty_btn = Button::builder() /*.label("Empty")*/ .build();
+
+        let img = Image::from_icon_name(Some("folder-documents-symbolic"));
+        let lbl = Label::new(Some("Empty"));
+        let bx_btn = Box::new(Orientation::Vertical, 0);
+        bx_btn.append(&img);
+        bx_btn.append(&lbl);
+        empty_btn.set_child(Some(&bx_btn));
+        let article_btn = Button::builder().label("Article").build();
+        let report_btn = Button::builder().label("Report").build();
+        let presentation_btn = Button::builder().label("Presentation").build();
+        for btn in [&empty_btn, &article_btn, &report_btn, &presentation_btn] {
+            btn.style_context().add_class("flat");
+            btn.set_vexpand(true);
+            btn.set_valign(Align::Center);
+        }
+        bx.append(&empty_btn);
+        bx.append(&article_btn);
+        bx.append(&report_btn);
+        Self { bx, empty_btn, article_btn, report_btn, presentation_btn }
+    }
+
+}
+
 // let min_driver = tectonic_bridge_core::MinimalDriver::new(tectonic_io_base::stdstreams::BufferedPrimaryIo::from_buffer(Vec::new()));
 // let status = tectonic::status::plain::PlainStatusBackend::new(tectonic::status::ChatterLevel::Minimal);
 // tectonic::engines::spx2html::SpxHtmlEngine::new(&mut min_driver, &mut status).process(hooks, status, spx_str);
@@ -173,27 +180,28 @@ impl PapersWindow {
         window.set_titlebar(Some(&titlebar.header));
         window.set_decorated(true);
 
+        let doc_tree = DocTree::build();
         let editor = PapersEditor::build();
+        let start_screen = StartScreen::build();
         let open_dialog = OpenDialog::build();
         let save_dialog = SaveDialog::build();
 
+        save_dialog.dialog.set_transient_for(Some(&window));
+        open_dialog.dialog.set_transient_for(Some(&window));
+
         open_dialog.react(&titlebar.main_menu);
         save_dialog.react(&titlebar.main_menu);
+        editor.react(&titlebar);
 
         // source.set_halign(Align::Center);
         // source.set_margin_start(256);
         // source.set_margin_end(256);
 
-        // let paned = Paned::new(Orientation::Horizontal);
-
         // let web = webkit2gtk5::WebView::new();
         // web.load_html("<html><head></head><body>Hello world</body></html>", None);
         // web.set_margin_start(18);
 
-        // paned.set_start_child(&scroll);
-        // paned.set_end_child(&web);
-        // window.set_child(Some(&paned));
-        window.set_child(Some(&editor.scroll));
+        // window.set_child(Some(&editor.overlay));
 
         // let ws = Rc::new(RefCell::new(Workspace::new()));
 
@@ -202,7 +210,68 @@ impl PapersWindow {
         window.add_action(&titlebar.main_menu.action_save);
         window.add_action(&titlebar.main_menu.action_save_as);
 
-        Self { window, titlebar, editor, open_dialog, save_dialog }
+        window.add_action(&titlebar.sidebar_hide_action);
+        window.add_action(&editor.ignore_file_save_action);
+
+        let stack = Stack::new();
+        stack.add_named(&start_screen.bx, Some("start"));
+        stack.add_named(&editor.overlay, Some("editor"));
+
+        editor.paned.set_start_child(&doc_tree.bx);
+        editor.paned.set_end_child(&stack);
+        editor.paned.set_position(0);
+
+        window.set_child(Some(&editor.paned));
+
+        Self { window, titlebar, editor, open_dialog, save_dialog, doc_tree, stack, start_screen }
+    }
+
+}
+
+impl React<FileManager> for PapersWindow {
+
+    fn react(&self, manager : &FileManager) {
+        let win = self.window.clone();
+        manager.connect_window_close(move |_| {
+            win.destroy();
+        });
+        manager.connect_opened({
+            let action_save = self.titlebar.main_menu.action_save.clone();
+            let action_save_as = self.titlebar.main_menu.action_save_as.clone();
+            move |_| {
+                action_save.set_enabled(true);
+                action_save_as.set_enabled(true);
+            }
+        });
+        manager.connect_new({
+            let stack = self.stack.clone();
+            let window = self.window.clone();
+            let action_save = self.titlebar.main_menu.action_save.clone();
+            let action_save_as = self.titlebar.main_menu.action_save_as.clone();
+            move |_| {
+                stack.set_visible_child_name("start");
+                window.set_title(Some("Papers"));
+                action_save.set_enabled(false);
+                action_save_as.set_enabled(false);
+            }
+        });
+        manager.connect_save({
+            let window = self.window.clone();
+            move |path| {
+                window.set_title(Some(&path));
+            }
+        });
+        manager.connect_file_changed({
+            let window = self.window.clone();
+            let view = self.editor.view.clone();
+            move |opt_path| {
+                if let Some(path) = opt_path {
+                    window.set_title(Some(&format!("{}*", path)));
+                } else {
+
+                }
+            }
+        });
     }
 
 }
@@ -272,7 +341,6 @@ impl SaveDialog {
 
 }
 
-
 impl React<MainMenu> for SaveDialog {
 
     fn react(&self, menu : &MainMenu) {
@@ -284,6 +352,23 @@ impl React<MainMenu> for SaveDialog {
 
 }
 
+impl React<FileManager> for SaveDialog {
+
+    fn react(&self, manager : &FileManager) {
+        let dialog = self.dialog.clone();
+        manager.connect_save_unknown_path(move |path| {
+            // let _ = dialog.set_file(&gio::File::for_path(path));
+            dialog.show();
+        });
+        // let dialog = self.dialog.clone();
+        /*scripts.connect_path_changed(move |opt_file| {
+            if let Some(path) = opt_file.and_then(|f| f.path.clone() ) {
+                let _ = dialog.set_file(&gio::File::for_path(&path));
+            }
+        });*/
+    }
+
+}
 
 #[derive(Debug, Clone)]
 pub struct OpenDialog {
@@ -333,5 +418,61 @@ pub fn configure_dialog(dialog : &impl GtkWindowExt) {
     dialog.set_deletable(true);
     dialog.set_destroy_with_parent(true);
     dialog.set_hide_on_close(true);
+}
+
+#[derive(Debug, Clone)]
+pub struct PackedImageLabel  {
+    pub bx : Box,
+    pub img : Image,
+    pub lbl : Label
+}
+
+impl PackedImageLabel {
+
+    pub fn build(icon_name : &str, label_name : &str) -> Self {
+        let bx = Box::new(Orientation::Horizontal, 0);
+        let img = Image::from_icon_name(Some(icon_name));
+        let lbl = Label::new(Some(label_name));
+        set_margins(&img, 6, 6);
+        set_margins(&lbl, 6, 6);
+        bx.append(&img);
+        bx.append(&lbl);
+        Self { bx, img, lbl }
+    }
+
+    pub fn extract(bx : &Box) -> Option<Self> {
+        let img = get_child_by_index::<Image>(&bx, 0);
+        let lbl = get_child_by_index::<Label>(&bx, 1);
+        Some(Self { bx : bx.clone(), lbl, img })
+    }
+
+    pub fn change_label(&self, label_name : &str) {
+        self.lbl.set_text(label_name);
+    }
+
+    pub fn change_icon(&self, icon_name : &str) {
+        self.img.set_icon_name(Some(icon_name));
+    }
+
+}
+
+fn set_border_to_title(bx : &Box) {
+    let provider = CssProvider::new();
+    provider.load_from_data("* { border-bottom : 1px solid #d9dada; } ".as_bytes());
+    bx.style_context().add_provider(&provider, 800);
+}
+
+pub fn get_child_by_index<W>(w : &Box, pos : usize) -> W
+where
+    W : IsA<glib::Object>
+{
+    w.observe_children().item(pos as u32).unwrap().clone().downcast::<W>().unwrap()
+}
+
+pub fn set_margins<W : WidgetExt>(w : &W, horizontal : i32, vertical : i32) {
+    w.set_margin_start(horizontal);
+    w.set_margin_end(horizontal);
+    w.set_margin_top(vertical);
+    w.set_margin_bottom(vertical);
 }
 

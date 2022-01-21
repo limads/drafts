@@ -11,6 +11,8 @@ use std::time::Duration;
 use tempfile;
 use std::sync::mpsc;
 use std::io::{Seek, SeekFrom};
+use crate::ui::PapersEditor;
+use crate::ui::Titlebar;
 
 pub enum TypesetterAction {
 
@@ -168,6 +170,7 @@ impl React<(Titlebar, PapersEditor)> for Typesetter {
                 ).to_string();
 
                 if txt.is_empty() {
+                    send.send(TypesetterAction::Error(String::from("Cannot typeset empty document")));
                     return;
                 }
 
