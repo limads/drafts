@@ -169,6 +169,145 @@ impl StartScreen {
 
 }
 
+const GREEK_SMALL : [(&'static str, &'static str); 24] = [
+    ("α", "\\alpha"),
+    ("β", "\\beta"),
+    ("γ", "\\gamma"),
+    ("δ", "\\delta"),
+    ("ε", "\\epsilon"),
+    ("ζ", "\\zeta"),
+    ("η", "\\eta"),
+    ("θ", "\\theta"),
+    ("ι", "\\iota"),
+    ("κ", "\\kappa"),
+    ("λ", "\\lambda"),
+    ("μ", "\\mu"),
+    ("ν", "\\nu"),
+    ("ξ", "\\xi"),
+    ("ο", "\\omicron"),
+    ("π", "\\pi"),
+    ("ρ", "\\rho"),
+    ("σ", "\\sigma"),
+    ("τ", "\\tau"),
+    ("υ", "\\upsilon"),
+    ("φ", "\\phi"),
+    ("χ", "\\chi"),
+    ("ψ", "\\psi"),
+    ("ω", "\\omega")
+];
+
+const GREEK_CAPITAL : [(&'static str, &'static str); 24] = [
+    ("Α", "\\Alpha"),
+    ("Β", "\\Beta"),
+    ("Γ", "\\Gamma"),
+    ("Δ", "\\Delta"),
+    ("Ε", "\\Epsilon"),
+    ("Ζ", "\\Zeta"),
+    ("Η", "\\Eta"),
+    ("Θ", "\\Theta"),
+    ("Ι", "\\Iota"),
+    ("Κ", "\\Kappa"),
+    ("Λ", "\\Lambda"),
+    ("Μ", "\\Mu"),
+    ("Ν", "\\Nu"),
+    ("Ξ", "\\Xi"),
+    ("Ο", "\\Omicron"),
+    ("Π", "\\Pi"),
+    ("Ρ", "\\Rho"),
+    ("Σ", "\\Sigma"),
+    ("Τ", "\\Tau"),
+    ("Υ", "\\Upsilon"),
+    ("Φ", "\\Phi"),
+    ("Χ", "\\Chi"),
+    ("Ψ", "\\Psi"),
+    ("Ω", "\\Omega")
+];
+
+const OPERATORS : [(&'static str, &'static str); 48] = [
+    ("=", "\\eq"),
+    ("⋜", "\\leq"),
+    ("⋝", "\\geq"),
+    ("≠", "\\neq"),
+    ("√", "\\sqrt"),
+    (">", ">"),
+    ("<", "<"),
+    ("×", "\\times"),
+    ("÷", "\\div"),
+    ("±",  "\\pm"),
+    ("∫", "\\int"),
+    ("∑", "\\sum"),
+    ("⨅", "\\prod"),
+    ("→", "\\to"),
+    ("↦", "\\mapsto"),
+    ("∂", "\\partial"),
+    ("∇", "\\nabla"),
+    ("∼", "\\tilde"),
+    ("∣", "\\vert"),
+    ("∘", "\\circ"),
+    ("∗", "\\ast"),
+    ("∠", "\\angle"),
+    ("∀", "\\forall"),
+    ("∃", "\\exists"),
+    ("∄", "\\nexists"),
+    ("∈", "\\in"),
+    ("∈/", "\\notin"),
+    ("∧", "\\land"),
+    ("∨", "\\lor"),
+    ("a^", "\\hat"),
+    ("△", "\\triangle"),
+    ("∴",  "\\therefore"),
+    ("∵",  "\\because"),
+    ("⋆", "\\star"),
+    ("½", "\\frac{}{}"),
+    ("∅", "\\emptyset"),
+    ("∪", "\\cup"),
+    ("∩", "\\cap"),
+    ("⋃", "\\bigcup"),
+    ("⋂ ", "\\bigcap"),
+    ("∖", "\\setminus"),
+    ("⊂", "\\sub"),
+    ("⊆", "\\sube"),
+    ("⊃", "\\supset"),
+    ("⊇", "\\supe"),
+    ("…",  "\\dots"),
+    ("⋱", "\\ddots"),
+    ("⋮", "\\vdots"),
+];
+
+#[derive(Debug, Clone)]
+pub struct SymbolGrid {
+    pub grid : Grid
+}
+
+impl SymbolGrid {
+
+    pub fn new(symbols : &'static [(&'static str, &'static str)], view : View, dialog : Dialog, ncol : usize) -> Self {
+        let grid = Grid::new();
+        set_all_margins(&grid, 6);
+        grid.set_margin_bottom(36);
+        for row in 0..(symbols.len() / ncol) {
+            for col in 0..ncol {
+                if let Some(symbol) = symbols.get(row*ncol + col) {
+                    let btn = Button::new();
+                    btn.set_label(symbol.0);
+                    btn.connect_clicked({
+                        let view = view.clone();
+                        let dialog = dialog.clone();
+                        move|_| {
+                            dialog.close();
+                            view.buffer().insert_at_cursor(symbol.1);
+                        }
+                    });
+                    btn.style_context().add_class("flat");
+                    grid.attach(&btn, col as i32, row as i32, 1, 1);
+                }
+            }
+        }
+        Self { grid }
+    }
+
+}
+
 // let min_driver = tectonic_bridge_core::MinimalDriver::new(tectonic_io_base::stdstreams::BufferedPrimaryIo::from_buffer(Vec::new()));
 // let status = tectonic::status::plain::PlainStatusBackend::new(tectonic::status::ChatterLevel::Minimal);
 // tectonic::engines::spx2html::SpxHtmlEngine::new(&mut min_driver, &mut status).process(hooks, status, spx_str);
@@ -222,6 +361,36 @@ impl PapersWindow {
         editor.paned.set_position(0);
 
         window.set_child(Some(&editor.paned));
+
+        let symbol_dialog = Dialog::new();
+        symbol_dialog.set_title(Some("Symbols"));
+        configure_dialog(&symbol_dialog);
+        symbol_dialog.set_transient_for(Some(&window));
+        let greek_small_grid = SymbolGrid::new(&GREEK_SMALL[..], editor.view.clone(), symbol_dialog.clone(), 12);
+        let greek_capital_grid = SymbolGrid::new(&GREEK_CAPITAL[..], editor.view.clone(), symbol_dialog.clone(), 12);
+        let operators_grid = SymbolGrid::new(&OPERATORS[..], editor.view.clone(), symbol_dialog.clone(), 12);
+        let symbol_bx = Box::new(Orientation::Vertical, 0);
+        let operators_lbl = Label::builder().label("Operators").halign(Align::Start).build();
+        let greek_lbl = Label::builder().label("Greek alphabet").halign(Align::Start).build();
+        let greek_capital_lbl = Label::builder().label("Greek alphabet (Capitalized)").halign(Align::Start).build();
+        for lbl in [&operators_lbl, &greek_lbl, &greek_capital_lbl] {
+            set_all_margins(lbl, 6);
+        }
+        symbol_bx.append(&operators_lbl);
+        symbol_bx.append(&operators_grid.grid);
+        symbol_bx.append(&greek_lbl);
+        symbol_bx.append(&greek_small_grid.grid);
+        symbol_bx.append(&greek_capital_lbl);
+        symbol_bx.append(&greek_capital_grid.grid);
+
+        symbol_dialog.set_child(Some(&symbol_bx));
+        titlebar.math_actions.symbol.connect_activate(move |_, _| {
+            symbol_dialog.show();
+        });
+
+        for action in titlebar.math_actions.iter().chain(titlebar.object_actions.iter().chain(titlebar.struct_actions.iter())) {
+            window.add_action(&action);
+        }
 
         Self { window, titlebar, editor, open_dialog, save_dialog, doc_tree, stack, start_screen }
     }

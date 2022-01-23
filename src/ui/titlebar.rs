@@ -38,7 +38,76 @@ pub struct Titlebar {
     pub pdf_btn : Button,
     pub sidebar_toggle : ToggleButton,
     pub sidebar_hide_action : gio::SimpleAction,
-    pub bib_list : ListBox
+    pub bib_list : ListBox,
+    pub struct_actions : StructActions,
+    pub object_actions : ObjectActions,
+    pub math_actions : MathActions
+}
+
+#[derive(Debug, Clone)]
+pub struct StructActions {
+    pub section : gio::SimpleAction,
+    pub subsection : gio::SimpleAction,
+    pub list : gio::SimpleAction,
+}
+
+impl StructActions {
+
+    pub fn build() -> Self {
+        let section = gio::SimpleAction::new("section", None);
+        let subsection = gio::SimpleAction::new("section", None);
+        let list = gio::SimpleAction::new("list", None);
+        Self { section, list, subsection }
+    }
+
+    pub fn iter<'a>(&'a self) -> impl Iterator<Item=gio::SimpleAction> + 'a {
+        [self.section.clone(), self.subsection.clone(), self.list.clone()].into_iter()
+    }
+
+}
+
+#[derive(Debug, Clone)]
+pub struct ObjectActions {
+    pub image : gio::SimpleAction,
+    pub table : gio::SimpleAction,
+    pub code : gio::SimpleAction,
+}
+
+impl ObjectActions {
+
+    pub fn build() -> Self {
+        let image = gio::SimpleAction::new("image", None);
+        let table = gio::SimpleAction::new("table", None);
+        let code = gio::SimpleAction::new("code", None);
+        Self { image, table, code }
+    }
+
+    pub fn iter<'a>(&'a self) -> impl Iterator<Item=gio::SimpleAction> + 'a {
+        [self.image.clone(), self.table.clone(), self.code.clone()].into_iter()
+    }
+
+}
+
+#[derive(Debug, Clone)]
+pub struct MathActions {
+    pub operator : gio::SimpleAction,
+    pub symbol : gio::SimpleAction,
+    pub function : gio::SimpleAction,
+}
+
+impl MathActions {
+
+    pub fn build() -> Self {
+        let operator = gio::SimpleAction::new("operator", None);
+        let symbol = gio::SimpleAction::new("symbol", None);
+        let function = gio::SimpleAction::new("function", None);
+        Self { operator, symbol, function }
+    }
+
+    pub fn iter<'a>(&'a self) -> impl Iterator<Item=gio::SimpleAction> + 'a {
+        [self.operator.clone(), self.symbol.clone(), self.function.clone()].into_iter()
+    }
+
 }
 
 impl Titlebar {
@@ -101,18 +170,22 @@ impl Titlebar {
         }*/
 
         let menu = gio::Menu::new();
-        menu.append_item(&gio::MenuItem::new(Some("Section"), Some("win.section")));
-        menu.append_item(&gio::MenuItem::new(Some("List"), Some("win.list")));
-        menu.append_item(&gio::MenuItem::new(Some("Image"), Some("win.image")));
-        menu.append_item(&gio::MenuItem::new(Some("Table"), Some("win.table")));
-        menu.append_item(&gio::MenuItem::new(Some("Code"), Some("win.code")));
+        let struct_submenu = gio::Menu::new();
+        struct_submenu.append_item(&gio::MenuItem::new(Some("Section"), Some("win.section")));
+        struct_submenu.append_item(&gio::MenuItem::new(Some("Subsection"), Some("win.subsection")));
+        struct_submenu.append_item(&gio::MenuItem::new(Some("List"), Some("win.list")));
+        menu.append_item(&gio::MenuItem::new_submenu(Some("Structure"), &struct_submenu));
+
+        let object_submenu = gio::Menu::new();
+        object_submenu.append_item(&gio::MenuItem::new(Some("Image"), Some("win.image")));
+        object_submenu.append_item(&gio::MenuItem::new(Some("Table"), Some("win.table")));
+        object_submenu.append_item(&gio::MenuItem::new(Some("Code"), Some("win.code")));
+        menu.append_item(&gio::MenuItem::new_submenu(Some("Object"), &object_submenu));
 
         let math_submenu = gio::Menu::new();
-        math_submenu.append_item(&gio::MenuItem::new(Some("Bracket"), Some("win.matrix")));
         math_submenu.append_item(&gio::MenuItem::new(Some("Symbol"), Some("win.symbol")));
-        math_submenu.append_item(&gio::MenuItem::new(Some("Function"), Some("win.symbol")));
-        math_submenu.append_item(&gio::MenuItem::new(Some("Operatior"), Some("win.symbol")));
-
+        math_submenu.append_item(&gio::MenuItem::new(Some("Operator"), Some("win.operator")));
+        math_submenu.append_item(&gio::MenuItem::new(Some("Function"), Some("win.function")));
         menu.append_item(&gio::MenuItem::new_submenu(Some("Math"), &math_submenu));
 
         // menu.append_item(Some("Math"), &math_submenu);
@@ -143,7 +216,7 @@ impl Titlebar {
         let sidebar_hide_action = gio::SimpleAction::new_stateful("sidebar_hide", None, &(0).to_variant());
         let main_menu = MainMenu::build();
         menu_button.set_popover(Some(&main_menu.popover));
-        Self { main_menu, header, menu_button, pdf_btn, sidebar_toggle, sidebar_hide_action, bib_list }
+        Self { main_menu, header, menu_button, pdf_btn, sidebar_toggle, sidebar_hide_action, bib_list, math_actions : MathActions::build(), struct_actions : StructActions::build(), object_actions : ObjectActions::build() }
     }
 }
 
