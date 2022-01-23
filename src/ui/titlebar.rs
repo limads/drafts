@@ -1,4 +1,7 @@
 use super::*;
+use crate::analyzer::Analyzer;
+use crate::tex::{Difference, BibEntry};
+use crate::tex::Token;
 
 #[derive(Debug, Clone)]
 pub struct MainMenu {
@@ -34,7 +37,8 @@ pub struct Titlebar {
     pub main_menu : MainMenu,
     pub pdf_btn : Button,
     pub sidebar_toggle : ToggleButton,
-    pub sidebar_hide_action : gio::SimpleAction
+    pub sidebar_hide_action : gio::SimpleAction,
+    pub bib_list : ListBox
 }
 
 impl Titlebar {
@@ -48,6 +52,12 @@ impl Titlebar {
         let fmt_popover = Popover::new();
         let bx = Box::new(Orientation::Vertical, 0);
 
+        /*
+        text-justify-center-symbolic
+        text-justify-fill-symbolic
+        text-justify-left-symbolic
+        text-justify-right-symbolic
+        */
         let char_bx = Box::new(Orientation::Horizontal, 0);
         let bold_btn = Button::builder().icon_name("format-text-bold-symbolic").build();
         let italic_btn = Button::builder().icon_name("format-text-italic-symbolic").build();
@@ -68,13 +78,15 @@ impl Titlebar {
         let bib_popover = Popover::new();
         let search_entry = Entry::builder().primary_icon_name("search-symbolic").build();
         let bib_list = ListBox::new();
-        bib_list.set_width_request(100);
-        bib_list.set_height_request(100);
+        let bib_scroll = ScrolledWindow::new();
+        bib_scroll.set_child(Some(&bib_list));
+        bib_scroll.set_width_request(480);
+        bib_scroll.set_height_request(280);
 
         let bx = Box::new(Orientation::Vertical, 0);
         bib_popover.set_child(Some(&bx));
         bx.append(&search_entry);
-        bx.append(&bib_list);
+        bx.append(&bib_scroll);
 
         let bib_btn = MenuButton::new();
         bib_btn.set_popover(Some(&bib_popover));
@@ -131,7 +143,7 @@ impl Titlebar {
         let sidebar_hide_action = gio::SimpleAction::new_stateful("sidebar_hide", None, &(0).to_variant());
         let main_menu = MainMenu::build();
         menu_button.set_popover(Some(&main_menu.popover));
-        Self { main_menu, header, menu_button, pdf_btn, sidebar_toggle, sidebar_hide_action }
+        Self { main_menu, header, menu_button, pdf_btn, sidebar_toggle, sidebar_hide_action, bib_list }
     }
 }
 
@@ -153,5 +165,133 @@ impl React<Typesetter> for Titlebar {
             }
         });
     }
+}
+
+#[derive(Debug, Clone)]
+pub struct ReferenceRow {
+    pub row : ListBoxRow,
+    pub key_label : Label,
+    pub authors_label : Label,
+    pub title_label : Label,
+}
+
+impl ReferenceRow {
+
+    // TODO add different icons for book, article, etc.
+
+    pub fn recover(row : &ListBoxRow) -> Self {
+        let bx = row.child().unwrap().downcast::<Box>().unwrap();
+        let header_bx = super::get_child_by_index::<Box>(&bx, 0);
+        let key_label = super::get_child_by_index::<Label>(&header_bx, 1);
+        let authors_label = super::get_child_by_index::<Label>(&header_bx, 2);
+        let title_label = super::get_child_by_index::<Label>(&bx, 1);
+        Self { row : row.clone(), key_label, authors_label, title_label }
+    }
+
+    pub fn update(&self, entry : &BibEntry) {
+        println!("{:?}", entry);
+        let key = format!("<b>{}</b>", entry.key());
+        let full_title = entry.title().unwrap_or("(Untitled)").trim().to_string();
+
+        let mut title = String::with_capacity(full_title.len());
+        let mut should_break = false;
+        for (ix, c) in full_title.chars().enumerate() {
+            title.push(c);
+            if ix > 0 && ix % 60 == 0 {
+                should_break = true;
+            }
+            if c == ' ' && should_break {
+                title.push('\n');
+                should_break = false;
+            }
+        }
+        let mut authors = entry.author().unwrap_or("(No authors)").trim()
+            .trim_start_matches("{").trim_end_matches("}").trim_start_matches("{").trim_end_matches("}");
+
+        let mut broken_authors = String::new();
+        if authors.chars().count() > 60 {
+            broken_authors = authors.chars().take(60).collect();
+            broken_authors += "(...)";
+        }
+        let year = entry.year().unwrap_or("No date").trim();
+        println!("authors = {}; title = {}; key = {}", authors, title, key);
+        self.key_label.set_markup(&key);
+        self.authors_label.set_text(&format!("{} ({})", authors, year));
+        self.title_label.set_text(&title);
+    }
+
+    pub fn build(entry : &BibEntry<'_>) -> Self {
+        let bx = Box::new(Orientation::Vertical, 0);
+        let key_label = Label::new(None);
+        let authors_label = Label::new(None);
+        let title_label = Label::new(None);
+        for lbl in [&key_label, &authors_label, &title_label] {
+            lbl.set_use_markup(true);
+            lbl.set_halign(Align::Start);
+            lbl.set_justify(Justification::Left);
+        }
+
+        let bx_header = Box::new(Orientation::Horizontal, 0);
+        let icon = match entry.entry() {
+            crate::tex::Entry::Book | crate::tex::Entry::Booklet => "user-bookmarks-symbolic",
+            _ => "folder-documents-symbolic"
+        };
+        let icon = Image::from_icon_name(Some(icon));
+        super::set_all_margins(&icon, 6);
+        bx_header.append(&icon);
+        bx_header.append(&key_label);
+        key_label.set_margin_end(6);
+        // key_label.set_margin_bottom(6);
+        bx_header.append(&authors_label);
+
+        bx.append(&bx_header);
+        bx.append(&title_label);
+        title_label.set_margin_bottom(6);
+        title_label.set_margin_start(6);
+
+        let row = ListBoxRow::new();
+        row.set_child(Some(&bx));
+        let ref_row = Self { row, key_label, authors_label, title_label };
+        ref_row.update(entry);
+        ref_row
+    }
+
+}
+
+impl React<Analyzer> for Titlebar {
+
+    fn react(&self, analyzer : &Analyzer) {
+        let bib_list = self.bib_list.clone();
+        analyzer.connect_reference_changed(move |diff| {
+            match diff {
+                Difference::Added(pos, txt) => {
+                    match Token::from_str(&txt) {
+                        Ok(Token::Reference(bib_entry, _)) => {
+                            let row = ReferenceRow::build(&bib_entry);
+                            bib_list.insert(&row.row, pos as i32);
+                        },
+                        _ => { }
+                    }
+                },
+                Difference::Edited(pos, txt) => {
+                    match Token::from_str(&txt) {
+                        Ok(Token::Reference(bib_entry, _)) => {
+                            if let Some(row) = bib_list.row_at_index(pos as i32) {
+                                let ref_row = ReferenceRow::recover(&row);
+                                ref_row.update(&bib_entry);
+                            }
+                        },
+                        _ => { }
+                    }
+                },
+                Difference::Removed(pos) => {
+                    if let Some(row) = bib_list.row_at_index(pos as i32) {
+                        bib_list.remove(&row);
+                    }
+                }
+            }
+        });
+    }
+
 }
 

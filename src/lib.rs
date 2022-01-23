@@ -8,7 +8,7 @@ pub mod manager;
 
 pub mod typesetter;
 
-pub mod parser;
+pub mod tex;
 
 pub mod analyzer;
 

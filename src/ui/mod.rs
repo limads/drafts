@@ -276,39 +276,6 @@ impl React<FileManager> for PapersWindow {
 
 }
 
-fn configure_view(view : &View) {
-    let buffer = view.buffer()
-        .downcast::<sourceview5::Buffer>().unwrap();
-    let manager = sourceview5::StyleSchemeManager::new();
-    let scheme = manager.scheme("Adwaita").unwrap();
-    buffer.set_style_scheme(Some(&scheme));
-    buffer.set_highlight_syntax(true);
-    let provider = CssProvider::new();
-    provider.load_from_data(b"textview { font-family: \"Source Code Pro\"; font-size: 16pt; }");
-    let ctx = view.style_context();
-    ctx.add_provider(&provider, 800);
-    let lang_manager = sourceview5::LanguageManager::default().unwrap();
-    let lang = lang_manager.language("latex").unwrap();
-    buffer.set_language(Some(&lang));
-    view.set_tab_width(4);
-    view.set_indent_width(4);
-    view.set_auto_indent(true);
-    view.set_insert_spaces_instead_of_tabs(true);
-    view.set_highlight_current_line(false);
-    view.set_indent_on_tab(true);
-    view.set_show_line_marks(true);
-    view.set_enable_snippets(true);
-    view.set_wrap_mode(WrapMode::Word);
-
-    // Seems to be working, but only when you click on the the word
-    // and **then** press CTRL+Space (simply pressing CTRL+space does not work).
-    let completion = view.completion().unwrap();
-    let words = sourceview5::CompletionWords::new(Some("main"));
-    words.register(&view.buffer());
-    completion.add_provider(&words);
-    view.set_show_line_numbers(false);
-}
-
 #[derive(Debug, Clone)]
 pub struct SaveDialog {
     pub dialog : FileChooserDialog
@@ -476,3 +443,9 @@ pub fn set_margins<W : WidgetExt>(w : &W, horizontal : i32, vertical : i32) {
     w.set_margin_bottom(vertical);
 }
 
+pub fn set_all_margins<W : WidgetExt>(w : &W, margin : i32) {
+    w.set_margin_start(margin);
+    w.set_margin_end(margin);
+    w.set_margin_top(margin);
+    w.set_margin_bottom(margin);
+}

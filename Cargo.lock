@@ -1641,6 +1641,7 @@ dependencies = [
 name = "papers"
 version = "0.1.0"
 dependencies = [
+ "either",
  "gtk4",
  "libadwaita",
  "nom 7.1.0",

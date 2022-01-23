@@ -21,18 +21,37 @@ use nom::sequence::separated_pair;
 use std::str::FromStr;
 use nom::character::complete::space0;
 use std::ops::Range;
+use nom::error::ErrorKind;
+use nom::error::Error;
+use either::Either;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Command<'a> {
-    cmd : &'a str,
+
+    pub cmd : &'a str,
 
     // Everything inside brackts like \documentclass[a4,14pt]{article} would contain a4, 14pt
     // If command has empty bracket with no options, Some(Vec::new()), contains some empty vector.
     // If command has no bracket, contains None.
-    opts : Option<Vec<&'a str>>,
+    pub opts : Option<Vec<&'a str>>,
 
     // Everything inside curly braces like \documentclass[a4,14pt]{article} would contain article
-    arg : Option<&'a str>
+    pub arg : Option<&'a str>,
+
+    // Extra curly brace arguments
+    pub extra_arg : Option<&'a str>
+}
+
+pub enum BaseCommand {
+
+    Section(String),
+
+    SubSection(String),
+
+    Begin(String),
+
+    End
+
 }
 
 impl<'a> fmt::Display for Command<'a> {
@@ -98,6 +117,15 @@ impl<'a> Token<'a> {
         }
     }
 
+    // Can't really implement the trait here because it doesn't preserve lifetime.
+    pub fn from_str(s : &str) -> Result<Token<'_>, String> {
+        let (rem, tk) = eval_next_token(s).map_err(|e| format!("{}", e) )?;
+        if !rem.is_empty() {
+            println!("Still not evaluated = '{}'", rem);
+        }
+        Ok(tk)
+    }
+
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -116,8 +144,9 @@ pub enum Comparison {
     Sections
 }
 
-/// Owned Tokenized text representation.
-#[derive(Debug, Clone)]
+/// Owned Tokenized text representation. Creates tokens on the fly via
+/// methods token_at and tokens, by storing only the tokens byte ranges.
+#[derive(Debug, Clone, Default)]
 pub struct TokenInfo {
 
     pub txt : String,
@@ -134,6 +163,175 @@ pub enum Difference {
     Edited(usize, String)
 }
 
+#[derive(Debug, Clone)]
+pub struct Block<'a> {
+
+    pub start_cmd : Command<'a>,
+
+    // pub start_range : Range<usize>,
+
+    pub end_cmd : Option<Command<'a>>,
+
+    // pub end_range : Range<usize>,
+
+    pub inner : Vec<Either<Token<'a>, Block<'a>>>
+
+}
+
+pub fn blocked_tokens<'a>(
+    mut curr_blocks : Vec<Block<'a>>,
+    tks : &mut (impl Iterator<Item=Token<'a>> + Clone),
+    out : &mut Vec<Either<Token<'a>, Block<'a>>>
+) -> Result<(), String> {
+    match tks.next() {
+        Some(Token::Command(Command { cmd : "begin", opts, arg, extra_arg }, _)) => {
+            let new_block = Block {
+                start_cmd : Command { cmd : "begin", opts, arg, extra_arg },
+                end_cmd : None,
+                inner : Vec::new()
+            };
+            curr_blocks.push(new_block);
+            blocked_tokens(curr_blocks, tks, out)
+        },
+        Some(Token::Command(Command { cmd : "end", arg, opts, extra_arg }, _)) => {
+            if let Some(mut block) = curr_blocks.pop() {
+                if arg == block.start_cmd.arg {
+                    block.end_cmd = Some(Command { cmd : "end", arg, opts, extra_arg });
+                    if let Some(mut prev_block) = curr_blocks.last_mut() {
+                        prev_block.inner.push(Either::Right(block));
+                    } else {
+                        out.push(Either::Right(block));
+                    }
+                    blocked_tokens(curr_blocks, tks, out)
+                } else {
+                    Err(String::from("Invalid arg for end command"))
+                }
+            } else {
+                Err(String::from("Missing begin command"))
+            }
+        },
+        Some(other_token) => {
+            if curr_blocks.len() >= 1 {
+                if let Some(mut block) = curr_blocks.last_mut() {
+                    block.inner.push(Either::Left(other_token));
+                }
+                blocked_tokens(curr_blocks, tks, out)
+            } else {
+                out.push(Either::Left(other_token));
+                blocked_tokens(curr_blocks, tks, out)
+            }
+        },
+        None => Ok(())
+    }
+
+    /*let mut curr_block : Option<usize> = None;
+    let mut at_block = false;
+    let mut blocked_tks = Vec::new();
+    for tk in tks {
+        match tk {
+            Token::Command(Command { cmd : "begin", opts, arg, extra_arg }, _) => {
+                blocked_tks.push(Either::Right(Block { start_cmd : Command { cmd : "begin", opts, arg, extra_arg }, inner : Vec::new(), end_cmd : None }));
+                curr_block = Some(blocked_tks.len() - 1);
+            },
+            Token::Command(Command { cmd : "end", arg, opts, extra_arg }, _) => {
+                if let Some(last_block) = blocked_tks.get_mut(curr_block.unwrap()) {
+                    match last_block {
+                        Either::Right(ref mut block) => {
+                            if block.start_cmd.arg == arg {
+                                block.end_cmd = Some(Command { cmd : "end", arg, opts, extra_arg});
+                                if let Some(block_ix) = curr_block {
+                                    if block_ix == 0 {
+                                        curr_block = None;
+                                    } else {
+                                        curr_block = Some(block_ix - 1);
+                                    }
+                                } else {
+                                    panic!()
+                                }
+                            } else {
+                                return Err(String::from("Invalid closing"));
+                            }
+                        },
+                        _ => panic!()
+                    }
+                } else {
+                    return Err(String::from("Invalid command end"));
+                }
+            },
+            other => {
+                if let Some(block_ix) = curr_block {
+                    match blocked_tks[block_ix] {
+                        Either::Right(ref mut block) => {
+                            block.inner.push(Either::Left(other));
+                        },
+                        _ => panic!()
+                    }
+                } else {
+                    blocked_tks.push(Either::Left(other));
+                }
+            }
+        }
+    }
+
+    Ok(blocked_tks)*/
+
+    /*let mut blocked_tks = Vec::new();
+
+    // Holds command, its start range and its inner tokens.
+    let mut curr_blocks : Vec<(Command<'a>, Vec<Token<'a>>)> = Vec::new();
+    for tk in tks {
+        match curr_blocks.last_mut() {
+            Some((ref start_cmd, ref mut inner_tokens)) => {
+                match &tk {
+                    Token::Command(cmd, _) => {
+                        if cmd.cmd == "end" {
+                            if cmd.arg == start_cmd.arg {
+                                let inner = blocked_tokens(inner_tokens.drain(..));
+                                blocked_tks.push(Either::Right(Block {
+                                    start_cmd : start_cmd.clone(),
+                                    end_cmd : cmd.clone(), inner,
+                                }));
+                                curr_block = None;
+                            }
+                        } else {
+
+                            inner_tokens.push(tk.clone());
+                        }
+                    },
+                    _ => {
+                        inner_tokens.push(tk.clone());
+                    }
+                }
+            },
+            None => {
+                block_start_or_cmd(&mut curr_block, &mut blocked_tks, &tk)?;
+            }
+        }
+    }
+
+    Ok(blocked_tks)*/
+}
+
+/*fn block_start_or_cmd<'a>(
+    curr_blocks : &mut Vec<(Command<'a>, Vec<Token<'a>>)>,
+    blocked_tks : &mut Vec<Either<Token<'a>, Block<'a>>>,
+    tk : &Token<'a>
+) -> Result<(), String> {
+    match &tk {
+        Token::Command(cmd, _) => {
+            if cmd.cmd == "begin" {
+                curr_blocks.push((cmd.clone(), Vec::new()));
+            } else {
+                blocked_tks.push(Either::Left(tk.clone()));
+            }
+        },
+        _ => {
+            blocked_tks.push(Either::Left(tk));
+        }
+    }
+    Ok(())
+}*/
+
 impl TokenInfo {
 
     pub fn sections(&self) -> Vec<Range<usize>> {
@@ -145,6 +343,14 @@ impl TokenInfo {
             })
             .map(|(ix, _)| self.pos[ix].clone() )
             .collect()
+    }
+
+    pub fn token_at<'a>(&'a self, ix : usize) -> Token<'a> {
+        Token::from_str(&self.txt[self.pos[ix].clone()]).unwrap()
+    }
+
+    pub fn tokens<'a>(&'a self) -> impl Iterator<Item=Token<'a>> + Clone + 'a {
+        (0..self.kinds.len()).map(|ix| self.token_at(ix) )
     }
 
     pub fn references(&self) -> Vec<Range<usize>> {
@@ -220,20 +426,53 @@ fn comment(s : &str) -> IResult<&str, &str> {
     tuple((char('%'), take_till(|c| c == '\n')))(s).map(|(rem, res)| (rem, res.1) )
 }
 
+fn valid_cmd_or_arg<'a>(s : &'a str) -> Result<(), nom::Err<Error<&'a str>>> {
+    if s.contains("{") || s.contains("}") || s.contains("\\") || s.contains("\n") {
+        Err(nom::Err::Failure(Error::new(s, ErrorKind::Fail)))
+    } else {
+        Ok(())
+    }
+}
+
 fn command(s : &str) -> IResult<&str, Command> {
-    // TODO also expand is_not to accept any space-like char to end commands without parameters.
-    let (rem, cmd) = tuple((char('\\'), is_not("{[\n")))(s)?;
+    let (rem, cmd) = tuple((char('\\'), is_not("{[\n \t")))(s)?;
+    if cmd.1.contains("\\") {
+        return Err(nom::Err::Failure(Error::new(cmd.1, ErrorKind::Fail)));
+    }
     let (rem, opts) = opt(cmd_options)(rem)?;
+
+    if let Some(opts) = &opts {
+        for opt in opts {
+            valid_cmd_or_arg(opt)?;
+        }
+    }
+
     let (rem, arg) = opt(cmd_arg)(rem)?;
-    Ok((rem, Command { cmd : cmd.1, arg, opts }))
+    if let Some(arg) = arg {
+        valid_cmd_or_arg(&arg)?;
+    }
+
+    let (rem, extra_arg) = opt(cmd_arg)(rem)?;
+    if let Some(arg) = extra_arg {
+        valid_cmd_or_arg(&arg)?;
+    }
+
+    // This means the command argument and/or options were not parsed
+    // correctly.
+    if rem.starts_with("{") || rem.starts_with("[") {
+        return Err(nom::Err::Failure(Error::new(cmd.1, ErrorKind::Fail)));
+    }
+
+    Ok((rem, Command { cmd : cmd.1, arg, extra_arg, opts }))
 }
 
 fn text(s : &str) -> IResult<&str, &str> {
-    is_not("\\%$@")(s)
-    // take_till(|c| c == '\\' || c == '%' || c == '$' )(s)
-}
 
-// delimited(char('\section{'), is_not("}"), char('}'))(input)
+    // TODO parse up to these characters or end AND cannot start with any of
+    // them either: (e.g. s.chars().next().starts_with(..))
+
+    is_not("\\%$@")(s)
+}
 
 fn eval_next_token(txt : &str) -> IResult<&str, Token> {
     match command(txt) {
@@ -245,7 +484,7 @@ fn eval_next_token(txt : &str) -> IResult<&str, Token> {
                 Err(_) => match bib_entry(txt) {
                     Ok((rem, entry)) => Ok((rem, Token::Reference(entry, txt.len() - rem.len()))),
                     Err(_) => match text(txt) {
-                        Ok((rem, txt)) => Ok((rem, Token::Text(txt, txt.len() - rem.len()))),
+                        Ok((rem, text)) => { Ok((rem, Token::Text(text, txt.len() - rem.len()))) },
                         Err(e) => Err(e)
                     }
                 }
@@ -262,12 +501,6 @@ pub struct TexTokens<'a> {
     tokens : Vec<Token<'a>>,
 
     offset : usize
-
-    // Character offset of each token.
-    // offsets : Vec<usize>,
-
-    // Character len of each token.
-    // lens : Vec<usize>
 
 }
 
@@ -289,8 +522,30 @@ pub enum Entry {
     Misc,
     PhdThesis,
     Proceedings,
-    TechReprot,
+    TechReport,
     Unpublished
+}
+
+impl Entry {
+
+    pub fn pretty(&self) -> &'static str {
+        match self {
+            Self::Book => "Book",
+            Self::Booklet => "Booklet",
+            Self::Article => "Article",
+            Self::Conference => "Conference",
+            Self::Inbook => "In book",
+            Self::Incollection => "In collection",
+            Self::Inproceedings => "In proceedings",
+            Self::Manual => "Manual",
+            Self::MasterThesis => "Master thesis",
+            Self::Misc => "Misc",
+            Self::PhdThesis => "PhD Thesis",
+            Self::Proceedings => "Proceedings",
+            Self::TechReport => "Tech report",
+            Self::Unpublished => "Unpublished"
+        }
+    }
 }
 
 impl FromStr for Entry {
@@ -311,13 +566,41 @@ impl FromStr for Entry {
             "misc" => Ok(Entry::Misc),
             "phdthesis" => Ok(Entry::PhdThesis),
             "proceedings" => Ok(Entry::Proceedings),
-            "techreport" => Ok(Entry::TechReprot),
+            "techreport" => Ok(Entry::TechReport),
             "unpublished" => Ok(Entry::Unpublished),
             _ => Err(())
         }
     }
 
 }
+
+/*
+-- Valid fields
+address
+annote
+author
+booktitle
+chapter
+crossref
+edition
+editor
+howpublished
+institution
+journal
+key
+month
+note
+number
+organization
+pages
+publisher
+school
+series
+title
+type
+volume
+year
+*/
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BibEntry<'a> {
@@ -327,6 +610,38 @@ pub struct BibEntry<'a> {
     key : &'a str,
 
     fields : Vec<(&'a str, &'a str)>
+
+}
+
+impl<'a> BibEntry<'a> {
+
+    pub fn key(&'a self) -> &'a str {
+        self.key
+    }
+
+    pub fn find_field(&'a self, key : &'a str) -> Option<&'a str> {
+        self.fields.iter().find(|(k, _)| &key[..] == &k[..] ).map(|(_, v)| *v )
+    }
+
+    pub fn title(&'a self) -> Option<&'a str> {
+        self.find_field("title")
+    }
+
+    pub fn author(&'a self) -> Option<&'a str> {
+        self.find_field("author")
+    }
+
+    pub fn year(&'a self) -> Option<&'a str> {
+        self.find_field("year")
+    }
+
+    pub fn entry(&self) -> Entry {
+        self.entry
+    }
+
+    pub fn entry_pretty(&self) -> &'a str {
+        self.entry.pretty()
+    }
 
 }
 
@@ -343,7 +658,7 @@ fn bib_field(s : &str) -> IResult<&str, (&str, &str)> {
         opt(space0),
         separated_pair(is_not("="), tuple((space0, char('='), space0)), bib_field_value),
         opt(space0)
-    ))(s).map(|(rem, s)| (rem, s.1) )
+    ))(s).map(|(rem, s)| (rem, (s.1.0.trim(), s.1.1.trim())) )
 }
 
 fn entry(s : &str) -> IResult<&str, Entry> {
@@ -374,7 +689,7 @@ fn bib_entry(s : &str) -> IResult<&str, BibEntry> {
     let (rem, _) = is_not("}")(rem)?;
     Ok((rem, BibEntry {
         entry,
-        key,
+        key : key.trim(),
         fields
     }))
 }
@@ -474,13 +789,22 @@ impl<'a> TexTokens<'a> {
 
     pub fn to_owned(&self) -> TokenInfo {
         let mut tokens = self.clone();
+        let n_tokens = tokens.clone().iter().count();
         let kinds : Vec<TokenKind> = tokens.kinds().collect();
         let pos : Vec<Range<usize>> = tokens.positions().collect();
+
+        assert!(n_tokens == kinds.len());
+        assert!(n_tokens == pos.len());
+
         TokenInfo {
             txt : self.txt.to_string(),
             pos,
             kinds
         }
+    }
+
+    pub fn iter(&'a self) -> impl Iterator<Item=Token<'a>> + Clone {
+        self.tokens.clone().into_iter()
     }
 
 }
@@ -489,64 +813,5 @@ fn token_pos(offset : &mut usize, len : usize) -> Range<usize> {
     let range = *offset..(*offset+len);
     *offset += len;
     range
-}
-
-#[test]
-fn test_parser() {
-
-    let txt = r#"
-
-        \documentclass[12pt,a4paper,oneside,draft]{report}
-
-        \begin{document}
-
-        \section{Hello world}
-
-        % This is a comment
-
-        This is a paragraph
-
-        $$x^2 + 2$$
-
-        This is inline math $a=1$
-
-        This is code
-
-        \begin{lstlisting}
-            let a = 1;
-            let b = 2;
-            a + b
-        \end{lstlisting}
-
-        \bibliography
-
-        @article{ Guestrin2006Jun,
-	        author = {Guestrin, E. D. and Eizenman, M.},
-	        title = {{General theory of remote gaze estimation using the pupil center and corneal reflections}},
-	        journal = {IEEE Trans. Biomed. Eng.},
-	        volume = {53},
-	        number = {6},
-	        pages = {1124--1133},
-	        year = {2006},
-	        month = {Jun},
-	        publisher = {IEEE},
-	        doi = {10.1109/TBME.2005.863952}
-         }
-
-         \end{document}
-    "#;
-
-    let cmd = r#"
-
-    \documentclass[12pt,a4paper,oneside,draft]{report}
-
-    "#;
-
-    let math = r#"$$a$$ else"#;
-
-    println!("{:#?}", Lexer::scan(txt));
-
-    // println!("{:?}", bib_field_value("{Guestrin, E. D. and Eizenman, M.}"));
-    // println!("{:?}", bib_field("author = {Guestrin, E. D. and Eizenman, M.}"));
 }
 

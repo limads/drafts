@@ -52,6 +52,10 @@ fn main() {
 
             let analyzer = Analyzer::new();
             analyzer.react(&papers_win.editor);
+            analyzer.react(&papers_win.doc_tree);
+
+            papers_win.titlebar.react(&analyzer);
+            papers_win.doc_tree.react(&analyzer);
 
             papers_win.window.show();
 
