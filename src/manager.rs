@@ -43,6 +43,7 @@ pub enum FileAction {
 pub struct FileManager {
     send : glib::Sender<FileAction>,
     on_open : Callbacks<(String, String)>,
+    on_open_request : Callbacks<()>,
     on_new : Callbacks<()>,
     on_buffer_read_request : ValuedCallbacks<(), String>,
     on_file_changed : Callbacks<Option<String>>,
@@ -59,6 +60,7 @@ impl FileManager {
         let (send, recv) = glib::MainContext::channel::<FileAction>(glib::PRIORITY_DEFAULT);
         let on_open : Callbacks<(String, String)> = Default::default();
         let on_new : Callbacks<()> = Default::default();
+        let on_open_request : Callbacks<()> = Default::default();
         let on_buffer_read_request : ValuedCallbacks<(), String> = Default::default();
         let on_save_unknown_path : Callbacks<String> = Default::default();
         let on_save : Callbacks<String> = Default::default();
@@ -74,11 +76,13 @@ impl FileManager {
             let on_close_confirm = on_close_confirm.clone();
             let on_window_close = on_window_close.clone();
             let on_file_changed = on_file_changed.clone();
+            let on_open_request = on_open_request.clone();
             let on_save = on_save.clone();
             let mut after_close = ActionAfterClose::New;
 
             // Holds optional path and whether the file is saved.
             let mut curr_path : (Option<String>, bool) = (None, true);
+            let mut just_opened = false;
 
             move |action| {
                 match action {
@@ -106,9 +110,16 @@ impl FileManager {
                         }
                     },
                     FileAction::FileChanged => {
-                        curr_path.1 = false;
-                        on_file_changed.borrow().iter().for_each(|f| f(curr_path.0.clone()) );
-                        println!("File changed");
+
+                        // Use this decision branch to inhibit buffer changes
+                        // when a new file is opened.
+                        if !just_opened {
+                            curr_path.1 = false;
+                            on_file_changed.borrow().iter().for_each(|f| f(curr_path.0.clone()) );
+                            println!("File changed");
+                        } else {
+                            just_opened = false;
+                        }
                     },
                     FileAction::SaveSuccess(path) => {
                         curr_path.0 = Some(path.clone());
@@ -141,6 +152,8 @@ impl FileManager {
                     },
                     FileAction::OpenSuccess(path, content) => {
                         on_open.borrow().iter().for_each(|f| f((path.clone(), content.clone())) );
+                        curr_path = (Some(path.clone()), true);
+                        just_opened = true;
                     },
                     FileAction::OpenError(e) => {
                         println!("{}", e);
@@ -152,7 +165,7 @@ impl FileManager {
                                 on_new.borrow().iter().for_each(|f| f(()) );
                             },
                             ActionAfterClose::Open => {
-                                // on_open.borrow().iter().for_each(|f| f(()) );
+                                on_open_request.borrow().iter().for_each(|f| f(()) );
                             },
                             ActionAfterClose::CloseWindow => {
                                 on_window_close.borrow().iter().for_each(|f| f(()) );
@@ -175,7 +188,7 @@ impl FileManager {
                 Continue(true)
             }
         });
-        Self { on_open, send, on_save_unknown_path, on_buffer_read_request, on_close_confirm, on_window_close, on_new, on_save, on_file_changed }
+        Self { on_open, send, on_save_unknown_path, on_buffer_read_request, on_close_confirm, on_window_close, on_new, on_save, on_file_changed, on_open_request }
     }
 
     pub fn connect_opened<F>(&self, f : F)
@@ -190,6 +203,13 @@ impl FileManager {
         F : Fn(()) + 'static
     {
         self.on_new.borrow_mut().push(boxed::Box::new(f));
+    }
+
+    pub fn connect_open_request<F>(&self, f : F)
+    where
+        F : Fn(()) + 'static
+    {
+        self.on_open_request.borrow_mut().push(boxed::Box::new(f));
     }
 
     pub fn connect_buffer_read_request<F>(&self, f : F)

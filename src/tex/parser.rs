@@ -306,6 +306,72 @@ fn iter_next_item(objs : &mut Vec<Object>, tree : &[Item]) {
 
 impl Document {
 
+    pub fn root_items(&self) -> Vec<(usize, Either<Section, Object>)> {
+        let mut items = Vec::new();
+        for (ix, item) in self.items.iter().enumerate() {
+            match item {
+                Item::Section(s) => {
+                    items.push((ix, Either::Left(s.clone())));
+                },
+                Item::Object(obj) => {
+                    items.push((ix, Either::Right(obj.clone())));
+                },
+                _ => { }
+            }
+        }
+        items
+    }
+
+    pub fn level_one_items(&self) -> Vec<([usize;2], Either<Subsection, Object>)> {
+        let mut items = Vec::new();
+        for (root_ix, root_item) in self.items.iter().enumerate() {
+            match root_item {
+                Item::Section(sec) => {
+                    for (sec_ix, sec_item) in sec.items.iter().enumerate() {
+                        match sec_item {
+                            Item::Subsection(sub) => {
+                                items.push(([root_ix, sec_ix], Either::Left(sub.clone())));
+                            },
+                            Item::Object(obj) => {
+                                items.push(([root_ix, sec_ix], Either::Right(obj.clone())));
+                            },
+                            _ => { }
+                        }
+                    }
+                },
+                _ => { }
+            }
+        }
+        items
+    }
+
+    pub fn level_two_items(&self) -> Vec<([usize;3], Object)> {
+        let mut items = Vec::new();
+        for (root_ix, root_item) in self.items.iter().enumerate() {
+            match root_item {
+                Item::Section(sec) => {
+                    for (sec_ix, sec_item) in sec.items.iter().enumerate() {
+                        match sec_item {
+                            Item::Subsection(sub) => {
+                                for (sub_ix, sub_item) in sub.items.iter().enumerate() {
+                                    match sub_item {
+                                        Item::Object(obj) => {
+                                            items.push(([root_ix, sec_ix, sub_ix], obj.clone()));
+                                        },
+                                        _ => { }
+                                    }
+                                }
+                            },
+                            _ => { }
+                        }
+                    }
+                },
+                _ => { }
+            }
+        }
+        items
+    }
+
     pub fn objects(&self) -> Vec<Object> {
         let mut objs = Vec::new();
         iter_next_item(&mut objs, &self.items[..]);

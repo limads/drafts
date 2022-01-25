@@ -4,17 +4,25 @@ use super::*;
 use crate::analyzer::Analyzer;
 use crate::tex::{Difference, Token, Command, Object, ObjectIndex};
 use gio::prelude::*;
+use crate::tex::Subsection;
+use crate::tex::Section;
+use either::Either;
+
+#[derive(Debug, Clone)]
+pub struct DocIcons {
+    section_icon : Pixbuf,
+    tbl_icon : Pixbuf,
+    img_icon : Pixbuf,
+    code_icon : Pixbuf,
+    eq_icon : Pixbuf
+}
 
 #[derive(Debug, Clone)]
 pub struct DocTree {
     pub tree_view : TreeView,
     store : TreeStore,
     pub bx : Box,
-    section_icon : Pixbuf,
-    tbl_icon : Pixbuf,
-    img_icon : Pixbuf,
-    code_icon : Pixbuf,
-    eq_icon : Pixbuf
+    doc_icons : DocIcons
 }
 
 impl DocTree {
@@ -38,12 +46,14 @@ impl DocTree {
         bx.append(&title.bx);
         bx.append(&scroll);
 
-        let section_icon = Pixbuf::from_file_at_scale("assets/icons/break-point-symbolic.svg", 16, 16, true).unwrap();
-        let tbl_icon = Pixbuf::from_file_at_scale("assets/icons/queries-symbolic.svg", 16, 16, true).unwrap();
-        let img_icon = Pixbuf::from_file_at_scale("assets/icons/image-x-generic-symbolic.svg", 16, 16, true).unwrap();
-        let code_icon = Pixbuf::from_file_at_scale("assets/icons/gnome-terminal-symbolic.svg", 16, 16, true).unwrap();
-        let eq_icon = Pixbuf::from_file_at_scale("assets/icons/equation-symbolic.svg", 16, 16, true).unwrap();
-        Self { tree_view, bx, section_icon, tbl_icon, store, img_icon, code_icon, eq_icon }
+        let doc_icons = DocIcons {
+            section_icon : Pixbuf::from_file_at_scale("assets/icons/break-point-symbolic.svg", 16, 16, true).unwrap(),
+            tbl_icon : Pixbuf::from_file_at_scale("assets/icons/queries-symbolic.svg", 16, 16, true).unwrap(),
+            img_icon : Pixbuf::from_file_at_scale("assets/icons/image-x-generic-symbolic.svg", 16, 16, true).unwrap(),
+            code_icon : Pixbuf::from_file_at_scale("assets/icons/gnome-terminal-symbolic.svg", 16, 16, true).unwrap(),
+            eq_icon : Pixbuf::from_file_at_scale("assets/icons/equation-symbolic.svg", 16, 16, true).unwrap()
+        };
+        Self { tree_view, bx, store, doc_icons }
     }
 }
 
@@ -79,20 +89,84 @@ fn configure_tree_view(tree_view : &TreeView) -> TreeStore {
     model
 }
 
+fn insert_section(iter : TreeIter, store : &TreeStore, sec : Section, icons : &DocIcons) {
+    store.set(&iter, &[(0, &icons.section_icon), (1, &sec.name)]);
+}
+
+fn insert_subsection(iter : TreeIter, store : &TreeStore, sub : Subsection, icons : &DocIcons) {
+    store.set(&iter, &[(0, &icons.section_icon), (1, &sub.name)]);
+}
+
+fn insert_object(iter : TreeIter, store : &TreeStore, tree_view : &TreeView, obj : Object, doc_ix : ObjectIndex, icons : &DocIcons) {
+    let (icon, name) = match obj {
+        Object::Table(order, _, _) => (&icons.tbl_icon, format!("Table {}", order + 1)),
+        Object::Image(order, _, _) => (&icons.img_icon, format!("Image {}", order + 1)),
+        Object::Equation(order, _, _) => (&icons.eq_icon, format!("Equation {}", order + 1)),
+        Object::Code(order, _, _) => (&icons.code_icon, format!("Listing {}", order + 1)),
+    };
+    /*let (parent_iter, pos) = match doc_ix {
+        ObjectIndex::Root(ix) => {
+            (None, ix as i32)
+        },
+        ObjectIndex::Section(sec, obj) => {
+            (Some(tree_view.model().unwrap().iter_nth_child(None, sec as i32).unwrap()), obj as i32)
+        },
+        ObjectIndex::Subsection(sec, sub, obj) => {
+            let model = tree_view.model().unwrap();
+            let sec_iter = model.iter_nth_child(None, sec as i32).unwrap();
+            let subsec_iter = model.iter_nth_child(Some(&sec_iter), sub as i32).unwrap();
+            (Some(subsec_iter), obj as i32)
+        }
+    };*/
+    // let iter = store.insert(parent_iter.as_ref(), pos);
+    store.set(&iter, &[(0, &icon), (1, &name)]);
+}
+
 impl React<Analyzer> for DocTree {
 
     fn react(&self, analyzer : &Analyzer) {
         analyzer.connect_doc_changed({
             let store = self.store.clone();
-            let section_icon = self.section_icon.clone();
-            let tbl_icon = self.tbl_icon.clone();
-            let eq_icon = self.eq_icon.clone();
-            let img_icon = self.img_icon.clone();
-            let code_icon = self.code_icon.clone();
+            let doc_icons = self.doc_icons.clone();
             let tree_view = self.tree_view.clone();
             move |new_doc| {
                 store.clear();
-                for section in new_doc.sections() {
+
+                for (ix, item) in new_doc.root_items() {
+                    match item {
+                        Either::Left(sec) => {
+                            let iter = store.append(None);
+                            insert_section(iter, &store, sec, &doc_icons);
+                        },
+                        Either::Right(obj) => {
+                            let iter = store.append(None);
+                            insert_object(iter, &store, &tree_view, obj, ObjectIndex::Root(ix), &doc_icons);
+                        }
+                    }
+                }
+
+                for ([root_ix, sec_ix], item) in new_doc.level_one_items() {
+                    let section_iter = tree_view.model().unwrap().iter_nth_child(None, root_ix as i32).unwrap();
+                    let iter = store.append(Some(&section_iter));
+                    match item {
+                        Either::Left(sub) => {
+                            insert_subsection(iter, &store, sub, &doc_icons);
+                        },
+                        Either::Right(obj) => {
+                            insert_object(iter, &store, &tree_view, obj, ObjectIndex::Section(root_ix, sec_ix), &doc_icons);
+                        }
+                    }
+                }
+
+                for ([root_ix, sec_ix, sub_ix], obj) in new_doc.level_two_items() {
+                    let model = tree_view.model().unwrap();
+                    let sec_iter = model.iter_nth_child(None, root_ix as i32).unwrap();
+                    let subsec_iter = model.iter_nth_child(Some(&sec_iter), sec_ix as i32).unwrap();
+                    let iter = store.append(Some(&subsec_iter));
+                    insert_object(iter, &store, &tree_view, obj, ObjectIndex::Subsection(root_ix, sec_ix, sub_ix), &doc_icons);
+                }
+
+                /*for section in new_doc.sections() {
                     let iter = store.append(None);
                     store.set(&iter, &[(0, &section_icon), (1, &section.name)]);
                 }
@@ -104,31 +178,9 @@ impl React<Analyzer> for DocTree {
                 }
 
                 for object in new_doc.objects() {
-                    let (icon, doc_ix, name) = match object {
-                        Object::Table(order, ix, _) => (&tbl_icon, ix, format!("Table {}", order + 1)),
-                        Object::Image(order, ix, _) => (&img_icon, ix, format!("Image {}", order + 1)),
-                        Object::Equation(order, ix, _) => (&eq_icon, ix, format!("Equation {}", order + 1)),
-                        Object::Code(order, ix, _) => (&code_icon, ix, format!("Listing {}", order + 1)),
-                        // Object::Paragraph(order, ix) => { continue; },
-                    };
-                    let (iter, pos) = match doc_ix {
-                        ObjectIndex::Root(ix) => {
-                            (None, ix as i32)
-                        },
-                        ObjectIndex::Section(sec, obj) => {
-                            (Some(tree_view.model().unwrap().iter_nth_child(None, sec as i32).unwrap()), obj as i32)
-                        },
-                        ObjectIndex::Subsection(sec, sub, obj) => {
-                            let model = tree_view.model().unwrap();
-                            let sec_iter = model.iter_nth_child(None, sec as i32).unwrap();
-                            let subsec_iter = model.iter_nth_child(Some(&sec_iter), sub as i32).unwrap();
-                            (Some(subsec_iter), obj as i32)
-                        }
-                    };
-
                     let iter = store.insert(iter.as_ref(), pos);
-                    store.set(&iter, &[(0, icon), (1, &name)]);
-                }
+                    insert_object(iter, &store, obj, &doc_icons)
+                }*/
 
                 tree_view.expand_all();
             }
@@ -137,7 +189,7 @@ impl React<Analyzer> for DocTree {
         analyzer.connect_section_changed({
             let store = self.store.clone();
             let model = self.tree_view.model().unwrap();
-            let section_icon = self.section_icon.clone();
+            let section_icon = self.doc_icons.section_icon.clone();
             move |diff| {
                 match diff {
                     Difference::Added(pos, txt) => {

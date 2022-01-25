@@ -223,6 +223,7 @@ const GREEK_CAPITAL : [(&'static str, &'static str); 24] = [
     ("Ω", "\\Omega")
 ];
 
+// https://en.wikipedia.org/wiki/Mathematical_operators_and_symbols_in_Unicode
 const OPERATORS : [(&'static str, &'static str); 48] = [
     ("=", "\\eq"),
     ("⋜", "\\leq"),
@@ -407,9 +408,13 @@ impl React<FileManager> for PapersWindow {
         manager.connect_opened({
             let action_save = self.titlebar.main_menu.action_save.clone();
             let action_save_as = self.titlebar.main_menu.action_save_as.clone();
-            move |_| {
+            let stack = self.stack.clone();
+            let window = self.window.clone();
+            move |(path, _)| {
                 action_save.set_enabled(true);
                 action_save_as.set_enabled(true);
+                window.set_title(Some(&path));
+                stack.set_visible_child_name("editor");
             }
         });
         manager.connect_new({
@@ -417,11 +422,21 @@ impl React<FileManager> for PapersWindow {
             let window = self.window.clone();
             let action_save = self.titlebar.main_menu.action_save.clone();
             let action_save_as = self.titlebar.main_menu.action_save_as.clone();
+            let view = self.editor.view.clone();
             move |_| {
                 stack.set_visible_child_name("start");
                 window.set_title(Some("Papers"));
+                view.buffer().set_text("");
                 action_save.set_enabled(false);
                 action_save_as.set_enabled(false);
+            }
+        });
+        manager.connect_open_request({
+            let open_action = self.titlebar.main_menu.action_open.clone();
+            let view = self.editor.view.clone();
+            move |_| {
+                open_action.activate(None);
+                view.buffer().set_text("");
             }
         });
         manager.connect_save({
@@ -437,7 +452,7 @@ impl React<FileManager> for PapersWindow {
                 if let Some(path) = opt_path {
                     window.set_title(Some(&format!("{}*", path)));
                 } else {
-
+                    window.set_title(Some("Untitled.tex*"));
                 }
             }
         });
