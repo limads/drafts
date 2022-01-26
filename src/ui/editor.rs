@@ -1,4 +1,5 @@
 use super::*;
+use crate::analyzer::Analyzer;
 
 #[derive(Debug, Clone)]
 pub struct PapersEditor {
@@ -8,6 +9,11 @@ pub struct PapersEditor {
     pub paned : Paned,
     pub ignore_file_save_action : gio::SimpleAction
 }
+
+// set_right_margin
+// set_top_margin
+// set_left_margin
+// set_bottom_margin
 
 impl PapersEditor {
 
@@ -94,6 +100,21 @@ impl React<Typesetter> for PapersEditor {
 
 }
 
+fn wrap_or_insert_at_cursor(btn : &Button, view : View, popover : Popover, tag : &'static str) {
+    btn.connect_clicked(move |_| {
+        let buffer = view.buffer();
+        if let Some((mut start, mut end)) = buffer.selection_bounds() {
+            let prev = buffer.text(&start, &end, true).to_string();
+            buffer.delete(&mut start, &mut end);
+            buffer.insert(&mut start, &format!("\\{}{{{}}}", tag, prev));
+        } else {
+            buffer.insert_at_cursor(&format!("\\{}{{}}", tag));
+        }
+        popover.popdown();
+        view.grab_focus();
+    });
+}
+
 impl React<Titlebar> for PapersEditor {
 
     fn react(&self, titlebar : &Titlebar) {
@@ -112,9 +133,36 @@ impl React<Titlebar> for PapersEditor {
                 paned.set_position(0);
             }
         });
+
+        let view = &self.view;
+        let popover = &titlebar.fmt_popover.popover;
+        wrap_or_insert_at_cursor(&titlebar.fmt_popover.bold_btn, view.clone(), popover.clone(), "textbf");
+        wrap_or_insert_at_cursor(&titlebar.fmt_popover.underline_btn, view.clone(), popover.clone(), "underline");
+        wrap_or_insert_at_cursor(&titlebar.fmt_popover.italic_btn, view.clone(), popover.clone(), "textit");
+        wrap_or_insert_at_cursor(&titlebar.fmt_popover.strike_btn, view.clone(), popover.clone(), "sout");
     }
 }
 
+impl React<Analyzer> for PapersEditor {
+
+    fn react(&self, analyzer : &Analyzer) {
+        let view = self.view.clone();
+        analyzer.connect_line_selection(move |line| {
+            let buffer = view.buffer();
+            if let Some(mut iter) = buffer.iter_at_line(line as i32) {
+                buffer.place_cursor(&iter);
+                view.scroll_to_iter(&mut iter, 0.0, true, 0.0, 0.5);
+                view.grab_focus();
+                println!("Cursor placed");
+            } else {
+                println!("No iter at line {}", line);
+            }
+
+            // view.buffer().place_cursor(&iter);
+            // view.buffer().move_mark(&mark, &iter);
+        });
+    }
+}
 
 fn configure_view(view : &View) {
     let buffer = view.buffer()

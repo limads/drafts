@@ -178,6 +178,22 @@ pub struct Block<'a> {
 
 }
 
+impl<'a> Block<'a> {
+
+    /// Token count forming this block, including the start and end commands.
+    pub fn token_count(&'a self) -> usize {
+        let mut count = 2;
+        for tk in self.inner.iter() {
+            match tk {
+                Either::Left(_) => count += 1,
+                Either::Right(block) => count += block.token_count()
+            }
+        }
+        count
+    }
+
+}
+
 pub fn blocked_tokens<'a>(
     mut curr_blocks : Vec<Block<'a>>,
     tks : &mut (impl Iterator<Item=Token<'a>> + Clone),

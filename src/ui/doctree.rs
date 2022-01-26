@@ -132,7 +132,7 @@ impl React<Analyzer> for DocTree {
             move |new_doc| {
                 store.clear();
 
-                for (ix, item) in new_doc.root_items() {
+                for (ix, tk_ix, item) in new_doc.root_items() {
                     match item {
                         Either::Left(sec) => {
                             let iter = store.append(None);
@@ -145,7 +145,7 @@ impl React<Analyzer> for DocTree {
                     }
                 }
 
-                for ([root_ix, sec_ix], item) in new_doc.level_one_items() {
+                for ([root_ix, sec_ix], tk_ix, item) in new_doc.level_one_items() {
                     let section_iter = tree_view.model().unwrap().iter_nth_child(None, root_ix as i32).unwrap();
                     let iter = store.append(Some(&section_iter));
                     match item {
@@ -158,7 +158,7 @@ impl React<Analyzer> for DocTree {
                     }
                 }
 
-                for ([root_ix, sec_ix, sub_ix], obj) in new_doc.level_two_items() {
+                for ([root_ix, sec_ix, sub_ix], tk_ix, obj) in new_doc.level_two_items() {
                     let model = tree_view.model().unwrap();
                     let sec_iter = model.iter_nth_child(None, root_ix as i32).unwrap();
                     let subsec_iter = model.iter_nth_child(Some(&sec_iter), sec_ix as i32).unwrap();

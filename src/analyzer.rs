@@ -25,7 +25,9 @@ pub struct Analyzer {
 
     on_section_changed : Callbacks<Difference>,
 
-    on_doc_changed : Callbacks<Document>
+    on_doc_changed : Callbacks<Document>,
+
+    on_line_selection : Callbacks<usize>
 
 }
 
@@ -36,6 +38,7 @@ impl Analyzer {
         let on_reference_changed : Callbacks<Difference> = Default::default();
         let on_section_changed : Callbacks<Difference> = Default::default();
         let on_doc_changed : Callbacks<Document> = Default::default();
+        let on_line_selection : Callbacks<usize> = Default::default();
 
         // TODO keep an thread watching an external bib file (if any). The user can simply use
         // the embedded bibliography instead.
@@ -46,6 +49,7 @@ impl Analyzer {
             let on_reference_changed = on_reference_changed.clone();
             let on_section_changed = on_section_changed.clone();
             let on_doc_changed = on_doc_changed.clone();
+            let on_line_selection = on_line_selection.clone();
             move |action| {
                 match action {
                     AnalyzerAction::TextChanged(new_txt) => {
@@ -82,13 +86,23 @@ impl Analyzer {
                         }
                     },
                     AnalyzerAction::ItemSelected(sel_ixs) => {
+                        if let Some(tk_ix) = doc.token_index_at(&sel_ixs[..]) {
+                            // Count \n at all tokens before tk_ix
+                            // let lines_before = tk_info.pos[0..tk_ix].iter().map(|pos| tk_info.txt[pos.clone()].chars().filter(|c| *c == '\n').count() ).sum::<usize>();
+                            let lines_before = tk_info.txt[..tk_info.pos[tk_ix].start].chars().filter(|c| *c == '\n').count();
 
+                            // Add one because we want one past the last line, add +1 because lines count from 1, not zero.
+                            on_line_selection.borrow().iter().for_each(|f| f(lines_before) );
+                            println!("Token {} at line {}", tk_ix, lines_before);
+                        } else {
+                            println!("No token at document index {:?}", sel_ixs);
+                        }
                     }
                 }
                 Continue(true)
             }
         });
-        Self { send, on_reference_changed, on_section_changed, on_doc_changed }
+        Self { send, on_reference_changed, on_section_changed, on_doc_changed, on_line_selection }
     }
 
     pub fn connect_section_changed<F>(&self, f : F)
@@ -112,16 +126,32 @@ impl Analyzer {
         self.on_doc_changed.borrow_mut().push(boxed::Box::new(f));
     }
 
+    pub fn connect_line_selection<F>(&self, f : F)
+    where
+        F : Fn(usize) + 'static
+    {
+        self.on_line_selection.borrow_mut().push(boxed::Box::new(f));
+    }
+
 }
+
+/*
+hunspell-rs = 0.3.0
+let h = Hunspell::new(affpath, dictpath);  path to the .aff file; path to the .dic file
+h.check(word)
+h.suggest(word)
+*/
 
 impl React<DocTree> for Analyzer  {
 
     fn react(&self, tree : &DocTree) {
         let send = self.send.clone();
         tree.tree_view.selection().connect_changed(move |sel| {
-            let (paths, _) = sel.selected_rows();
-            if let Some(path) = paths.get(0) {
-                send.send(AnalyzerAction::ItemSelected(path.indices().iter().map(|ix| *ix as usize ).collect()));
+            if sel.count_selected_rows() > 0 {
+                let (paths, _) = sel.selected_rows();
+                if let Some(path) = paths.get(0) {
+                    send.send(AnalyzerAction::ItemSelected(path.indices().iter().map(|ix| *ix as usize ).collect()));
+                }
             }
         });
     }

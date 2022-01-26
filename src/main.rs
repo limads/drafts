@@ -56,6 +56,7 @@ fn main() {
 
             papers_win.titlebar.react(&analyzer);
             papers_win.doc_tree.react(&analyzer);
+            papers_win.editor.react(&analyzer);
 
             papers_win.window.show();
 

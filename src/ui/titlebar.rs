@@ -41,7 +41,8 @@ pub struct Titlebar {
     pub bib_list : ListBox,
     pub struct_actions : StructActions,
     pub object_actions : ObjectActions,
-    pub math_actions : MathActions
+    pub math_actions : MathActions,
+    pub fmt_popover : FormatPopover
 }
 
 #[derive(Debug, Clone)]
@@ -110,23 +111,20 @@ impl MathActions {
 
 }
 
-impl Titlebar {
+#[derive(Debug, Clone)]
+pub struct FormatPopover {
+    pub bold_btn : Button,
+    pub italic_btn : Button,
+    pub underline_btn : Button,
+    pub strike_btn : Button,
+    pub popover : Popover
+}
+
+impl FormatPopover {
 
     pub fn build() -> Self {
-        let header = HeaderBar::new();
-        let menu_button = MenuButton::builder().icon_name("open-menu-symbolic").build();
-
-        let pdf_btn = Button::builder().icon_name("evince-symbolic").build();
-        let sidebar_toggle = ToggleButton::builder().icon_name("view-sidebar-symbolic").build();
-        let fmt_popover = Popover::new();
         let bx = Box::new(Orientation::Vertical, 0);
-
-        /*
-        text-justify-center-symbolic
-        text-justify-fill-symbolic
-        text-justify-left-symbolic
-        text-justify-right-symbolic
-        */
+        let popover = Popover::new();
         let char_bx = Box::new(Orientation::Horizontal, 0);
         let bold_btn = Button::builder().icon_name("format-text-bold-symbolic").build();
         let italic_btn = Button::builder().icon_name("format-text-italic-symbolic").build();
@@ -138,11 +136,47 @@ impl Titlebar {
         }
         bx.append(&Label::new(Some("Character")));
         bx.append(&char_bx);
-        fmt_popover.set_child(Some(&bx));
+        popover.set_child(Some(&bx));
+        Self { bold_btn, italic_btn, underline_btn, strike_btn, popover }
+    }
 
+}
+
+impl Titlebar {
+
+    pub fn build() -> Self {
+        let header = HeaderBar::new();
+        let menu_button = MenuButton::builder().icon_name("open-menu-symbolic").build();
+
+        let pdf_btn = Button::builder().icon_name("evince-symbolic").build();
+        let sidebar_toggle = ToggleButton::builder().icon_name("view-sidebar-symbolic").build();
+
+        /*
+        text-justify-center-symbolic
+        text-justify-fill-symbolic
+        text-justify-left-symbolic
+        text-justify-right-symbolic
+        */
+
+        // \begin{center}
+        // \end{center}
+
+        // \begin{flushleft}
+        // \begin{flushright}
+        // \noindent - inline command that applies to current paragarph
+        // \setlength{\parindent}{20pt} - At document config.
+
+        /*
+        \usepackage{multicol}
+        \begin{multicols}{2}
+
+        \end{multicols}
+        */
+
+        let fmt_popover = FormatPopover::build();
         let fmt_btn = MenuButton::new();
-        fmt_btn.set_popover(Some(&fmt_popover));
         fmt_btn.set_icon_name("font-size-symbolic");
+        fmt_btn.set_popover(Some(&fmt_popover.popover));
 
         let bib_popover = Popover::new();
         let search_entry = Entry::builder().primary_icon_name("search-symbolic").build();
@@ -174,6 +208,10 @@ impl Titlebar {
         struct_submenu.append_item(&gio::MenuItem::new(Some("Section"), Some("win.section")));
         struct_submenu.append_item(&gio::MenuItem::new(Some("Subsection"), Some("win.subsection")));
         struct_submenu.append_item(&gio::MenuItem::new(Some("List"), Some("win.list")));
+        // \author{}
+        // \date{}
+        // \title{}
+        // \abstract{}
         menu.append_item(&gio::MenuItem::new_submenu(Some("Structure"), &struct_submenu));
 
         let object_submenu = gio::Menu::new();
@@ -216,7 +254,7 @@ impl Titlebar {
         let sidebar_hide_action = gio::SimpleAction::new_stateful("sidebar_hide", None, &(0).to_variant());
         let main_menu = MainMenu::build();
         menu_button.set_popover(Some(&main_menu.popover));
-        Self { main_menu, header, menu_button, pdf_btn, sidebar_toggle, sidebar_hide_action, bib_list, math_actions : MathActions::build(), struct_actions : StructActions::build(), object_actions : ObjectActions::build() }
+        Self { main_menu, header, menu_button, pdf_btn, sidebar_toggle, sidebar_hide_action, bib_list, math_actions : MathActions::build(), struct_actions : StructActions::build(), object_actions : ObjectActions::build(), fmt_popover }
     }
 }
 

@@ -41,6 +41,9 @@ pub struct PapersWindow {
 const ARTICLE_TEMPLATE : &'static str = r#"
 \documentclass[a4,11pt]{article}
 
+\usepackage[utf8]{inputenc}
+\usepackage[utf8]{ulem}
+
 \begin{document}
 
 \end{document}"#;
@@ -48,12 +51,16 @@ const ARTICLE_TEMPLATE : &'static str = r#"
 const REPORT_TEMPLATE : &'static str = r#"
 \documentclass[a4,11pt]{article}
 
+\usepackage[utf8]{inputenc}
+
 \begin{document}
 
 \end{document}"#;
 
 const PRESENTATION_TEMPLATE : &'static str = r#"
 \documentclass[a4,11pt]{article}
+
+\usepackage[utf8]{inputenc}
 
 \begin{document}
 
@@ -156,6 +163,8 @@ impl StartScreen {
         let article_btn = Button::builder().label("Article").build();
         let report_btn = Button::builder().label("Report").build();
         let presentation_btn = Button::builder().label("Presentation").build();
+        // letter
+        // book
         for btn in [&empty_btn, &article_btn, &report_btn, &presentation_btn] {
             btn.style_context().add_class("flat");
             btn.set_vexpand(true);
