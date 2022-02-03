@@ -32,8 +32,6 @@ pub struct PapersWindow {
     pub titlebar : Titlebar,
     pub editor : PapersEditor,
     pub doc_tree : DocTree,
-    pub open_dialog : OpenDialog,
-    pub save_dialog : SaveDialog,
     pub stack : Stack,
     pub start_screen : StartScreen
 }
@@ -332,15 +330,14 @@ impl PapersWindow {
         let doc_tree = DocTree::build();
         let editor = PapersEditor::build();
         let start_screen = StartScreen::build();
-        let open_dialog = OpenDialog::build();
-        let save_dialog = SaveDialog::build();
 
-        save_dialog.dialog.set_transient_for(Some(&window));
-        open_dialog.dialog.set_transient_for(Some(&window));
+        titlebar.main_menu.save_dialog.dialog.set_transient_for(Some(&window));
+        titlebar.main_menu.open_dialog.dialog.set_transient_for(Some(&window));
 
-        open_dialog.react(&titlebar.main_menu);
-        save_dialog.react(&titlebar.main_menu);
+        // titlebar.main_menu.open_dialog.react(&titlebar.main_menu);
+        titlebar.main_menu.save_dialog.react(&titlebar.main_menu);
         editor.react(&titlebar);
+        editor.react(&titlebar.bib_popover);
 
         // source.set_halign(Align::Center);
         // source.set_margin_start(256);
@@ -402,7 +399,7 @@ impl PapersWindow {
             window.add_action(&action);
         }
 
-        Self { window, titlebar, editor, open_dialog, save_dialog, doc_tree, stack, start_screen }
+        Self { window, titlebar, editor, doc_tree, stack, start_screen }
     }
 
 }
@@ -435,7 +432,7 @@ impl React<FileManager> for PapersWindow {
             move |_| {
                 stack.set_visible_child_name("start");
                 window.set_title(Some("Papers"));
-                view.buffer().set_text("");
+                // view.buffer().set_text("");
                 action_save.set_enabled(false);
                 action_save_as.set_enabled(false);
             }
@@ -445,7 +442,6 @@ impl React<FileManager> for PapersWindow {
             let view = self.editor.view.clone();
             move |_| {
                 open_action.activate(None);
-                view.buffer().set_text("");
             }
         });
         manager.connect_save({
@@ -562,11 +558,11 @@ impl OpenDialog {
 
 }
 
-impl React<MainMenu> for OpenDialog {
+impl React<FileManager> for OpenDialog {
 
-    fn react(&self, menu : &MainMenu) {
+    fn react(&self, manager : &FileManager) {
         let dialog = self.dialog.clone();
-        menu.action_open.connect_activate(move |_,_| {
+        manager.connect_show_open(move |_| {
             dialog.show();
         });
     }

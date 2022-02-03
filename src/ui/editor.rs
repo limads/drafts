@@ -51,6 +51,7 @@ impl React<FileManager> for PapersEditor {
         manager.connect_opened({
             let view = self.view.clone();
             move |(path, content)| {
+                println!("Text set to new file");
                 view.buffer().set_text(&content);
             }
         });
@@ -100,16 +101,26 @@ impl React<Typesetter> for PapersEditor {
 
 }
 
+fn edit_or_insert_at_cursor(view : &View, txt : &str) {
+    let buffer = view.buffer();
+    if let Some((mut start, mut end)) = buffer.selection_bounds() {
+        buffer.delete(&mut start, &mut end);
+        buffer.insert(&mut start, txt);
+    } else {
+        buffer.insert_at_cursor(&txt);
+    }
+}
+
 fn wrap_or_insert_at_cursor(btn : &Button, view : View, popover : Popover, tag : &'static str) {
     btn.connect_clicked(move |_| {
         let buffer = view.buffer();
-        if let Some((mut start, mut end)) = buffer.selection_bounds() {
+        let txt = if let Some((start, end)) = buffer.selection_bounds() {
             let prev = buffer.text(&start, &end, true).to_string();
-            buffer.delete(&mut start, &mut end);
-            buffer.insert(&mut start, &format!("\\{}{{{}}}", tag, prev));
+            format!("\\{}{{{}}}", tag, prev)
         } else {
-            buffer.insert_at_cursor(&format!("\\{}{{}}", tag));
-        }
+            format!("\\{}{{}}", tag)
+        };
+        edit_or_insert_at_cursor(&view, &txt[..]);
         popover.popdown();
         view.grab_focus();
     });
@@ -162,6 +173,139 @@ impl React<Analyzer> for PapersEditor {
             // view.buffer().move_mark(&mark, &iter);
         });
     }
+}
+
+fn move_backwards_to_command_start(buffer : &TextBuffer) -> Option<(TextIter, TextIter, String)> {
+    let pos = buffer.cursor_position();
+    let pos_iter = buffer.iter_at_offset(pos);
+    let mut start = buffer.iter_at_offset(pos);
+    let mut ix = 0;
+    let mut s = String::new();
+    loop {
+        ix += 1;
+        start = buffer.iter_at_offset(pos-ix);
+        println!("Backward = {}", s);
+        s = buffer.text(&start, &pos_iter, true).to_string();
+        if ix == 1 && (s.starts_with(' ') || s.starts_with('\t') || s.starts_with('\n')) {
+            return None;
+        }
+        if s.starts_with('\n') || s.starts_with("\\") || pos - ix == 0 {
+            break;
+        }
+    }
+    if s.starts_with("\\") {
+        Some((start, pos_iter, s))
+    } else {
+        println!("Cmd does not start with \\ but with {:?}", s.chars().next());
+        None
+    }
+}
+
+fn move_forward_to_command_end(buffer : &TextBuffer) -> Option<(TextIter, TextIter, String)> {
+    let pos = buffer.cursor_position();
+    let pos_iter = buffer.iter_at_offset(pos);
+    let mut end = buffer.iter_at_offset(pos);
+    let mut ix = 0;
+    let mut s = String::new();
+    loop {
+        ix += 1;
+        end = buffer.iter_at_offset(pos+ix);
+        s = buffer.text(&pos_iter, &end, true).to_string();
+        println!("Forward = {}", s);
+        if s.ends_with('\n') || s.ends_with("}") || pos - ix == 0 {
+            break;
+        }
+    }
+    if s.ends_with("}") {
+        Some((pos_iter, end, s))
+    } else {
+        None
+    }
+}
+
+fn extend_citation(citation : &str, new_key : &str) -> Option<String>{
+
+    // Assume the command ends precisely at }, which is 1 byte long always.
+    // This is a valid step because we are already working with parsed text.
+    if citation.ends_with("}") {
+        Some(format!("{},{}}}", &citation[..citation.len()-1], new_key))
+    } else {
+        None
+    }
+}
+
+impl React<BibPopover> for PapersEditor {
+
+    fn react(&self, bib_popover : &BibPopover) {
+        let search_entry = bib_popover.search_entry.clone();
+        let popover = bib_popover.popover.clone();
+        let view = self.view.clone();
+        bib_popover.list.connect_row_activated(move |_, row| {
+            let ref_row = ReferenceRow::recover(&row);
+            let key = ref_row.key();
+            let buffer = view.buffer();
+            let replaced = match move_backwards_to_command_start(&buffer) {
+                Some((mut start, mut end, start_txt)) => {
+                    // println!("Start text = {}", start_txt);
+                    match crate::tex::command(&start_txt[..]) {
+                        Ok((_, cmd)) => {
+                            if cmd.cmd == "cite" {
+                                if let Some(new_citation) = extend_citation(&start_txt, &key) {
+                                    buffer.delete(&mut start, &mut end);
+                                    buffer.insert(&mut start, &new_citation);
+                                    true
+                                } else {
+                                    false
+                                }
+                            } else {
+                                false
+                            }
+                        },
+                        _ => {
+                            match move_forward_to_command_end(&buffer) {
+                                Some((_, mut end, end_txt)) => {
+                                    let mut full_txt = start_txt.clone();
+                                    full_txt += &end_txt;
+                                    // println!("End text = {}", full_txt);
+                                    match crate::tex::command(&full_txt[..]) {
+                                        Ok((_, cmd)) => {
+                                            if cmd.cmd == "cite" {
+                                                if let Some(new_citation) = extend_citation(&full_txt, &key) {
+                                                    buffer.delete(&mut start, &mut end);
+                                                    buffer.insert(&mut start, &new_citation);
+                                                    true
+                                                } else {
+                                                    false
+                                                }
+                                            } else {
+                                                false
+                                            }
+                                        },
+                                        _ => false
+                                    }
+                                },
+                                _ => false
+                            }
+                        }
+                    }
+                },
+                _ => false
+            };
+            if !replaced {
+                edit_or_insert_at_cursor(&view, &format!("\\cite{{{}}}", key)[..]);
+            }
+
+            /*let pos = buffer.cursor_position();
+            let start = buffer.iter_at_offset(pos-1);
+            let end = buffer.iter_at_offset(pos);
+            let last_char = buffer.text(&start, &end, true);
+            println!("Last char = {}", last_char);*/
+
+            popover.popdown();
+            view.grab_focus();
+        });
+    }
+
 }
 
 fn configure_view(view : &View) {

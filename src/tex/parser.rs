@@ -339,7 +339,7 @@ impl Document {
 
     pub fn token_index_at(&self, ixs : &[usize]) -> Option<usize> {
 
-        println!("Requesting position at {:?}", ixs);
+        // println!("Requesting position at {:?}", ixs);
 
         match ixs.len() {
             1 => Some(self.items[ixs[0]].token_index()),
@@ -477,7 +477,7 @@ impl Parser {
     pub fn from_tokens<'a>(mut tks : impl Iterator<Item=Token<'a>> + Clone) -> Result<Document, String> {
         let mut all_tks = Vec::new();
         blocked_tokens(Vec::new(), &mut tks, &mut all_tks)?;
-        println!("{:#?}", all_tks);
+        // println!("{:#?}", all_tks);
         let mut doc_items : Option<Vec<Item>> = None;
 
         let mut tk_ix : usize = 0;

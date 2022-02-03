@@ -34,6 +34,8 @@ pub enum FileAction {
 
     OpenError(String),
 
+    RequestShowOpen,
+
     FileCloseRequest,
 
     WindowCloseRequest
@@ -50,7 +52,8 @@ pub struct FileManager {
     on_save_unknown_path : Callbacks<String>,
     on_save : Callbacks<String>,
     on_close_confirm : Callbacks<String>,
-    on_window_close : Callbacks<()>
+    on_window_close : Callbacks<()>,
+    on_show_open : Callbacks<()>
 }
 
 impl FileManager {
@@ -59,6 +62,7 @@ impl FileManager {
 
         let (send, recv) = glib::MainContext::channel::<FileAction>(glib::PRIORITY_DEFAULT);
         let on_open : Callbacks<(String, String)> = Default::default();
+        let on_show_open : Callbacks<()> = Default::default();
         let on_new : Callbacks<()> = Default::default();
         let on_open_request : Callbacks<()> = Default::default();
         let on_buffer_read_request : ValuedCallbacks<(), String> = Default::default();
@@ -78,23 +82,31 @@ impl FileManager {
             let on_file_changed = on_file_changed.clone();
             let on_open_request = on_open_request.clone();
             let on_save = on_save.clone();
+            let on_show_open = on_show_open.clone();
+
+            // Holds an action that should happen after the currently-opened file is closed.
+            // This variable is updated at NewRequest, OpenRequest and WindowCloseRequest.
             let mut after_close = ActionAfterClose::New;
 
             // Holds optional path and whether the file is saved.
             let mut curr_path : (Option<String>, bool) = (None, true);
-            let mut just_opened = false;
+            let mut just_opened = true;
 
             move |action| {
                 match action {
+
+                    // To be triggered when "new" action is activated on the main menu.
                     FileAction::NewRequest(force) => {
                         if !force && !curr_path.1 {
                             after_close = ActionAfterClose::New;
                             on_close_confirm.borrow().iter().for_each(|f| f(curr_path.0.clone().unwrap_or(String::from("Untitled.tex"))) );
-                            return glib::source::Continue(true);
+                        } else {
+                            curr_path.0 = None;
+                            curr_path.1 = true;
+                            on_new.borrow().iter().for_each(|f| f(()) );
+                            just_opened = true;
+                            println!("Just opened set to true");
                         }
-                        curr_path.0 = None;
-                        curr_path.1 = true;
-                        on_new.borrow().iter().for_each(|f| f(()) );
                     },
                     FileAction::SaveRequest(opt_path) => {
                         if let Some(path) = opt_path {
@@ -109,16 +121,22 @@ impl FileManager {
                             }
                         }
                     },
+
+                    // Called when the buffer changes. Ideally, when the user presses a key to
+                    // insert a character. But also when the buffer is changed after a new template is
+                    // loaded or a file is opened, which is why the callback is only triggered when
+                    // just_opened is false.
                     FileAction::FileChanged => {
 
                         // Use this decision branch to inhibit buffer changes
                         // when a new file is opened.
-                        if !just_opened {
+                        if just_opened {
+                            just_opened = false;
+                            println!("(File changed) Just opened set to false");
+                        } else {
                             curr_path.1 = false;
                             on_file_changed.borrow().iter().for_each(|f| f(curr_path.0.clone()) );
-                            println!("File changed");
-                        } else {
-                            just_opened = false;
+                            println!("File changed by key press");
                         }
                     },
                     FileAction::SaveSuccess(path) => {
@@ -126,13 +144,21 @@ impl FileManager {
                         curr_path.1 = true;
                         on_save.borrow().iter().for_each(|f| f(path.clone()) );
                     },
+                    FileAction::RequestShowOpen => {
+                        if curr_path.1 {
+                            on_show_open.borrow().iter().for_each(|f| f(()) );
+                        } else {
+                            after_close = ActionAfterClose::Open;
+                            on_close_confirm.borrow().iter().for_each(|f| f(curr_path.0.clone().unwrap_or(String::from("Untitled.tex"))) );
+                        }
+                    },
                     FileAction::OpenRequest(path) => {
 
-                        if !curr_path.1 {
+                        /*if !curr_path.1 {
                             after_close = ActionAfterClose::Open;
                             on_close_confirm.borrow().iter().for_each(|f| f(curr_path.0.clone().unwrap_or(String::from("Untitled.tex"))) );
                             return Continue(true);
-                        }
+                        }*/
 
                         thread::spawn({
                             let send = send.clone();
@@ -149,30 +175,34 @@ impl FileManager {
                                 }
                             }
                         });
+                        just_opened = true;
                     },
                     FileAction::OpenSuccess(path, content) => {
                         on_open.borrow().iter().for_each(|f| f((path.clone(), content.clone())) );
                         curr_path = (Some(path.clone()), true);
                         just_opened = true;
+                        println!("Just opened set to true");
                     },
                     FileAction::OpenError(e) => {
                         println!("{}", e);
                     },
+
+                    // Triggered when the user choses to close an unsaved file at the toast.
                     FileAction::FileCloseRequest => {
                         curr_path = (None, true);
                         match after_close {
                             ActionAfterClose::New => {
                                 on_new.borrow().iter().for_each(|f| f(()) );
+                                just_opened = true;
                             },
                             ActionAfterClose::Open => {
-                                on_open_request.borrow().iter().for_each(|f| f(()) );
+                                on_show_open.borrow().iter().for_each(|f| f(()) );
+                                just_opened = true;
                             },
                             ActionAfterClose::CloseWindow => {
                                 on_window_close.borrow().iter().for_each(|f| f(()) );
                             }
                         }
-
-                        // Show welcome screen here.
                     },
                     FileAction::WindowCloseRequest => {
                         if !curr_path.1.clone() {
@@ -188,7 +218,7 @@ impl FileManager {
                 Continue(true)
             }
         });
-        Self { on_open, send, on_save_unknown_path, on_buffer_read_request, on_close_confirm, on_window_close, on_new, on_save, on_file_changed, on_open_request }
+        Self { on_open, send, on_save_unknown_path, on_buffer_read_request, on_close_confirm, on_window_close, on_new, on_save, on_file_changed, on_open_request, on_show_open }
     }
 
     pub fn connect_opened<F>(&self, f : F)
@@ -254,6 +284,13 @@ impl FileManager {
         self.on_window_close.borrow_mut().push(boxed::Box::new(f));
     }
 
+    pub fn connect_show_open<F>(&self, f : F)
+    where
+        F : Fn(()) + 'static
+    {
+        self.on_show_open.borrow_mut().push(boxed::Box::new(f));
+    }
+
 }
 
 impl React<MainMenu> for FileManager {
@@ -269,6 +306,13 @@ impl React<MainMenu> for FileManager {
             let send = self.send.clone();
             move |_,_| {
                 send.send(FileAction::SaveRequest(None));
+            }
+        });
+        let open_dialog = menu.open_dialog.clone();
+        menu.action_open.connect_activate({
+            let send = self.send.clone();
+            move |_,_| {
+                send.send(FileAction::RequestShowOpen);
             }
         });
     }

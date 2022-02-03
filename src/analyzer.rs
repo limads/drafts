@@ -27,6 +27,8 @@ pub struct Analyzer {
 
     on_doc_changed : Callbacks<Document>,
 
+    on_doc_cleared : Callbacks<()>,
+
     on_line_selection : Callbacks<usize>
 
 }
@@ -39,7 +41,7 @@ impl Analyzer {
         let on_section_changed : Callbacks<Difference> = Default::default();
         let on_doc_changed : Callbacks<Document> = Default::default();
         let on_line_selection : Callbacks<usize> = Default::default();
-
+        let on_doc_cleared : Callbacks<()> = Default::default();
         // TODO keep an thread watching an external bib file (if any). The user can simply use
         // the embedded bibliography instead.
 
@@ -50,6 +52,7 @@ impl Analyzer {
             let on_section_changed = on_section_changed.clone();
             let on_doc_changed = on_doc_changed.clone();
             let on_line_selection = on_line_selection.clone();
+            let on_doc_cleared = on_doc_cleared.clone();
             move |action| {
                 match action {
                     AnalyzerAction::TextChanged(new_txt) => {
@@ -61,13 +64,14 @@ impl Analyzer {
                                 //}
 
                                 for diff in tk_info.compare_tokens(&new_info, Comparison::References) {
+                                    println!("{:?}", diff);
                                     on_reference_changed.borrow().iter().for_each(|f| f(diff.clone() ) );
                                 }
 
                                 tk_info = new_info;
                                 match Parser::from_tokens(tk_info.tokens()) {
                                     Ok(new_doc) => {
-                                        println!("{:#?}", new_doc);
+                                        // println!("{:#?}", new_doc);
                                         if doc != new_doc {
                                             on_doc_changed.borrow().iter().for_each(|f| f(new_doc.clone()) );
                                         }
@@ -76,11 +80,14 @@ impl Analyzer {
                                     Err(e) => {
                                         println!("{}", e);
                                         doc = Document::default();
+                                        on_doc_cleared.borrow().iter().for_each(|f| f(()) );
                                     }
                                 }
                             },
                             Err(e) => {
                                 tk_info = TokenInfo::default();
+                                doc = Document::default();
+                                on_doc_cleared.borrow().iter().for_each(|f| f(()) );
                                 println!("{}", e);
                             }
                         }
@@ -93,7 +100,7 @@ impl Analyzer {
 
                             // Add one because we want one past the last line, add +1 because lines count from 1, not zero.
                             on_line_selection.borrow().iter().for_each(|f| f(lines_before) );
-                            println!("Token {} at line {}", tk_ix, lines_before);
+                            // println!("Token {} at line {}", tk_ix, lines_before);
                         } else {
                             println!("No token at document index {:?}", sel_ixs);
                         }
@@ -102,7 +109,7 @@ impl Analyzer {
                 Continue(true)
             }
         });
-        Self { send, on_reference_changed, on_section_changed, on_doc_changed, on_line_selection }
+        Self { send, on_reference_changed, on_section_changed, on_doc_changed, on_line_selection, on_doc_cleared }
     }
 
     pub fn connect_section_changed<F>(&self, f : F)
@@ -124,6 +131,13 @@ impl Analyzer {
         F : Fn(Document) + 'static
     {
         self.on_doc_changed.borrow_mut().push(boxed::Box::new(f));
+    }
+
+    pub fn connect_doc_cleared<F>(&self, f : F)
+    where
+        F : Fn(()) + 'static
+    {
+        self.on_doc_cleared.borrow_mut().push(boxed::Box::new(f));
     }
 
     pub fn connect_line_selection<F>(&self, f : F)

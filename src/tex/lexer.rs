@@ -121,7 +121,7 @@ impl<'a> Token<'a> {
     pub fn from_str(s : &str) -> Result<Token<'_>, String> {
         let (rem, tk) = eval_next_token(s).map_err(|e| format!("{}", e) )?;
         if !rem.is_empty() {
-            println!("Still not evaluated = '{}'", rem);
+            // println!("Still not evaluated = '{}'", rem);
         }
         Ok(tk)
     }
@@ -370,6 +370,8 @@ impl TokenInfo {
     }
 
     pub fn references(&self) -> Vec<Range<usize>> {
+
+        assert!(self.kinds.len() == self.pos.len() );
         self.kinds.iter()
             .enumerate()
             .filter(|(ix, kind)| **kind == TokenKind::Reference )
@@ -450,7 +452,7 @@ fn valid_cmd_or_arg<'a>(s : &'a str) -> Result<(), nom::Err<Error<&'a str>>> {
     }
 }
 
-fn command(s : &str) -> IResult<&str, Command> {
+pub fn command(s : &str) -> IResult<&str, Command> {
     let (rem, cmd) = tuple((char('\\'), is_not("{[\n \t")))(s)?;
     if cmd.1.contains("\\") {
         return Err(nom::Err::Failure(Error::new(cmd.1, ErrorKind::Fail)));
@@ -700,7 +702,7 @@ fn bib_entry(s : &str) -> IResult<&str, BibEntry> {
     let (rem, entry) = delimited(char('@'), entry, tag("{"))(s)?;
     let (rem, key) = is_not(",")(rem)?;
     let (rem, _) = take(1usize)(rem)?;
-    println!("{}", rem);
+    // println!("{}", rem);
     let (rem, fields) = separated_list1(tag(","), bib_field)(rem)?;
     let (rem, _) = is_not("}")(rem)?;
     Ok((rem, BibEntry {

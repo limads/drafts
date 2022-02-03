@@ -10,6 +10,8 @@ pub struct MainMenu {
     pub action_open : gio::SimpleAction,
     pub action_save : gio::SimpleAction,
     pub action_save_as : gio::SimpleAction,
+    pub open_dialog : OpenDialog,
+    pub save_dialog : SaveDialog,
 }
 
 impl MainMenu {
@@ -25,7 +27,9 @@ impl MainMenu {
         let action_open = gio::SimpleAction::new("open_file", None);
         let action_save = gio::SimpleAction::new("save_file", None);
         let action_save_as = gio::SimpleAction::new("save_as_file", None);
-        Self { popover, action_new, action_open, action_save, action_save_as }
+        let open_dialog = OpenDialog::build();
+        let save_dialog = SaveDialog::build();
+        Self { popover, action_new, action_open, action_save, action_save_as, open_dialog, save_dialog }
     }
 
 }
@@ -38,11 +42,11 @@ pub struct Titlebar {
     pub pdf_btn : Button,
     pub sidebar_toggle : ToggleButton,
     pub sidebar_hide_action : gio::SimpleAction,
-    pub bib_list : ListBox,
     pub struct_actions : StructActions,
     pub object_actions : ObjectActions,
     pub math_actions : MathActions,
-    pub fmt_popover : FormatPopover
+    pub fmt_popover : FormatPopover,
+    pub bib_popover : BibPopover
 }
 
 #[derive(Debug, Clone)]
@@ -142,6 +146,56 @@ impl FormatPopover {
 
 }
 
+#[derive(Debug, Clone)]
+pub struct BibPopover {
+    pub list : ListBox,
+    pub popover : Popover,
+    pub search_entry : Entry
+}
+
+impl BibPopover {
+
+    pub fn build() -> Self {
+        let popover = Popover::new();
+        let search_entry = Entry::builder().primary_icon_name("search-symbolic").build();
+        let list = ListBox::new();
+        let bib_scroll = ScrolledWindow::new();
+        bib_scroll.set_child(Some(&list));
+        bib_scroll.set_width_request(480);
+        bib_scroll.set_height_request(280);
+
+        let bx = Box::new(Orientation::Vertical, 0);
+        popover.set_child(Some(&bx));
+        bx.append(&search_entry);
+        bx.append(&bib_scroll);
+
+        search_entry.connect_changed({
+            let list = list.clone();
+            move |entry| {
+                let txt = entry.buffer().text().to_string().to_lowercase();
+                let mut ix = 0;
+                while let Some(row) = list.row_at_index(ix) {
+                    if txt.is_empty() {
+                        row.set_visible(true);
+                    } else {
+                        let ref_row = ReferenceRow::recover(&row);
+                        if ref_row.key().to_lowercase().contains(&txt) ||
+                            ref_row.authors().to_lowercase().contains(&txt) ||
+                            ref_row.title().to_lowercase().contains(&txt) {
+                            row.set_visible(true);
+                        } else {
+                            row.set_visible(false);
+                        }
+                    }
+                    ix += 1;
+                }
+            }
+        });
+        BibPopover { list, popover, search_entry }
+    }
+
+}
+
 impl Titlebar {
 
     pub fn build() -> Self {
@@ -178,21 +232,9 @@ impl Titlebar {
         fmt_btn.set_icon_name("font-size-symbolic");
         fmt_btn.set_popover(Some(&fmt_popover.popover));
 
-        let bib_popover = Popover::new();
-        let search_entry = Entry::builder().primary_icon_name("search-symbolic").build();
-        let bib_list = ListBox::new();
-        let bib_scroll = ScrolledWindow::new();
-        bib_scroll.set_child(Some(&bib_list));
-        bib_scroll.set_width_request(480);
-        bib_scroll.set_height_request(280);
-
-        let bx = Box::new(Orientation::Vertical, 0);
-        bib_popover.set_child(Some(&bx));
-        bx.append(&search_entry);
-        bx.append(&bib_scroll);
-
+        let bib_popover = BibPopover::build();
         let bib_btn = MenuButton::new();
-        bib_btn.set_popover(Some(&bib_popover));
+        bib_btn.set_popover(Some(&bib_popover.popover));
         bib_btn.set_icon_name("user-bookmarks-symbolic");
         let add_btn = MenuButton::new();
 
@@ -254,7 +296,7 @@ impl Titlebar {
         let sidebar_hide_action = gio::SimpleAction::new_stateful("sidebar_hide", None, &(0).to_variant());
         let main_menu = MainMenu::build();
         menu_button.set_popover(Some(&main_menu.popover));
-        Self { main_menu, header, menu_button, pdf_btn, sidebar_toggle, sidebar_hide_action, bib_list, math_actions : MathActions::build(), struct_actions : StructActions::build(), object_actions : ObjectActions::build(), fmt_popover }
+        Self { main_menu, header, menu_button, pdf_btn, sidebar_toggle, sidebar_hide_action, bib_popover, math_actions : MathActions::build(), struct_actions : StructActions::build(), object_actions : ObjectActions::build(), fmt_popover }
     }
 }
 
@@ -288,6 +330,18 @@ pub struct ReferenceRow {
 
 impl ReferenceRow {
 
+    pub fn key(&self) -> String {
+        self.key_label.label().to_string().trim_start_matches("<b>").trim_end_matches("</b>").to_string()
+    }
+
+    pub fn authors(&self) -> String {
+        self.authors_label.label().to_string()
+    }
+
+    pub fn title(&self) -> String {
+        self.title_label.label().to_string()
+    }
+
     // TODO add different icons for book, article, etc.
 
     pub fn recover(row : &ListBoxRow) -> Self {
@@ -300,7 +354,7 @@ impl ReferenceRow {
     }
 
     pub fn update(&self, entry : &BibEntry) {
-        println!("{:?}", entry);
+        // println!("{:?}", entry);
         let key = format!("<b>{}</b>", entry.key());
         let full_title = entry.title().unwrap_or("(Untitled)").trim().to_string();
 
@@ -325,7 +379,7 @@ impl ReferenceRow {
             broken_authors += "(...)";
         }
         let year = entry.year().unwrap_or("No date").trim();
-        println!("authors = {}; title = {}; key = {}", authors, title, key);
+        // println!("authors = {}; title = {}; key = {}", authors, title, key);
         self.key_label.set_markup(&key);
         self.authors_label.set_text(&format!("{} ({})", authors, year));
         self.title_label.set_text(&title);
@@ -361,6 +415,9 @@ impl ReferenceRow {
         title_label.set_margin_start(6);
 
         let row = ListBoxRow::new();
+        row.set_selectable(false);
+        row.set_activatable(true);
+
         row.set_child(Some(&bx));
         let ref_row = Self { row, key_label, authors_label, title_label };
         ref_row.update(entry);
@@ -369,10 +426,10 @@ impl ReferenceRow {
 
 }
 
-impl React<Analyzer> for Titlebar {
+impl React<Analyzer> for BibPopover {
 
     fn react(&self, analyzer : &Analyzer) {
-        let bib_list = self.bib_list.clone();
+        let bib_list = self.list.clone();
         analyzer.connect_reference_changed(move |diff| {
             match diff {
                 Difference::Added(pos, txt) => {
@@ -399,6 +456,16 @@ impl React<Analyzer> for Titlebar {
                     if let Some(row) = bib_list.row_at_index(pos as i32) {
                         bib_list.remove(&row);
                     }
+                }
+            }
+        });
+        analyzer.connect_doc_cleared({
+            let list = self.list.clone();
+            move |_| {
+                let mut ix = 0;
+                while let Some(r) = list.row_at_index(ix) {
+                    list.remove(&r);
+                    ix += 1;
                 }
             }
         });

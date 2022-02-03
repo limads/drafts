@@ -34,13 +34,14 @@ fn main() {
             papers_win.react(&papers_win.start_screen);
 
             let manager = FileManager::new();
-            manager.react(&papers_win.open_dialog);
-            manager.react(&papers_win.save_dialog);
+            manager.react(&papers_win.titlebar.main_menu.open_dialog);
+            manager.react(&papers_win.titlebar.main_menu.save_dialog);
             manager.react(&papers_win.titlebar.main_menu);
             manager.react(&papers_win);
             manager.react(&papers_win.editor);
 
-            papers_win.save_dialog.react(&manager);
+            papers_win.titlebar.main_menu.save_dialog.react(&manager);
+            papers_win.titlebar.main_menu.open_dialog.react(&manager);
 
             let typesetter = Typesetter::new();
             typesetter.react(&(papers_win.titlebar.clone(), papers_win.editor.clone()));
@@ -54,7 +55,7 @@ fn main() {
             analyzer.react(&papers_win.editor);
             analyzer.react(&papers_win.doc_tree);
 
-            papers_win.titlebar.react(&analyzer);
+            papers_win.titlebar.bib_popover.react(&analyzer);
             papers_win.doc_tree.react(&analyzer);
             papers_win.editor.react(&analyzer);
 
