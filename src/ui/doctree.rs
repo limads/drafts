@@ -7,6 +7,7 @@ use gio::prelude::*;
 use crate::tex::Subsection;
 use crate::tex::Section;
 use either::Either;
+use gdk_pixbuf::Pixbuf;
 
 #[derive(Debug, Clone)]
 pub struct DocIcons {
@@ -60,12 +61,9 @@ impl DocTree {
 fn configure_tree_view(tree_view : &TreeView) -> TreeStore {
     let model = TreeStore::new(&[Pixbuf::static_type(), Type::STRING]);
     tree_view.set_model(Some(&model));
-    // tree_view.set_selection_mode(SelectionMode::Single);
     let pix_renderer = CellRendererPixbuf::new();
     pix_renderer.set_padding(6, 6);
-    // pix_renderer.set_property_height(24);
     let txt_renderer = CellRendererText::new();
-    // txt_renderer.set_property_height(24);
 
     let pix_col = TreeViewColumn::new();
     pix_col.pack_start(&pix_renderer, false);
@@ -81,11 +79,6 @@ fn configure_tree_view(tree_view : &TreeView) -> TreeStore {
     tree_view.set_can_focus(false);
     tree_view.set_has_tooltip(false);
     tree_view.set_headers_visible(false);
-
-    // tree_view.set_vadjustment(Some(&Adjustment::default()));
-    // tree_view.set_vadjustment(Some(&Adjustment::new(0.0, 0.0, 100.0, 10.0, 10.0, 100.0)));
-    // tree_view.set_vscroll_policy(ScrollablePolicy::Natural);
-
     model
 }
 

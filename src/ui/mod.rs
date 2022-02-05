@@ -70,8 +70,8 @@ impl React<StartScreen> for PapersWindow {
 
         start_screen.empty_btn.connect_clicked({
             let (view, stack)  = (self.editor.view.clone(), self.stack.clone());
-            let action_save = self.titlebar.main_menu.action_save.clone();
-            let action_save_as = self.titlebar.main_menu.action_save_as.clone();
+            let action_save = self.titlebar.main_menu.actions.save.clone();
+            let action_save_as = self.titlebar.main_menu.actions.save_as.clone();
             move |_| {
                 view.buffer().set_text("");
                 stack.set_visible_child_name("editor");
@@ -81,8 +81,8 @@ impl React<StartScreen> for PapersWindow {
         });
         start_screen.article_btn.connect_clicked({
             let (view, stack)  = (self.editor.view.clone(), self.stack.clone());
-            let action_save = self.titlebar.main_menu.action_save.clone();
-            let action_save_as = self.titlebar.main_menu.action_save_as.clone();
+            let action_save = self.titlebar.main_menu.actions.save.clone();
+            let action_save_as = self.titlebar.main_menu.actions.save_as.clone();
             move |_| {
                 view.buffer().set_text(ARTICLE_TEMPLATE);
                 stack.set_visible_child_name("editor");
@@ -92,8 +92,8 @@ impl React<StartScreen> for PapersWindow {
         });
         start_screen.report_btn.connect_clicked({
             let (view, stack)  = (self.editor.view.clone(), self.stack.clone());
-            let action_save = self.titlebar.main_menu.action_save.clone();
-            let action_save_as = self.titlebar.main_menu.action_save_as.clone();
+            let action_save = self.titlebar.main_menu.actions.save.clone();
+            let action_save_as = self.titlebar.main_menu.actions.save_as.clone();
             move |_| {
                 view.buffer().set_text(REPORT_TEMPLATE);
                 stack.set_visible_child_name("editor");
@@ -103,8 +103,8 @@ impl React<StartScreen> for PapersWindow {
         });
         start_screen.presentation_btn.connect_clicked({
             let (view, stack)  = (self.editor.view.clone(), self.stack.clone());
-            let action_save = self.titlebar.main_menu.action_save.clone();
-            let action_save_as = self.titlebar.main_menu.action_save_as.clone();
+            let action_save = self.titlebar.main_menu.actions.save.clone();
+            let action_save_as = self.titlebar.main_menu.actions.save_as.clone();
             move |_| {
                 view.buffer().set_text(PRESENTATION_TEMPLATE);
                 stack.set_visible_child_name("editor");
@@ -351,10 +351,10 @@ impl PapersWindow {
 
         // let ws = Rc::new(RefCell::new(Workspace::new()));
 
-        window.add_action(&titlebar.main_menu.action_new);
-        window.add_action(&titlebar.main_menu.action_open);
-        window.add_action(&titlebar.main_menu.action_save);
-        window.add_action(&titlebar.main_menu.action_save_as);
+        window.add_action(&titlebar.main_menu.actions.new);
+        window.add_action(&titlebar.main_menu.actions.open);
+        window.add_action(&titlebar.main_menu.actions.save);
+        window.add_action(&titlebar.main_menu.actions.save_as);
 
         window.add_action(&titlebar.sidebar_hide_action);
         window.add_action(&editor.ignore_file_save_action);
@@ -404,63 +404,91 @@ impl PapersWindow {
 
 }
 
+pub fn connect_manager_with_window(manager : &FileManager, window : &ApplicationWindow, actions : &FileActions, extension : &'static str) {
+    let win = window.clone();
+    manager.connect_window_close(move |_| {
+        win.destroy();
+    });
+    manager.connect_opened({
+        let action_save = actions.save.clone();
+        let action_save_as = actions.save_as.clone();
+        let window = window.clone();
+        move |(path, _)| {
+            action_save.set_enabled(true);
+            action_save_as.set_enabled(true);
+            window.set_title(Some(&path));
+        }
+    });
+    manager.connect_new({
+        // let stack = self.stack.clone();
+        let window = window.clone();
+        let action_save = actions.save.clone();
+        let action_save_as = actions.save_as.clone();
+        // let view = self.editor.view.clone();
+        move |_| {
+            // stack.set_visible_child_name("start");
+            window.set_title(Some("Papers"));
+            action_save.set_enabled(false);
+            action_save_as.set_enabled(false);
+        }
+    });
+    manager.connect_open_request({
+        let open_action = actions.open.clone();
+        // let view = self.editor.view.clone();
+        move |_| {
+            open_action.activate(None);
+        }
+    });
+    manager.connect_save({
+        let window = window.clone();
+        move |path| {
+            window.set_title(Some(&path));
+        }
+    });
+    manager.connect_file_changed({
+        let window = window.clone();
+        move |opt_path| {
+            if let Some(path) = opt_path {
+                window.set_title(Some(&format!("{}*", path)));
+            } else {
+                window.set_title(Some(&format!("Untitled.{}*", extension)));
+            }
+        }
+    });
+}
+
+
 impl React<FileManager> for PapersWindow {
 
     fn react(&self, manager : &FileManager) {
-        let win = self.window.clone();
-        manager.connect_window_close(move |_| {
-            win.destroy();
-        });
+        connect_manager_with_window(manager, &self.window, &self.titlebar.main_menu.actions, "tex");
         manager.connect_opened({
-            let action_save = self.titlebar.main_menu.action_save.clone();
-            let action_save_as = self.titlebar.main_menu.action_save_as.clone();
+            // let action_save = self.titlebar.main_menu.actions.save.clone();
+            // let action_save_as = self.titlebar.main_menu.actions.save_as.clone();
             let stack = self.stack.clone();
-            let window = self.window.clone();
+            //let window = self.window.clone();
             move |(path, _)| {
-                action_save.set_enabled(true);
-                action_save_as.set_enabled(true);
-                window.set_title(Some(&path));
+                // action_save.set_enabled(true);
+                // action_save_as.set_enabled(true);
+                // window.set_title(Some(&path));
                 stack.set_visible_child_name("editor");
             }
         });
         manager.connect_new({
             let stack = self.stack.clone();
-            let window = self.window.clone();
-            let action_save = self.titlebar.main_menu.action_save.clone();
-            let action_save_as = self.titlebar.main_menu.action_save_as.clone();
-            let view = self.editor.view.clone();
+            // let window = self.window.clone();
+            // let action_save = self.titlebar.main_menu.actions.save.clone();
+            // let action_save_as = self.titlebar.main_menu.actions.save_as.clone();
+            // let view = self.editor.view.clone();
             move |_| {
                 stack.set_visible_child_name("start");
-                window.set_title(Some("Papers"));
+                // window.set_title(Some("Papers"));
                 // view.buffer().set_text("");
-                action_save.set_enabled(false);
-                action_save_as.set_enabled(false);
+                // action_save.set_enabled(false);
+                // action_save_as.set_enabled(false);
             }
         });
-        manager.connect_open_request({
-            let open_action = self.titlebar.main_menu.action_open.clone();
-            let view = self.editor.view.clone();
-            move |_| {
-                open_action.activate(None);
-            }
-        });
-        manager.connect_save({
-            let window = self.window.clone();
-            move |path| {
-                window.set_title(Some(&path));
-            }
-        });
-        manager.connect_file_changed({
-            let window = self.window.clone();
-            let view = self.editor.view.clone();
-            move |opt_path| {
-                if let Some(path) = opt_path {
-                    window.set_title(Some(&format!("{}*", path)));
-                } else {
-                    window.set_title(Some("Untitled.tex*"));
-                }
-            }
-        });
+
     }
 
 }
@@ -501,7 +529,7 @@ impl React<MainMenu> for SaveDialog {
 
     fn react(&self, menu : &MainMenu) {
         let dialog = self.dialog.clone();
-        menu.action_save_as.connect_activate(move |_,_| {
+        menu.actions.save_as.connect_activate(move |_,_| {
             dialog.show();
         });
     }
@@ -612,7 +640,7 @@ impl PackedImageLabel {
 
 }
 
-fn set_border_to_title(bx : &Box) {
+pub fn set_border_to_title(bx : &Box) {
     let provider = CssProvider::new();
     provider.load_from_data("* { border-bottom : 1px solid #d9dada; } ".as_bytes());
     bx.style_context().add_provider(&provider, 800);

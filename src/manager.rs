@@ -43,7 +43,7 @@ pub enum FileAction {
 }
 
 pub struct FileManager {
-    send : glib::Sender<FileAction>,
+    pub send : glib::Sender<FileAction>,
     on_open : Callbacks<(String, String)>,
     on_open_request : Callbacks<()>,
     on_new : Callbacks<()>,
@@ -293,28 +293,92 @@ impl FileManager {
 
 }
 
+pub fn connect_manager_with_file_actions(
+    manager : &FileManager,
+    actions : &FileActions,
+    send : &glib::Sender<FileAction>,
+    open_dialog : &OpenDialog
+) {
+    actions.new.connect_activate({
+        let send = send.clone();
+        move |_,_| {
+            send.send(FileAction::NewRequest(false)).unwrap();
+        }
+    });
+    actions.save.connect_activate({
+        let send = send.clone();
+        move |_,_| {
+            send.send(FileAction::SaveRequest(None));
+        }
+    });
+    let open_dialog = open_dialog.clone();
+    actions.open.connect_activate({
+        let send = send.clone();
+        move |_,_| {
+            send.send(FileAction::RequestShowOpen);
+        }
+    });
+}
+
+pub fn connect_manager_with_open_dialog(send : &glib::Sender<FileAction>, dialog : &OpenDialog) {
+    let send = send.clone();
+    dialog.dialog.connect_response(move |dialog, resp| {
+        match resp {
+            ResponseType::Accept => {
+                if let Some(path) = dialog.file().and_then(|f| f.path() ) {
+                    send.send(FileAction::OpenRequest(path.to_str().unwrap().to_string())).unwrap();
+                }
+            },
+            _ => { }
+        }
+    });
+}
+
+pub fn connect_manager_with_save_dialog(send : &glib::Sender<FileAction>, dialog : &SaveDialog) {
+    let send = send.clone();
+    dialog.dialog.connect_response(move |dialog, resp| {
+        match resp {
+            ResponseType::Accept => {
+                if let Some(path) = dialog.file().and_then(|f| f.path() ) {
+                    send.send(FileAction::SaveRequest(Some(path.to_str().unwrap().to_string()))).unwrap();
+                }
+            },
+            _ => { }
+        }
+    });
+}
+
+pub fn connect_manager_with_editor(
+    send : &glib::Sender<FileAction>,
+    view : &sourceview5::View,
+    ignore_file_save_action : &gio::SimpleAction
+) {
+    view.buffer().connect_changed({
+        let send = send.clone();
+        move |_| {
+            send.send(FileAction::FileChanged).unwrap();
+        }
+    });
+    ignore_file_save_action.connect_activate({
+        let send = send.clone();
+        move |_action, param| {
+            send.send(FileAction::FileCloseRequest).unwrap();
+        }
+    });
+}
+
+pub fn connect_manager_with_window(send : &glib::Sender<FileAction>, window : &ApplicationWindow) {
+    let send = send.clone();
+    window.connect_close_request(move |_win| {
+        send.send(FileAction::WindowCloseRequest).unwrap();
+        glib::signal::Inhibit(true)
+    });
+}
+
 impl React<MainMenu> for FileManager {
 
     fn react(&self, menu : &MainMenu) {
-        menu.action_new.connect_activate({
-            let send = self.send.clone();
-            move |_,_| {
-                send.send(FileAction::NewRequest(false)).unwrap();
-            }
-        });
-        menu.action_save.connect_activate({
-            let send = self.send.clone();
-            move |_,_| {
-                send.send(FileAction::SaveRequest(None));
-            }
-        });
-        let open_dialog = menu.open_dialog.clone();
-        menu.action_open.connect_activate({
-            let send = self.send.clone();
-            move |_,_| {
-                send.send(FileAction::RequestShowOpen);
-            }
-        });
+        connect_manager_with_file_actions(self, &menu.actions, &self.send, &menu.open_dialog);
     }
 
 }
@@ -322,17 +386,15 @@ impl React<MainMenu> for FileManager {
 impl React<OpenDialog> for FileManager {
 
     fn react(&self, dialog : &OpenDialog) {
-        let send = self.send.clone();
-        dialog.dialog.connect_response(move |dialog, resp| {
-            match resp {
-                ResponseType::Accept => {
-                    if let Some(path) = dialog.file().and_then(|f| f.path() ) {
-                        send.send(FileAction::OpenRequest(path.to_str().unwrap().to_string())).unwrap();
-                    }
-                },
-                _ => { }
-            }
-        });
+        connect_manager_with_open_dialog(&self.send, &dialog);
+    }
+
+}
+
+impl React<SaveDialog> for FileManager {
+
+    fn react(&self, dialog : &SaveDialog) {
+        connect_manager_with_save_dialog(&self.send, &dialog);
     }
 
 }
@@ -340,21 +402,19 @@ impl React<OpenDialog> for FileManager {
 impl React<PapersEditor> for FileManager {
 
     fn react(&self, editor : &PapersEditor) {
-        let send = self.send.clone();
-        editor.view.buffer().connect_changed(move |_| {
-            send.send(FileAction::FileChanged).unwrap();
-        });
-        editor.ignore_file_save_action.connect_activate({
-            let send = self.send.clone();
-            move |_action, param| {
-                send.send(FileAction::FileCloseRequest).unwrap();
-            }
-        });
+        connect_manager_with_editor(&self.send, &editor.view, &editor.ignore_file_save_action);
     }
 
 }
 
-fn spawn_save_file(
+impl React<PapersWindow> for FileManager {
+
+    fn react(&self, win : &PapersWindow) {
+        connect_manager_with_window(&self.send, &win.window);
+    }
+}
+
+pub fn spawn_save_file(
     path : String,
     content : String,
     send : glib::Sender<FileAction>
@@ -374,33 +434,5 @@ fn spawn_save_file(
     })
 }
 
-impl React<PapersWindow> for FileManager {
 
-    fn react(&self, win : &PapersWindow) {
-        let send = self.send.clone();
-        win.window.connect_close_request(move |_win| {
-            send.send(FileAction::WindowCloseRequest).unwrap();
-            glib::signal::Inhibit(true)
-        });
-    }
-}
-
-impl React<SaveDialog> for FileManager {
-
-    fn react(&self, dialog : &SaveDialog) {
-        let send = self.send.clone();
-        dialog.dialog.connect_response(move |dialog, resp| {
-            match resp {
-                ResponseType::Accept => {
-                    if let Some(path) = dialog.file().and_then(|f| f.path() ) {
-                        send.send(FileAction::SaveRequest(Some(path.to_str().unwrap().to_string()))).unwrap();
-                        println!("Asked to save to path {:?}", path);
-                    }
-                },
-                _ => { }
-            }
-        });
-    }
-
-}
 

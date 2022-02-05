@@ -4,12 +4,29 @@ use crate::tex::{Difference, BibEntry};
 use crate::tex::Token;
 
 #[derive(Debug, Clone)]
+pub struct FileActions {
+    pub new : gio::SimpleAction,
+    pub open : gio::SimpleAction,
+    pub save : gio::SimpleAction,
+    pub save_as : gio::SimpleAction
+}
+
+impl FileActions {
+
+    pub fn new() -> Self {
+        let new = gio::SimpleAction::new("new_file", None);
+        let open = gio::SimpleAction::new("open_file", None);
+        let save = gio::SimpleAction::new("save_file", None);
+        let save_as = gio::SimpleAction::new("save_as_file", None);
+        Self { new, open, save, save_as }
+    }
+
+}
+
+#[derive(Debug, Clone)]
 pub struct MainMenu {
     pub popover : PopoverMenu,
-    pub action_new : gio::SimpleAction,
-    pub action_open : gio::SimpleAction,
-    pub action_save : gio::SimpleAction,
-    pub action_save_as : gio::SimpleAction,
+    pub actions : FileActions,
     pub open_dialog : OpenDialog,
     pub save_dialog : SaveDialog,
 }
@@ -23,13 +40,10 @@ impl MainMenu {
         menu.append(Some("Save"), Some("win.save_file"));
         menu.append(Some("Save as"), Some("win.save_as_file"));
         let popover = PopoverMenu::from_model(Some(&menu));
-        let action_new = gio::SimpleAction::new("new_file", None);
-        let action_open = gio::SimpleAction::new("open_file", None);
-        let action_save = gio::SimpleAction::new("save_file", None);
-        let action_save_as = gio::SimpleAction::new("save_as_file", None);
+        let actions = FileActions::new();
         let open_dialog = OpenDialog::build();
         let save_dialog = SaveDialog::build();
-        Self { popover, action_new, action_open, action_save, action_save_as, open_dialog, save_dialog }
+        Self { popover, actions, open_dialog, save_dialog }
     }
 
 }
@@ -141,6 +155,48 @@ impl FormatPopover {
         bx.append(&Label::new(Some("Character")));
         bx.append(&char_bx);
         popover.set_child(Some(&bx));
+
+        let par_bx = Box::new(Orientation::Vertical, 0);
+        let indent_entry = Entry::new();
+        indent_entry.set_primary_icon_name(Some("format-indent-more-symbolic"));
+        indent_entry.set_placeholder_text(Some("Indentation (mm)"));
+        par_bx.append(&indent_entry);
+
+        let line_height_entry = Entry::new();
+        line_height_entry.set_placeholder_text(Some("Line height (em)"));
+        line_height_entry.set_primary_icon_name(Some("size-vertically-symbolic"));
+
+        // size-horizontally-symbolic
+        // size-height-symbolic
+
+        // Select text, then set each line as a list item by clicking:
+        // format-ordered-list-symbolic
+        // format-unordered-list-symbolic
+        par_bx.append(&line_height_entry);
+
+        let alignment_bx = Box::new(Orientation::Horizontal, 0);
+        let center_btn = Button::new();
+        center_btn.set_icon_name("format-justify-center-symbolic");
+        alignment_bx.append(&center_btn);
+
+        let fill_btn = Button::new();
+        center_btn.set_icon_name("format-justify-fill-symbolic");
+        alignment_bx.append(&fill_btn);
+
+        let left_btn = Button::new();
+        center_btn.set_icon_name("format-justify-left-symbolic");
+        alignment_bx.append(&left_btn);
+
+        let right_btn = Button::new();
+        center_btn.set_icon_name("format-justify-right-symbolic");
+        alignment_bx.append(&right_btn);
+
+        bx.append(&Label::new(Some("Line")));
+        bx.append(&par_bx);
+
+        bx.append(&Label::new(Some("Alignmnet")));
+        bx.append(&alignment_bx);
+
         Self { bold_btn, italic_btn, underline_btn, strike_btn, popover }
     }
 
@@ -236,7 +292,14 @@ impl Titlebar {
         let bib_btn = MenuButton::new();
         bib_btn.set_popover(Some(&bib_popover.popover));
         bib_btn.set_icon_name("user-bookmarks-symbolic");
-        let add_btn = MenuButton::new();
+
+        let page_popover = Popover::new();
+        let page_bx = Box::new(Orientation::Vertical, 1);
+        page_popover.set_child(Some(&page_bx));
+
+        let page_btn = MenuButton::new();
+        page_btn.set_icon_name("x-office-document-symbolic");
+        page_btn.set_popover(Some(&page_popover));
 
         // let bx = Box::new(Orientation::Vertical, 0);
         /*let section_btn = Button::with_label("Section");
@@ -278,12 +341,14 @@ impl Titlebar {
         // bx.append(&math_expander);
         // add_popover.set_child(Some(&bx));
 
+        let add_btn = MenuButton::new();
         add_btn.set_popover(Some(&add_popover));
-        add_btn.set_icon_name("list-add-symbolic");
+        add_btn.set_icon_name("mail-attachment-symbolic");
 
         header.pack_start(&sidebar_toggle);
         header.pack_start(&add_btn);
         header.pack_start(&fmt_btn);
+        header.pack_start(&page_btn);
         header.pack_start(&bib_btn);
 
         // TODO make this another option at a SpinButton.

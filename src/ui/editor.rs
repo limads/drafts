@@ -45,27 +45,30 @@ impl PapersEditor {
     }
 }
 
+pub fn connect_manager_to_editor(manager : &FileManager, view : &sourceview5::View) {
+    manager.connect_opened({
+        let view = view.clone();
+        move |(path, content)| {
+            view.buffer().set_text(&content);
+        }
+    });
+    manager.connect_buffer_read_request({
+        let view = view.clone();
+        move |_| -> String {
+            let buffer = view.buffer();
+            buffer.text(
+                &buffer.start_iter(),
+                &buffer.end_iter(),
+                true
+            ).to_string()
+        }
+    });
+}
+
 impl React<FileManager> for PapersEditor {
 
     fn react(&self, manager : &FileManager) {
-        manager.connect_opened({
-            let view = self.view.clone();
-            move |(path, content)| {
-                println!("Text set to new file");
-                view.buffer().set_text(&content);
-            }
-        });
-        manager.connect_buffer_read_request({
-            let view = self.view.clone();
-            move |_| -> String {
-                let buffer = view.buffer();
-                buffer.text(
-                    &buffer.start_iter(),
-                    &buffer.end_iter(),
-                    true
-                ).to_string()
-            }
-        });
+        connect_manager_to_editor(manager, &self.view);
         manager.connect_close_confirm({
             let overlay = self.overlay.clone();
             move |file| {
