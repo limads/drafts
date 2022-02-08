@@ -404,7 +404,12 @@ impl PapersWindow {
 
 }
 
-pub fn connect_manager_with_window(manager : &FileManager, window : &ApplicationWindow, actions : &FileActions, extension : &'static str) {
+pub fn connect_manager_with_window(
+    manager : &FileManager,
+    window : &ApplicationWindow,
+    actions : &FileActions,
+    extension : &'static str
+) {
     let win = window.clone();
     manager.connect_window_close(move |_| {
         win.destroy();
@@ -419,22 +424,8 @@ pub fn connect_manager_with_window(manager : &FileManager, window : &Application
             window.set_title(Some(&path));
         }
     });
-    manager.connect_new({
-        // let stack = self.stack.clone();
-        let window = window.clone();
-        let action_save = actions.save.clone();
-        let action_save_as = actions.save_as.clone();
-        // let view = self.editor.view.clone();
-        move |_| {
-            // stack.set_visible_child_name("start");
-            window.set_title(Some("Papers"));
-            action_save.set_enabled(false);
-            action_save_as.set_enabled(false);
-        }
-    });
     manager.connect_open_request({
         let open_action = actions.open.clone();
-        // let view = self.editor.view.clone();
         move |_| {
             open_action.activate(None);
         }
@@ -462,30 +453,26 @@ impl React<FileManager> for PapersWindow {
 
     fn react(&self, manager : &FileManager) {
         connect_manager_with_window(manager, &self.window, &self.titlebar.main_menu.actions, "tex");
+        manager.connect_new({
+            let window = self.window.clone();
+            let action_save = self.titlebar.main_menu.actions.save.clone();
+            let action_save_as = self.titlebar.main_menu.actions.save_as.clone();
+            move |_| {
+                window.set_title(Some("Papers"));
+                action_save.set_enabled(false);
+                action_save_as.set_enabled(false);
+            }
+        });
         manager.connect_opened({
-            // let action_save = self.titlebar.main_menu.actions.save.clone();
-            // let action_save_as = self.titlebar.main_menu.actions.save_as.clone();
             let stack = self.stack.clone();
-            //let window = self.window.clone();
             move |(path, _)| {
-                // action_save.set_enabled(true);
-                // action_save_as.set_enabled(true);
-                // window.set_title(Some(&path));
                 stack.set_visible_child_name("editor");
             }
         });
         manager.connect_new({
             let stack = self.stack.clone();
-            // let window = self.window.clone();
-            // let action_save = self.titlebar.main_menu.actions.save.clone();
-            // let action_save_as = self.titlebar.main_menu.actions.save_as.clone();
-            // let view = self.editor.view.clone();
             move |_| {
                 stack.set_visible_child_name("start");
-                // window.set_title(Some("Papers"));
-                // view.buffer().set_text("");
-                // action_save.set_enabled(false);
-                // action_save_as.set_enabled(false);
             }
         });
 
