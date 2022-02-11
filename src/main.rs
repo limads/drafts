@@ -65,6 +65,7 @@ fn main() {
             papers_win.titlebar.bib_popover.react(&analyzer);
             papers_win.doc_tree.react(&analyzer);
             papers_win.editor.react(&analyzer);
+            papers_win.react(&typesetter);
 
             papers_win.window.show();
 

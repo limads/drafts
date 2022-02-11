@@ -20,12 +20,26 @@ use tectonic::driver;
 use tectonic::config;
 use tectonic::status;
 
+#[derive(Debug, Clone)]
+pub enum TypesetterTarget {
+
+    /// Carries path to a recently typeset file (with .pdf or .html extension)
+    File(String),
+
+    /// Carries binary content of a recently typeset PDF file
+    PDFContent(Vec<u8>),
+
+    /// Carries UTF-8 encoded content of a recently typeset HTML file
+    HTMLContent(String)
+
+}
+
 pub enum TypesetterAction {
 
     // Carries content to be typeset.
     Request(String),
 
-    Done,
+    Done(TypesetterTarget),
 
     Error(String)
 
@@ -56,7 +70,7 @@ pub struct Typesetter {
 
     send : glib::Sender<TypesetterAction>,
 
-    on_done : Callbacks<()>,
+    on_done : Callbacks<TypesetterTarget>,
 
     on_error : Callbacks<String>
 
@@ -296,11 +310,13 @@ fn typeset_document_from_cli(ws : &mut Workspace, latex : &str, send : &glib::Se
     println!("Command completed.");
     match out.status.success() {
         true => {
-            send.send(TypesetterAction::Done);
-            let out = Command::new("evince")
+            send.send(TypesetterAction::Done(TypesetterTarget::File(ws.out_uri.clone())));
+            /*let out = Command::new("evince")
                 .args(&[&ws.out_uri])
                 .spawn()
-                .unwrap();
+                .unwrap();*/
+
+            // sudo apt install libpoppler-dev libpoppler-glib-dev
         },
         false => {
             let e = String::from_utf8(out.stderr).unwrap();
@@ -318,7 +334,7 @@ fn typeset_document_from_lib(ws : &mut Workspace, latex : &str, send : &glib::Se
                 Ok(mut f) => {
                     match f.write_all(&pdf_bytes) {
                         Ok(_) => {
-                            send.send(TypesetterAction::Done);
+                            send.send(TypesetterAction::Done(TypesetterTarget::File(ws.out_uri.clone())));
                             let out = Command::new("evince")
                                 .args(&[&ws.out_uri])
                                 .spawn()
@@ -349,7 +365,7 @@ impl Typesetter {
 
     pub fn new() -> Self {
         let (send, recv) = glib::MainContext::channel::<TypesetterAction>(glib::PRIORITY_DEFAULT);
-        let on_done : Callbacks<()> = Default::default();
+        let on_done : Callbacks<TypesetterTarget> = Default::default();
         let on_error : Callbacks<String> = Default::default();
         let (content_send, content_recv) = mpsc::channel::<String>();
         thread::spawn({
@@ -381,8 +397,8 @@ impl Typesetter {
                     TypesetterAction::Request(txt) => {
                         content_send.send(txt);
                     },
-                    TypesetterAction::Done => {
-                        on_done.borrow().iter().for_each(|f| f(()) );
+                    TypesetterAction::Done(target) => {
+                        on_done.borrow().iter().for_each(|f| f(target.clone()) );
                     },
                     TypesetterAction::Error(e) => {
                         on_error.borrow().iter().for_each(|f| f(e.clone()) );
@@ -397,7 +413,7 @@ impl Typesetter {
 
     pub fn connect_done<F>(&self, f : F)
     where
-        F : Fn(()) + 'static
+        F : Fn(TypesetterTarget) + 'static
     {
         self.on_done.borrow_mut().push(boxed::Box::new(f));
     }

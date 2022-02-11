@@ -13,6 +13,8 @@ either = "1.6.1"
 anyhow = "^1"
 tectonic = "0.8.0"
 tectonic_bridge_core = "0.3.0"
+# poppler-rs = "0.19.0"
+poppler-rs = { git = "https://gitlab.gnome.org/World/Rust/poppler-rs.git" }
 
 # webkit2gtk5 = "0.1.2"
 # webkit2gtk5 = "0.1.2"
