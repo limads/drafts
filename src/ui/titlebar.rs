@@ -60,7 +60,8 @@ pub struct Titlebar {
     pub object_actions : ObjectActions,
     pub math_actions : MathActions,
     pub fmt_popover : FormatPopover,
-    pub bib_popover : BibPopover
+    pub bib_popover : BibPopover,
+    pub symbol_btn : MenuButton
 }
 
 #[derive(Debug, Clone)]
@@ -135,6 +136,8 @@ pub struct FormatPopover {
     pub italic_btn : Button,
     pub underline_btn : Button,
     pub strike_btn : Button,
+    pub sub_btn : Button,
+    pub sup_btn : Button,
     pub popover : Popover
 }
 
@@ -145,10 +148,12 @@ impl FormatPopover {
         let popover = Popover::new();
         let char_bx = Box::new(Orientation::Horizontal, 0);
         let bold_btn = Button::builder().icon_name("format-text-bold-symbolic").build();
+        let sub_btn = Button::builder().icon_name("subscript-symbolic").build();
+        let sup_btn = Button::builder().icon_name("superscript-symbolic").build();
         let italic_btn = Button::builder().icon_name("format-text-italic-symbolic").build();
         let underline_btn = Button::builder().icon_name("format-text-underline-symbolic").build();
         let strike_btn = Button::builder().icon_name("format-text-strikethrough-symbolic").build();
-        for btn in [&bold_btn, &italic_btn, &underline_btn, &strike_btn] {
+        for btn in [&bold_btn, &italic_btn, &underline_btn, &strike_btn, &sub_btn, &sup_btn] {
             btn.style_context().add_class("flat");
             char_bx.append(btn);
         }
@@ -162,9 +167,13 @@ impl FormatPopover {
         indent_entry.set_placeholder_text(Some("Indentation (mm)"));
         par_bx.append(&indent_entry);
 
+        // \usepackage[a4paper, total={6in, 8in}, left=2cm, right=2cm, top=2cm, bottom=2cm]{geometry}
+        // \usepackage[legalpaper, landscape, margin=2in]{geometry}
+
         let line_height_entry = Entry::new();
         line_height_entry.set_placeholder_text(Some("Line height (em)"));
-        line_height_entry.set_primary_icon_name(Some("size-vertically-symbolic"));
+        //line_height_entry.set_primary_icon_name(Some("size-vertically-symbolic"));
+        line_height_entry.set_primary_icon_name(Some("line-height-symbolic"));
 
         // size-horizontally-symbolic
         // size-height-symbolic
@@ -174,30 +183,36 @@ impl FormatPopover {
         // format-unordered-list-symbolic
         par_bx.append(&line_height_entry);
 
+        par_bx.style_context().add_class("linked");
         let alignment_bx = Box::new(Orientation::Horizontal, 0);
         let center_btn = Button::new();
         center_btn.set_icon_name("format-justify-center-symbolic");
         alignment_bx.append(&center_btn);
 
         let fill_btn = Button::new();
-        center_btn.set_icon_name("format-justify-fill-symbolic");
+        fill_btn.set_icon_name("format-justify-fill-symbolic");
         alignment_bx.append(&fill_btn);
 
         let left_btn = Button::new();
-        center_btn.set_icon_name("format-justify-left-symbolic");
+        left_btn.set_icon_name("format-justify-left-symbolic");
         alignment_bx.append(&left_btn);
 
         let right_btn = Button::new();
-        center_btn.set_icon_name("format-justify-right-symbolic");
+        right_btn.set_icon_name("format-justify-right-symbolic");
         alignment_bx.append(&right_btn);
+        alignment_bx.style_context().add_class("linked");
 
         bx.append(&Label::new(Some("Line")));
         bx.append(&par_bx);
 
-        bx.append(&Label::new(Some("Alignmnet")));
+        bx.append(&Label::new(Some("Alignment")));
         bx.append(&alignment_bx);
 
-        Self { bold_btn, italic_btn, underline_btn, strike_btn, popover }
+        bx.append(&Label::new(Some("Font")));
+        let font_btn = FontButton::new();
+        bx.append(&font_btn);
+
+        Self { bold_btn, italic_btn, underline_btn, strike_btn, sub_btn, sup_btn, popover }
     }
 
 }
@@ -252,6 +267,15 @@ impl BibPopover {
 
 }
 
+fn build_dash(n : i32) -> Vec<f64> {
+    let dash_sz = 10.0 / (n as f64);
+    let mut dashes = Vec::<f64>::new();
+    for _i in 1..n {
+        dashes.push(dash_sz);
+    }
+    dashes
+}
+
 impl Titlebar {
 
     pub fn build() -> Self {
@@ -260,13 +284,6 @@ impl Titlebar {
 
         let pdf_btn = Button::builder().icon_name("evince-symbolic").build();
         let sidebar_toggle = ToggleButton::builder().icon_name("view-sidebar-symbolic").build();
-
-        /*
-        text-justify-center-symbolic
-        text-justify-fill-symbolic
-        text-justify-left-symbolic
-        text-justify-right-symbolic
-        */
 
         // \begin{center}
         // \end{center}
@@ -285,7 +302,7 @@ impl Titlebar {
 
         let fmt_popover = FormatPopover::build();
         let fmt_btn = MenuButton::new();
-        fmt_btn.set_icon_name("font-size-symbolic");
+        fmt_btn.set_icon_name("insert-text-symbolic");
         fmt_btn.set_popover(Some(&fmt_popover.popover));
 
         let bib_popover = BibPopover::build();
@@ -294,11 +311,124 @@ impl Titlebar {
         bib_btn.set_icon_name("user-bookmarks-symbolic");
 
         let page_popover = Popover::new();
-        let page_bx = Box::new(Orientation::Vertical, 1);
+        let page_bx = Box::new(Orientation::Horizontal, 1);
+
+        let page_da = DrawingArea::new();
+        page_da.set_width_request(172);
+        page_da.set_height_request(144);
+        page_da.set_draw_func({
+            move |da, ctx, _, _| {
+                ctx.save();
+                let allocation = da.allocation();
+
+                let color = 0.5843;
+                ctx.set_source_rgb(color, color, color);
+
+                ctx.set_line_width(2.0);
+
+                let paper_x_offset = 42.0;
+                let paper_y_offset = 10.0;
+                let paper_width = 80.0;
+                let paper_height = 130.0;
+                let fold_sz = 10.0;
+
+                // Draw paper
+                ctx.move_to(paper_x_offset, paper_y_offset);
+                ctx.line_to(paper_x_offset + paper_width - fold_sz, paper_y_offset);
+                ctx.line_to(paper_x_offset + paper_width, paper_y_offset + fold_sz);
+                ctx.line_to(paper_x_offset + paper_width, paper_y_offset + paper_height);
+                ctx.line_to(paper_x_offset, paper_y_offset + paper_height);
+                ctx.line_to(paper_x_offset, paper_y_offset);
+                ctx.stroke();
+
+                // Draw top-right fold at paper
+                ctx.move_to(paper_x_offset + paper_width - fold_sz, paper_y_offset);
+                ctx.line_to(paper_x_offset + paper_width, paper_y_offset + fold_sz);
+                ctx.line_to(paper_x_offset + paper_width - fold_sz, paper_y_offset + fold_sz);
+                ctx.line_to(paper_x_offset + paper_width - fold_sz, paper_y_offset);
+                ctx.fill();
+
+                let margin_left = 10.;
+                let margin_right = 10.;
+                let margin_bottom = 10.;
+                let margin_top = 10.;
+
+                let dashes = build_dash(2);
+                ctx.set_dash(&dashes[..], 0.0);
+
+                // Left margin
+                ctx.move_to(paper_x_offset + margin_left, paper_y_offset);
+                ctx.line_to(paper_x_offset + margin_left, 140.);
+                ctx.stroke();
+
+                // Right margin
+                ctx.move_to(paper_x_offset + paper_width - margin_right, paper_y_offset);
+                ctx.line_to(paper_x_offset + paper_width - margin_right, paper_y_offset + paper_height);
+                ctx.stroke();
+
+                // Margin top
+                ctx.move_to(paper_x_offset, paper_y_offset + margin_top);
+                ctx.line_to(paper_x_offset + paper_width, paper_y_offset + margin_top);
+                ctx.stroke();
+
+                // Margin bottom
+                ctx.move_to(paper_x_offset, paper_y_offset + paper_height - margin_bottom);
+                ctx.line_to(paper_x_offset + paper_width, paper_y_offset + paper_height - margin_bottom);
+                ctx.stroke();
+
+                ctx.restore();
+            }
+        });
+
+        let top_entry = Entry::new();
+        top_entry.set_primary_icon_name(Some("margin-top-symbolic"));
+        top_entry.set_placeholder_text(Some("Top margin (1cm)"));
+
+        let right_entry = Entry::new();
+        right_entry.set_primary_icon_name(Some("margin-right-symbolic"));
+        right_entry.set_placeholder_text(Some("Right margin (1cm)"));
+
+        let bottom_entry = Entry::new();
+        bottom_entry.set_primary_icon_name(Some("margin-bottom-symbolic"));
+        bottom_entry.set_placeholder_text(Some("Bottom margin (1cm)"));
+
+        let left_entry = Entry::new();
+        left_entry.set_primary_icon_name(Some("margin-left-symbolic"));
+        left_entry.set_placeholder_text(Some("Left margin (1cm)"));
+
+        let margin_bx = Box::new(Orientation::Vertical, 0);
+        margin_bx.set_margin_top(10);
+
+        let paper_combo = ComboBoxText::new();
+        paper_combo.append(None, "A4");
+        paper_combo.append(None, "Letter");
+        paper_combo.append(None, "Legal");
+
+        margin_bx.style_context().add_class("linked");
+        for entry in [&top_entry, &bottom_entry, &left_entry, &right_entry] {
+            margin_bx.append(entry);
+        }
+
+        let page_left_bx = Box::new(Orientation::Vertical, 12);
+        super::set_margins(&page_left_bx, 6, 6);
+
+        page_left_bx.append(&page_da);
+        page_left_bx.append(&paper_combo);
+
+        let page_right_bx = Box::new(Orientation::Vertical, 12);
+        super::set_margins(&page_right_bx, 6, 6);
+        let update_btn = Button::new();
+        update_btn.set_label("Update");
+
+        page_right_bx.append(&margin_bx);
+        page_right_bx.append(&update_btn);
+        page_bx.append(&page_left_bx);
+        page_bx.append(&page_right_bx);
+
         page_popover.set_child(Some(&page_bx));
 
         let page_btn = MenuButton::new();
-        page_btn.set_icon_name("x-office-document-symbolic");
+        page_btn.set_icon_name("crop-symbolic");
         page_btn.set_popover(Some(&page_popover));
 
         // let bx = Box::new(Orientation::Vertical, 0);
@@ -309,19 +439,20 @@ impl Titlebar {
         }*/
 
         let menu = gio::Menu::new();
-        let struct_submenu = gio::Menu::new();
-        struct_submenu.append_item(&gio::MenuItem::new(Some("Section"), Some("win.section")));
-        struct_submenu.append_item(&gio::MenuItem::new(Some("Subsection"), Some("win.subsection")));
-        struct_submenu.append_item(&gio::MenuItem::new(Some("List"), Some("win.list")));
+        menu.append_item(&gio::MenuItem::new(Some("Image"), Some("win.image")));
+        menu.append_item(&gio::MenuItem::new(Some("Table"), Some("win.table")));
+        menu.append_item(&gio::MenuItem::new(Some("Link to resource"), Some("win.list")));
+        menu.append_item(&gio::MenuItem::new(Some("Bibliography file"), Some("win.table")));
+
+        // let struct_submenu = gio::Menu::new();
+
         // \author{}
         // \date{}
         // \title{}
         // \abstract{}
-        menu.append_item(&gio::MenuItem::new_submenu(Some("Structure"), &struct_submenu));
+        /*menu.append_item(&gio::MenuItem::new_submenu(Some("Structure"), &struct_submenu));
 
         let object_submenu = gio::Menu::new();
-        object_submenu.append_item(&gio::MenuItem::new(Some("Image"), Some("win.image")));
-        object_submenu.append_item(&gio::MenuItem::new(Some("Table"), Some("win.table")));
         object_submenu.append_item(&gio::MenuItem::new(Some("Code"), Some("win.code")));
         menu.append_item(&gio::MenuItem::new_submenu(Some("Object"), &object_submenu));
 
@@ -329,7 +460,7 @@ impl Titlebar {
         math_submenu.append_item(&gio::MenuItem::new(Some("Symbol"), Some("win.symbol")));
         math_submenu.append_item(&gio::MenuItem::new(Some("Operator"), Some("win.operator")));
         math_submenu.append_item(&gio::MenuItem::new(Some("Function"), Some("win.function")));
-        menu.append_item(&gio::MenuItem::new_submenu(Some("Math"), &math_submenu));
+        menu.append_item(&gio::MenuItem::new_submenu(Some("Math"), &math_submenu));*/
 
         // menu.append_item(Some("Math"), &math_submenu);
         let add_popover = PopoverMenu::from_model(Some(&menu));
@@ -361,7 +492,30 @@ impl Titlebar {
         let sidebar_hide_action = gio::SimpleAction::new_stateful("sidebar_hide", None, &(0).to_variant());
         let main_menu = MainMenu::build();
         menu_button.set_popover(Some(&main_menu.popover));
-        Self { main_menu, header, menu_button, pdf_btn, sidebar_toggle, sidebar_hide_action, bib_popover, math_actions : MathActions::build(), struct_actions : StructActions::build(), object_actions : ObjectActions::build(), fmt_popover }
+
+        //let symbol_popover = SymbolPopover::new(&editor);
+        //titlebar.symbol_btn.set_popover(Some(&symbol_popover.popover));
+
+        let symbol_btn = MenuButton::new();
+        //symbol_btn.set_label("∑");
+        symbol_btn.set_icon_name("equation-symbolic");
+        header.pack_start(&symbol_btn);
+
+        let org_menu = gio::Menu::new();
+        org_menu.append_item(&gio::MenuItem::new(Some("Section"), Some("win.section")));
+        org_menu.append_item(&gio::MenuItem::new(Some("Subsection"), Some("win.subsection")));
+        org_menu.append_item(&gio::MenuItem::new(Some("List"), Some("win.list")));
+        org_menu.append_item(&gio::MenuItem::new(Some("Equation"), Some("win.list")));
+        org_menu.append_item(&gio::MenuItem::new(Some("Code listing"), Some("win.list")));
+        org_menu.append_item(&gio::MenuItem::new(Some("Bibliography (embedded)"), Some("win.list")));
+        let org_popover = PopoverMenu::from_model(Some(&org_menu));
+
+        let org_btn = MenuButton::new();
+        org_btn.set_icon_name("format-unordered-list-symbolic");
+        org_btn.set_popover(Some(&org_popover));
+        header.pack_start(&org_btn);
+
+        Self { symbol_btn, main_menu, header, menu_button, pdf_btn, sidebar_toggle, sidebar_hide_action, bib_popover, math_actions : MathActions::build(), struct_actions : StructActions::build(), object_actions : ObjectActions::build(), fmt_popover }
     }
 }
 

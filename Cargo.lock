@@ -1641,12 +1641,14 @@ dependencies = [
 name = "papers"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "either",
  "gtk4",
  "libadwaita",
  "nom 7.1.0",
  "sourceview5",
  "tectonic",
+ "tectonic_bridge_core",
  "tempfile",
 ]
 

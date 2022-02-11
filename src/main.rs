@@ -21,6 +21,13 @@ fn main() {
             panic!()
         }
     }
+
+    if let Some(display) = gdk::Display::default() {
+        if let Some(theme) = IconTheme::for_display(&display) {
+            theme.add_search_path("/home/diego/Software/papers/assets/icons");
+        }
+    }
+
     application.connect_activate({
         move |app| {
             let window = ApplicationWindow::builder()

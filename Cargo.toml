@@ -7,10 +7,12 @@ edition = "2021"
 gtk4 = "0.3.0"
 sourceview5 = { version = "0.3.0" }
 libadwaita = "0.1.0-beta-1"
-tectonic = "0.8.0"
 tempfile = "3.3.0"
 nom = "7.1.0"
 either = "1.6.1"
+anyhow = "^1"
+tectonic = "0.8.0"
+tectonic_bridge_core = "0.3.0"
 
 # webkit2gtk5 = "0.1.2"
 # webkit2gtk5 = "0.1.2"

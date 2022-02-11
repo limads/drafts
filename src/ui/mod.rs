@@ -36,21 +36,22 @@ pub struct PapersWindow {
     pub start_screen : StartScreen
 }
 
+// \usepackage[utf8]{ulem}
+
 const ARTICLE_TEMPLATE : &'static str = r#"
 \documentclass[a4,11pt]{article}
 
 \usepackage[utf8]{inputenc}
-\usepackage[utf8]{ulem}
 
 \begin{document}
-
+(Article)
 \end{document}"#;
 
 const REPORT_TEMPLATE : &'static str = r#"
 \documentclass[a4,11pt]{article}
 
 \usepackage[utf8]{inputenc}
-
+(Article)
 \begin{document}
 
 \end{document}"#;
@@ -61,7 +62,7 @@ const PRESENTATION_TEMPLATE : &'static str = r#"
 \usepackage[utf8]{inputenc}
 
 \begin{document}
-
+(Article)
 \end{document}"#;
 
 impl React<StartScreen> for PapersWindow {
@@ -289,7 +290,7 @@ pub struct SymbolGrid {
 
 impl SymbolGrid {
 
-    pub fn new(symbols : &'static [(&'static str, &'static str)], view : View, dialog : Dialog, ncol : usize) -> Self {
+    pub fn new(symbols : &'static [(&'static str, &'static str)], view : View, popover : Popover, ncol : usize) -> Self {
         let grid = Grid::new();
         set_all_margins(&grid, 6);
         grid.set_margin_bottom(36);
@@ -300,9 +301,9 @@ impl SymbolGrid {
                     btn.set_label(symbol.0);
                     btn.connect_clicked({
                         let view = view.clone();
-                        let dialog = dialog.clone();
+                        let popover = popover.clone();
                         move|_| {
-                            dialog.close();
+                            popover.popdown();
                             view.buffer().insert_at_cursor(symbol.1);
                         }
                     });
@@ -314,6 +315,36 @@ impl SymbolGrid {
         Self { grid }
     }
 
+}
+
+#[derive(Debug, Clone)]
+pub struct SymbolPopover {
+    pub popover : Popover
+}
+
+impl SymbolPopover {
+
+    pub fn build(editor : &PapersEditor) -> Self {
+        let popover = Popover::new();
+        let greek_small_grid = SymbolGrid::new(&GREEK_SMALL[..], editor.view.clone(), popover.clone(), 12);
+        let greek_capital_grid = SymbolGrid::new(&GREEK_CAPITAL[..], editor.view.clone(), popover.clone(), 12);
+        let operators_grid = SymbolGrid::new(&OPERATORS[..], editor.view.clone(), popover.clone(), 12);
+        let symbol_bx = Box::new(Orientation::Vertical, 0);
+        let operators_lbl = Label::builder().label("Operators").halign(Align::Start).build();
+        let greek_lbl = Label::builder().label("Greek alphabet").halign(Align::Start).build();
+        let greek_capital_lbl = Label::builder().label("Greek alphabet (Capitalized)").halign(Align::Start).build();
+        for lbl in [&operators_lbl, &greek_lbl, &greek_capital_lbl] {
+            set_all_margins(lbl, 6);
+        }
+        symbol_bx.append(&operators_lbl);
+        symbol_bx.append(&operators_grid.grid);
+        symbol_bx.append(&greek_lbl);
+        symbol_bx.append(&greek_small_grid.grid);
+        symbol_bx.append(&greek_capital_lbl);
+        symbol_bx.append(&greek_capital_grid.grid);
+        popover.set_child(Some(&symbol_bx));
+        Self { popover }
+    }
 }
 
 // let min_driver = tectonic_bridge_core::MinimalDriver::new(tectonic_io_base::stdstreams::BufferedPrimaryIo::from_buffer(Vec::new()));
@@ -373,24 +404,11 @@ impl PapersWindow {
         symbol_dialog.set_title(Some("Symbols"));
         configure_dialog(&symbol_dialog);
         symbol_dialog.set_transient_for(Some(&window));
-        let greek_small_grid = SymbolGrid::new(&GREEK_SMALL[..], editor.view.clone(), symbol_dialog.clone(), 12);
-        let greek_capital_grid = SymbolGrid::new(&GREEK_CAPITAL[..], editor.view.clone(), symbol_dialog.clone(), 12);
-        let operators_grid = SymbolGrid::new(&OPERATORS[..], editor.view.clone(), symbol_dialog.clone(), 12);
-        let symbol_bx = Box::new(Orientation::Vertical, 0);
-        let operators_lbl = Label::builder().label("Operators").halign(Align::Start).build();
-        let greek_lbl = Label::builder().label("Greek alphabet").halign(Align::Start).build();
-        let greek_capital_lbl = Label::builder().label("Greek alphabet (Capitalized)").halign(Align::Start).build();
-        for lbl in [&operators_lbl, &greek_lbl, &greek_capital_lbl] {
-            set_all_margins(lbl, 6);
-        }
-        symbol_bx.append(&operators_lbl);
-        symbol_bx.append(&operators_grid.grid);
-        symbol_bx.append(&greek_lbl);
-        symbol_bx.append(&greek_small_grid.grid);
-        symbol_bx.append(&greek_capital_lbl);
-        symbol_bx.append(&greek_capital_grid.grid);
 
-        symbol_dialog.set_child(Some(&symbol_bx));
+        let symbol_popover = SymbolPopover::build(&editor);
+        titlebar.symbol_btn.set_popover(Some(&symbol_popover.popover));
+
+        // symbol_dialog.set_child(Some(&symbol_bx));
         titlebar.math_actions.symbol.connect_activate(move |_, _| {
             symbol_dialog.show();
         });
@@ -653,3 +671,70 @@ pub fn set_all_margins<W : WidgetExt>(w : &W, margin : i32) {
     w.set_margin_top(margin);
     w.set_margin_bottom(margin);
 }
+
+pub fn setup_position_as_ratio(win : &ApplicationWindow, paned : &Paned, ratio : f32) {
+    let ratio = start_position_as_ratio(win, paned, ratio);
+    preserve_ratio_on_resize(win, paned, &ratio);
+}
+
+fn start_position_as_ratio(win : &ApplicationWindow, paned : &Paned, ratio : f32) -> Rc<RefCell<f32>> {
+    let paned = paned.clone();
+    win.connect_show(move |win| {
+        set_position_as_ratio(win, &paned, ratio);
+    });
+    Rc::new(RefCell::new(ratio))
+}
+
+fn set_position_as_ratio(win : &ApplicationWindow, paned : &Paned, ratio : f32) {
+    let (mut w, mut h) = (win.allocation().width, win.allocation().height);
+
+    // Allocation will be zero at the first time window is shown.
+    if w == 0 {
+        w = win.default_width();
+    }
+    if h == 0 {
+        h = win.default_height();
+    }
+    let dim = match paned.orientation() {
+        Orientation::Horizontal => w as f32,
+        Orientation::Vertical => h as f32,
+        _ => { return; }
+    };
+    println!("({:?})", dim);
+    paned.set_position((dim * ratio) as i32);
+}
+
+fn preserve_ratio_on_resize(win : &ApplicationWindow, paned : &Paned, ratio : &Rc<RefCell<f32>>) {
+    win.connect_default_width_notify({
+        let paned = paned.clone();
+        let ratio = ratio.clone();
+        println!("Size changed");
+        move |win| {
+            let alloc = win.allocation();
+            set_position_as_ratio(&win,&paned, *ratio.borrow());
+        }
+    });
+    win.connect_default_height_notify({
+        let paned = paned.clone();
+        let ratio = ratio.clone();
+        println!("Size changed");
+        move |win| {
+            let alloc = win.allocation();
+            set_position_as_ratio(&win, &paned, *ratio.borrow());
+        }
+    });
+    let ratio = ratio.clone();
+    let win = win.clone();
+    paned.connect_accept_position(move |paned| {
+        let dim = match paned.orientation() {
+            Orientation::Horizontal => win.allocation().width as f32,
+            Orientation::Vertical => win.allocation().height as f32,
+            _ => { return true; }
+        };
+        let new_ratio = paned.position() as f32 / dim;
+        *(ratio.borrow_mut()) = new_ratio;
+        true
+    });
+}
+
+
