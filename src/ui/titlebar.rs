@@ -148,7 +148,11 @@ impl FormatPopover {
         let popover = Popover::new();
         let char_bx = Box::new(Orientation::Horizontal, 0);
         let bold_btn = Button::builder().icon_name("format-text-bold-symbolic").build();
+
+        // \textsubscript{}
         let sub_btn = Button::builder().icon_name("subscript-symbolic").build();
+
+        // \textsuperscript{}
         let sup_btn = Button::builder().icon_name("superscript-symbolic").build();
         let italic_btn = Button::builder().icon_name("format-text-italic-symbolic").build();
         let underline_btn = Button::builder().icon_name("format-text-underline-symbolic").build();
@@ -161,6 +165,7 @@ impl FormatPopover {
         bx.append(&char_bx);
         popover.set_child(Some(&bx));
 
+        // \setlength{\parindent}{1cm}
         let par_bx = Box::new(Orientation::Vertical, 0);
         let indent_entry = Entry::new();
         indent_entry.set_primary_icon_name(Some("format-indent-more-symbolic"));
@@ -171,8 +176,10 @@ impl FormatPopover {
         // \usepackage[legalpaper, landscape, margin=2in]{geometry}
 
         let line_height_entry = Entry::new();
+
+        //\linespread{factor}
         line_height_entry.set_placeholder_text(Some("Line height (em)"));
-        //line_height_entry.set_primary_icon_name(Some("size-vertically-symbolic"));
+
         line_height_entry.set_primary_icon_name(Some("line-height-symbolic"));
 
         // size-horizontally-symbolic
@@ -192,6 +199,16 @@ impl FormatPopover {
         let fill_btn = Button::new();
         fill_btn.set_icon_name("format-justify-fill-symbolic");
         alignment_bx.append(&fill_btn);
+
+        /*\begin{multicols}{2}
+        lots of text
+        \end{multicols}*/
+
+        // {\raggedleft Some text flushed right. }
+        // {\raggedright Some text flushed right. }
+        // {\centering Some text centered. }
+        // Use the freeform commands (without {}) to apply to whole document. Use the
+        // previous forms when the user selected some text.
 
         let left_btn = Button::new();
         left_btn.set_icon_name("format-justify-left-symbolic");
@@ -403,6 +420,7 @@ impl Titlebar {
         paper_combo.append(None, "A4");
         paper_combo.append(None, "Letter");
         paper_combo.append(None, "Legal");
+        paper_combo.append(None, "Custom");
 
         margin_bx.style_context().add_class("linked");
         for entry in [&top_entry, &bottom_entry, &left_entry, &right_entry] {
@@ -476,12 +494,6 @@ impl Titlebar {
         add_btn.set_popover(Some(&add_popover));
         add_btn.set_icon_name("mail-attachment-symbolic");
 
-        header.pack_start(&sidebar_toggle);
-        header.pack_start(&add_btn);
-        header.pack_start(&fmt_btn);
-        header.pack_start(&page_btn);
-        header.pack_start(&bib_btn);
-
         // TODO make this another option at a SpinButton.
         // let web_btn = ToggleButton::builder().icon_name("globe-symbolic").build();
 
@@ -493,27 +505,80 @@ impl Titlebar {
         let main_menu = MainMenu::build();
         menu_button.set_popover(Some(&main_menu.popover));
 
-        //let symbol_popover = SymbolPopover::new(&editor);
-        //titlebar.symbol_btn.set_popover(Some(&symbol_popover.popover));
+        // let symbol_popover = SymbolPopover::new(&editor);
+        // titlebar.symbol_btn.set_popover(Some(&symbol_popover.popover));
 
         let symbol_btn = MenuButton::new();
         //symbol_btn.set_label("∑");
         symbol_btn.set_icon_name("equation-symbolic");
-        header.pack_start(&symbol_btn);
 
         let org_menu = gio::Menu::new();
-        org_menu.append_item(&gio::MenuItem::new(Some("Section"), Some("win.section")));
-        org_menu.append_item(&gio::MenuItem::new(Some("Subsection"), Some("win.subsection")));
-        org_menu.append_item(&gio::MenuItem::new(Some("List"), Some("win.list")));
-        org_menu.append_item(&gio::MenuItem::new(Some("Equation"), Some("win.list")));
-        org_menu.append_item(&gio::MenuItem::new(Some("Code listing"), Some("win.list")));
-        org_menu.append_item(&gio::MenuItem::new(Some("Bibliography (embedded)"), Some("win.list")));
+
+        let sectioning_submenu = gio::Menu::new();
+        sectioning_submenu.append_item(&gio::MenuItem::new(Some("Chapter"), Some("win.section")));
+        sectioning_submenu.append_item(&gio::MenuItem::new(Some("Section"), Some("win.section")));
+        sectioning_submenu.append_item(&gio::MenuItem::new(Some("Subsection"), Some("win.subsection")));
+        sectioning_submenu.append_item(&gio::MenuItem::new(Some("Sub-subsection"), Some("win.subsection")));
+        org_menu.append_item(&gio::MenuItem::new_submenu(Some("Sectioning"), &sectioning_submenu));
+
+        //\clearpage
+        let layout_submenu = gio::Menu::new();
+        layout_submenu.append_item(&gio::MenuItem::new(Some("Page break"), Some("win.subsection")));
+        layout_submenu.append_item(&gio::MenuItem::new(Some("Line break"), Some("win.subsection")));
+        layout_submenu.append_item(&gio::MenuItem::new(Some("Horizontal space"), Some("win.subsection")));
+        layout_submenu.append_item(&gio::MenuItem::new(Some("Vertical space"), Some("win.subsection")));
+        // \hspace{2cm}
+        // \vspace{2cm}
+
+        // Clear page still allows floats to appear; pagebreak avoids any content.
+        // \clearpage
+        // \pagebreak[0]
+        // \newline
+
+        org_menu.append_item(&gio::MenuItem::new_submenu(Some("Layout"), &layout_submenu));
+
+        let block_submenu = gio::Menu::new();
+        block_submenu.append_item(&gio::MenuItem::new(Some("Equation"), Some("win.list")));
+        block_submenu.append_item(&gio::MenuItem::new(Some("List"), Some("win.operator")));
+
+        // \quote{}
+        block_submenu.append_item(&gio::MenuItem::new(Some("Quote (simple)"), Some("win.function")));
+
+        // \quotation{}
+        block_submenu.append_item(&gio::MenuItem::new(Some("Quote (long)"), Some("win.function")));
+
+        block_submenu.append_item(&gio::MenuItem::new(Some("Verbatim"), Some("win.function")));
+        block_submenu.append_item(&gio::MenuItem::new(Some("Abstract"), Some("win.operator")));
+        block_submenu.append_item(&gio::MenuItem::new(Some("Code listing"), Some("win.function")));
+        block_submenu.append_item(&gio::MenuItem::new(Some("Table (embedded)"), Some("win.symbol")));
+        block_submenu.append_item(&gio::MenuItem::new(Some("Bibliography (embedded)"), Some("win.symbol")));
+        org_menu.append_item(&gio::MenuItem::new_submenu(Some("Block"), &block_submenu));
+
+        let meta_submenu = gio::Menu::new();
+        meta_submenu.append_item(&gio::MenuItem::new(Some("Author"), Some("win.symbol")));
+        meta_submenu.append_item(&gio::MenuItem::new(Some("Title"), Some("win.operator")));
+        meta_submenu.append_item(&gio::MenuItem::new(Some("Date"), Some("win.function")));
+        org_menu.append_item(&gio::MenuItem::new_submenu(Some("Metadata"), &meta_submenu));
+
+        let indexing_submenu = gio::Menu::new();
+        indexing_submenu.append_item(&gio::MenuItem::new(Some("Table of contents"), Some("win.symbol")));
+        indexing_submenu.append_item(&gio::MenuItem::new(Some("List of tables"), Some("win.symbol")));
+        indexing_submenu.append_item(&gio::MenuItem::new(Some("List of figures"), Some("win.symbol")));
+        org_menu.append_item(&gio::MenuItem::new_submenu(Some("Indexing"), &indexing_submenu));
+
         let org_popover = PopoverMenu::from_model(Some(&org_menu));
 
         let org_btn = MenuButton::new();
         org_btn.set_icon_name("format-unordered-list-symbolic");
         org_btn.set_popover(Some(&org_popover));
+
+        header.pack_start(&sidebar_toggle);
         header.pack_start(&org_btn);
+        header.pack_start(&page_btn);
+        header.pack_start(&fmt_btn);
+        header.pack_start(&symbol_btn);
+        header.pack_start(&add_btn);
+        header.pack_start(&bib_btn);
 
         Self { symbol_btn, main_menu, header, menu_button, pdf_btn, sidebar_toggle, sidebar_hide_action, bib_popover, math_actions : MathActions::build(), struct_actions : StructActions::build(), object_actions : ObjectActions::build(), fmt_popover }
     }

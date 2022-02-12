@@ -14,7 +14,10 @@ anyhow = "^1"
 tectonic = "0.8.0"
 tectonic_bridge_core = "0.3.0"
 # poppler-rs = "0.19.0"
-poppler-rs = { git = "https://gitlab.gnome.org/World/Rust/poppler-rs.git" }
+
+# Poppler is not distributed on the Gnome SDK, therefore it is not being used
+# on the flatpak build.
+# poppler-rs = { git = "https://gitlab.gnome.org/World/Rust/poppler-rs.git", optional = true }
 
 # webkit2gtk5 = "0.1.2"
 # webkit2gtk5 = "0.1.2"

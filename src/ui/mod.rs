@@ -57,14 +57,79 @@ const REPORT_TEMPLATE : &'static str = r#"
 
 \end{document}"#;
 
-const PRESENTATION_TEMPLATE : &'static str = r#"
-\documentclass[a4,11pt]{article}
-
-\usepackage[utf8]{inputenc}
-
+const BOOK_TEMPLATE : &'static str = r#"
 \begin{document}
-(Article)
-\end{document}"#;
+\frontmatter
+
+\maketitle
+
+\chapter{Preface}
+
+\mainmatter
+\chapter{First chapter}
+
+\appendix
+\chapter{First Appendix}
+
+\backmatter
+\chapter{Last note}
+"#;
+
+const LETTER_TEMPLATE : &'static str = r#"
+\documentclass{letter}
+\usepackage{hyperref}
+\signature{Joe Bloggs}
+\address{21 Bridge Street \\ Smallville \\ Dunwich DU3 4WE}
+\begin{document}
+
+\begin{letter}{Director \\ Doe \& Co \\ 35 Anthony Road
+\\ Newport \\ Ipswich IP3 5RT}
+\opening{Dear Sir or Madam:}
+
+I am writing to you on behalf of the Wikipedia project (http://www.wikipedia.org/),
+an endeavour to build a fully-fledged multilingual encyclopaedia in an entirely
+open manner, to ask for permission to use your copyrighted material.
+
+% The \ldots command produces dots in a way that will not upset
+% the typesetting of the document.
+\ldots
+
+That said, allow me to reiterate that your material will be used to the noble end of
+providing a free collection of knowledge for everyone; naturally enough, only if you
+agree. If that is the case, could you kindly fill in the attached form and post it
+back to me? We shall greatly appreciate it.
+
+Thank you for your time and consideration.
+
+I look forward to your reply.
+
+\closing{Yours Faithfully,}
+
+\ps
+
+P.S. You can find the full text of GFDL license at
+\url{http://www.gnu.org/copyleft/fdl.html}.
+
+\encl{Copyright permission form}
+
+\end{letter}
+\end{document}
+"#;
+
+const PRESENTATION_TEMPLATE : &'static str = r#"\documentclass{beamer}
+\begin{document}
+  \begin{frame}
+    \frametitle{This is the first slide}
+    %Content goes here
+  \end{frame}
+  \begin{frame}
+    \frametitle{This is the second slide}
+    \framesubtitle{A bit more information about this}
+    %More content goes here
+  \end{frame}
+% etc
+\end{document}
+"#;
 
 impl React<StartScreen> for PapersWindow {
 
@@ -158,12 +223,17 @@ impl DocBtn {
         let btn = Button::new();
         // let pxb = Pixbuf::from_file(image).unwrap();
         let img = Picture::for_filename(image);
+        img.set_can_shrink(false);
         // let img = Picture::from_pixbuf(Some(&pxb));
         // img.set_icon_size(IconSize::Large);
         //img.set_pixel_size(2);
         let lbl_bx = Box::new(Orientation::Vertical, 12);
         let lbl = Label::new(Some(title));
+        lbl.set_justify(Justification::Left);
+        lbl.set_halign(Align::Start);
         let sub_lbl = Label::builder().use_markup(true).label(&format!("<span font_weight='normal'>{}</span>", sub)).build();
+        sub_lbl.set_halign(Align::Start);
+        sub_lbl.set_justify(Justification::Left);
         lbl_bx.append(&lbl);
         lbl_bx.append(&sub_lbl);
 
@@ -175,30 +245,89 @@ impl DocBtn {
         btn.style_context().add_class("flat");
         btn.set_vexpand(true);
         btn.set_valign(Align::Center);
+        btn.set_width_request(480);
         Self { btn }
     }
 
 }
 
+// \url{http://www.uni.edu/~myname/best-website-ever.html}
+/*
+\begin{comment}
+rather stupid,
+but helpful
+\end{comment}
+
+\textcolor[rgb]{0,1,0}{This text will appear green-colored}
+
+\setmainfont{Georgia}
+\setsansfont{Arial}
+
+*/
+const PAPERS_PRELUDE : &'static str = r"
+    \usepackage{url}
+    \usepackage{comment}
+    \usepackage{xcolor}
+    \usepackage{fontspec}
+    \usepackage{multicols}
+    \usepackage{amsmath}
+";
+
+const EMPTY_DESCRIPTION : &'static str = r#"
+Start a document from scratch
+without a predefined class"#;
+
+const MINIMAL_DESCRIPTION : &'static str = r#"
+Minimal document. Useful for notes, drafts
+or any kind of document which do not
+require sectioning or metadata."#;
+
+const ARTICLE_DESCRIPTION : &'static str = r#"
+Short document divided into sections and
+subsections. Aimed at journal articles."#;
+
+const REPORT_DESCRIPTION : &'static str = r#"
+Longer document divided into chapters.
+Usually aimed at technical reports or
+academic documents such as dissertations
+and thesis."#;
+
+const BOOK_DESCRIPTION : &'static str = r#"
+Long document divided into chapters.
+Structured into front matter, main matter
+and back matter."#;
+
+const PRESENTATION_DESCRIPTION : &'static str = r#"A slide presentation."#;
+
 impl StartScreen {
 
     pub fn build() -> Self {
-        let doc_bx = Box::new(Orientation::Horizontal, 0);
-        let empty_btn = DocBtn::build("/home/diego/Downloads/empty.svg", "Empty", "Create a completely empty document");
-        let article_btn = DocBtn::build("/home/diego/Downloads/article.svg", "Article", "Journal article, usually with an \nabstract and divided by sections");
+        let doc_upper_bx = Box::new(Orientation::Horizontal, 0);
+        let doc_lower_bx = Box::new(Orientation::Horizontal, 0);
+        let empty_btn = DocBtn::build("/home/diego/Software/papers/assets/pictures/empty.svg", "Empty", EMPTY_DESCRIPTION);
+        let minimal_btn = DocBtn::build("/home/diego/Software/papers/assets/pictures/minimal.svg", "Minimal", MINIMAL_DESCRIPTION);
+        let article_btn = DocBtn::build("/home/diego/Software/papers/assets/pictures/article.svg", "Article", ARTICLE_DESCRIPTION);
+        let report_btn = DocBtn::build("/home/diego/Software/papers/assets/pictures/report.svg", "Report", REPORT_DESCRIPTION);
+        let book_btn = DocBtn::build("/home/diego/Software/papers/assets/pictures/book.svg", "Book", BOOK_DESCRIPTION);
+        let present_btn = DocBtn::build("/home/diego/Software/papers/assets/pictures/presentation.svg", "Presentation", PRESENTATION_DESCRIPTION);
         // let report_btn = Button::builder().label("Report").build();
         // let presentation_btn = Button::builder().label("Presentation").build();
         // letter
         // book
 
         let center_bx = Box::new(Orientation::Vertical, 32);
-        doc_bx.append(&empty_btn.btn);
-        doc_bx.append(&article_btn.btn);
+        doc_upper_bx.append(&empty_btn.btn);
+        doc_upper_bx.append(&minimal_btn.btn);
+        doc_upper_bx.append(&article_btn.btn);
+        doc_lower_bx.append(&report_btn.btn);
+        doc_lower_bx.append(&book_btn.btn);
+        doc_lower_bx.append(&present_btn.btn);
 
         let bx = Box::new(Orientation::Vertical, 0);
         let title = title_label("New document");
         center_bx.append(&title);
-        center_bx.append(&doc_bx);
+        center_bx.append(&doc_upper_bx);
+        center_bx.append(&doc_lower_bx);
         //set_margins(&center_bx, 128, 0);
         bx.append(&center_bx);
         center_bx.set_vexpand(true);
@@ -791,138 +920,13 @@ impl React<Typesetter> for PapersWindow {
         typesetter.connect_done(move |target| {
             match target {
                 TypesetterTarget::File(path) => {
-                    let doc = poppler::Document::from_file(&path, None).unwrap();
 
-                    let dialog = Dialog::new();
-                    dialog.set_default_width(1024);
-                    dialog.set_default_height(768);
-                    dialog.set_transient_for(Some(&win));
-
-                    let scroll = ScrolledWindow::new();
-                    let bx = Box::new(Orientation::Vertical, 12);
-                    scroll.set_child(Some(&bx));
-                    dialog.set_child(Some(&scroll));
-                    set_margins(&bx, 32, 32);
-
-                    let header = HeaderBar::new();
-                    let zoom_bx = Box::new(Orientation::Horizontal, 0);
-                    let zoom_in_btn = Button::new();
-                    let zoom_out_btn = Button::new();
-                    zoom_out_btn.set_sensitive(false);
-                    zoom_in_btn.set_icon_name("zoom-in-symbolic");
-                    zoom_out_btn.set_icon_name("zoom-out-symbolic");
-                    zoom_bx.style_context().add_class("linked");
-                    zoom_bx.append(&zoom_in_btn);
-                    zoom_bx.append(&zoom_out_btn);
-                    header.pack_start(&zoom_bx);
-                    dialog.set_titlebar(Some(&header));
-                    dialog.set_title(Some(&Path::new(&path).file_name().unwrap().to_str().unwrap()));
-
-                    let mut zoom = Rc::new(RefCell::new(DEFAULT_SCALE));
-                    let mut das : Rc<RefCell<Vec<DrawingArea>>> = Rc::new(RefCell::new(Vec::new()));
-                    zoom_in_btn.connect_clicked({
-                        let zoom = zoom.clone();
-                        let das = das.clone();
-                        let zoom_out_btn = zoom_out_btn.clone();
-                        let bx = bx.clone();
-                        move |btn| {
-                            let mut z = zoom.borrow_mut();
-                            if *z <= 5.0 {
-                                *z += SCALE_INCREMENT;
-                                if *z == 5.0 {
-                                    btn.set_sensitive(false);
-                                }
-                                if *z > 1.0 {
-                                    zoom_out_btn.set_sensitive(true);
-                                }
-                            } else {
-                                btn.set_sensitive(false);
-                            }
-                            das.borrow().iter().for_each(|da| da.queue_draw() );
-                        }
-                    });
-                    zoom_out_btn.connect_clicked({
-                        let zoom = zoom.clone();
-                        let das = das.clone();
-                        let zoom_in_btn = zoom_in_btn.clone();
-                        let bx = bx.clone();
-                        move |btn| {
-                            let mut z = zoom.borrow_mut();
-                            if *z > 1.0 {
-                                *z -= DEFAULT_SCALE;
-                                if *z == 1.0 {
-                                    btn.set_sensitive(false);
-                                }
-                                if *z > 1.0 {
-                                    btn.set_sensitive(true);
-                                }
-                                if *z < 5.0 {
-                                    zoom_in_btn.set_sensitive(true);
-                                }
-                            } else {
-                                btn.set_sensitive(false);
-                            }
-                            das.borrow().iter().for_each(|da| da.queue_draw() );
-                        }
-                    });
-
-                    for page_ix in 0..doc.n_pages() {
-
-                        let da = DrawingArea::new();
-
-                        let zoom = zoom.clone();
-                        let page = doc.page(page_ix).unwrap();
-                        da.set_vexpand(false);
-                        da.set_hexpand(false);
-                        da.set_halign(Align::Center);
-                        da.set_valign(Align::Center);
-                        //da.set_width_request((A4.0 * PX_PER_MM) as i32);
-                        //da.set_height_request((A4.1 * PX_PER_MM) as i32);
-
-                        da.set_draw_func(move |da, ctx, _, _| {
-                            ctx.save();
-
-                            let z = *zoom.borrow();
-                            let (w, h) = page.size();
-                            da.set_width_request((w * z) as i32);
-                            da.set_height_request((h * z) as i32);
-
-                            let (w, h) = (da.allocation().width as f64, da.allocation().height as f64);
-
-                            // Draw white background of page
-                            ctx.set_source_rgb(1., 1., 1.);
-                            ctx.rectangle(1., 1., w, h);
-
-                            // Draw page borders
-                            let color = 0.5843;
-                            ctx.set_line_width(0.5);
-                            let grad = cairo::LinearGradient::new(0.0, 0.0, w, h);
-                            grad.add_color_stop_rgba(0.0, color, color, color, 0.5);
-                            grad.add_color_stop_rgba(0.5, color, color, color, 1.0);
-                            ctx.move_to(1., 1.);
-                            ctx.line_to(w - 1., 1.);
-                            ctx.line_to(w - 1., h);
-                            ctx.line_to(1., h - 1.);
-                            ctx.line_to(1., 1.);
-
-                            // Linear gradient derefs into pattern.
-                            ctx.set_source(&*grad);
-
-                            ctx.stroke();
-
-                            // Poppler always render with the same dpi from the physical page resolution. We must
-                            // apply a scale to the context if we want the content to be scaled.
-                            ctx.scale(z, z);
-
-                            // TODO remove the transmute when GTK/cairo version match.
-                            page.render(unsafe { std::mem::transmute::<_, _>(ctx) });
-
-                            ctx.restore();
-                        });
-                        bx.append(&da);
-                        das.borrow_mut().push(da);
+                    #[cfg(feature="poppler")]
+                    {
+                        show_with_poppler(&win, &path[..]);
                     }
-                    dialog.show();
+
+                    show_with_evince(&path);
                 },
                 _ => {
 
@@ -931,6 +935,153 @@ impl React<Typesetter> for PapersWindow {
         });
     }
 
+}
+
+fn show_with_evince(path : &str) {
+
+    use std::process::Command;
+
+    let out = Command::new("evince")
+        .args(&[&path])
+        .spawn()
+        .unwrap();
+}
+
+#[cfg(feature="poppler")]
+fn show_with_poppler(win : &ApplicationWindow, path : &str) {
+
+    let doc = poppler::Document::from_file(&path, None).unwrap();
+
+    let dialog = Dialog::new();
+    dialog.set_default_width(1024);
+    dialog.set_default_height(768);
+    dialog.set_transient_for(Some(&win));
+
+    let scroll = ScrolledWindow::new();
+    let bx = Box::new(Orientation::Vertical, 12);
+    scroll.set_child(Some(&bx));
+    dialog.set_child(Some(&scroll));
+    set_margins(&bx, 32, 32);
+
+    let header = HeaderBar::new();
+    let zoom_bx = Box::new(Orientation::Horizontal, 0);
+    let zoom_in_btn = Button::new();
+    let zoom_out_btn = Button::new();
+    zoom_out_btn.set_sensitive(false);
+    zoom_in_btn.set_icon_name("zoom-in-symbolic");
+    zoom_out_btn.set_icon_name("zoom-out-symbolic");
+    zoom_bx.style_context().add_class("linked");
+    zoom_bx.append(&zoom_in_btn);
+    zoom_bx.append(&zoom_out_btn);
+    header.pack_start(&zoom_bx);
+    dialog.set_titlebar(Some(&header));
+    dialog.set_title(Some(&Path::new(&path).file_name().unwrap().to_str().unwrap()));
+
+    let mut zoom = Rc::new(RefCell::new(DEFAULT_SCALE));
+    let mut das : Rc<RefCell<Vec<DrawingArea>>> = Rc::new(RefCell::new(Vec::new()));
+    zoom_in_btn.connect_clicked({
+        let zoom = zoom.clone();
+        let das = das.clone();
+        let zoom_out_btn = zoom_out_btn.clone();
+        let bx = bx.clone();
+        move |btn| {
+            let mut z = zoom.borrow_mut();
+            if *z <= 5.0 {
+                *z += SCALE_INCREMENT;
+                if *z == 5.0 {
+                    btn.set_sensitive(false);
+                }
+                if *z > 1.0 {
+                    zoom_out_btn.set_sensitive(true);
+                }
+            } else {
+                btn.set_sensitive(false);
+            }
+            das.borrow().iter().for_each(|da| da.queue_draw() );
+        }
+    });
+    zoom_out_btn.connect_clicked({
+        let zoom = zoom.clone();
+        let das = das.clone();
+        let zoom_in_btn = zoom_in_btn.clone();
+        let bx = bx.clone();
+        move |btn| {
+            let mut z = zoom.borrow_mut();
+            if *z > 1.0 {
+                *z -= DEFAULT_SCALE;
+                if *z == 1.0 {
+                    btn.set_sensitive(false);
+                }
+                if *z > 1.0 {
+                    btn.set_sensitive(true);
+                }
+                if *z < 5.0 {
+                    zoom_in_btn.set_sensitive(true);
+                }
+            } else {
+                btn.set_sensitive(false);
+            }
+            das.borrow().iter().for_each(|da| da.queue_draw() );
+        }
+    });
+
+    for page_ix in 0..doc.n_pages() {
+
+        let da = DrawingArea::new();
+
+        let zoom = zoom.clone();
+        let page = doc.page(page_ix).unwrap();
+        da.set_vexpand(false);
+        da.set_hexpand(false);
+        da.set_halign(Align::Center);
+        da.set_valign(Align::Center);
+        //da.set_width_request((A4.0 * PX_PER_MM) as i32);
+        //da.set_height_request((A4.1 * PX_PER_MM) as i32);
+
+        da.set_draw_func(move |da, ctx, _, _| {
+            ctx.save();
+
+            let z = *zoom.borrow();
+            let (w, h) = page.size();
+            da.set_width_request((w * z) as i32);
+            da.set_height_request((h * z) as i32);
+
+            let (w, h) = (da.allocation().width as f64, da.allocation().height as f64);
+
+            // Draw white background of page
+            ctx.set_source_rgb(1., 1., 1.);
+            ctx.rectangle(1., 1., w, h);
+
+            // Draw page borders
+            let color = 0.5843;
+            ctx.set_line_width(0.5);
+            let grad = cairo::LinearGradient::new(0.0, 0.0, w, h);
+            grad.add_color_stop_rgba(0.0, color, color, color, 0.5);
+            grad.add_color_stop_rgba(0.5, color, color, color, 1.0);
+            ctx.move_to(1., 1.);
+            ctx.line_to(w - 1., 1.);
+            ctx.line_to(w - 1., h);
+            ctx.line_to(1., h - 1.);
+            ctx.line_to(1., 1.);
+
+            // Linear gradient derefs into pattern.
+            ctx.set_source(&*grad);
+
+            ctx.stroke();
+
+            // Poppler always render with the same dpi from the physical page resolution. We must
+            // apply a scale to the context if we want the content to be scaled.
+            ctx.scale(z, z);
+
+            // TODO remove the transmute when GTK/cairo version match.
+            page.render(unsafe { std::mem::transmute::<_, _>(ctx) });
+
+            ctx.restore();
+        });
+        bx.append(&da);
+        das.borrow_mut().push(da);
+    }
+    dialog.show();
 }
 
 pub fn title_label(txt : &str) -> Label {

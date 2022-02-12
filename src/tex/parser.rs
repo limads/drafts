@@ -545,6 +545,11 @@ impl Parser {
 
 }
 
+/*
+TODO submit the parser to
+https://en.wikibooks.org/wiki/LaTeX/Sample_LaTeX_documents
+*/
+
 #[test]
 fn test_parser() {
 

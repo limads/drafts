@@ -8,6 +8,13 @@ use papers::analyzer::Analyzer;
 
 const APP_ID : &'static str = "com.github.limads.papers";
 
+// flatpak remote-add --if-not-exists gnome-nightly https://nightly.gnome.org/gnome-nightly.flatpakrepo
+// flatpak install gnome-nightly org.gnome.Sdk master
+// flatpak install gnome-nightly org.gnome.Platform master
+// flatpak install flathub org.freedesktop.Sdk.Extension.rust-stable
+// To install locally, pass the --install flag without any arguments.
+// flatpak-builder --repo=/home/diego/Downloads/papers-repo /home/diego/Downloads/papers-build com.github.limads.Papers.json
+
 fn main() {
     gtk4::init().unwrap();
     let application = Application::builder()

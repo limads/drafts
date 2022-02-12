@@ -335,10 +335,6 @@ fn typeset_document_from_lib(ws : &mut Workspace, latex : &str, send : &glib::Se
                     match f.write_all(&pdf_bytes) {
                         Ok(_) => {
                             send.send(TypesetterAction::Done(TypesetterTarget::File(ws.out_uri.clone())));
-                            let out = Command::new("evince")
-                                .args(&[&ws.out_uri])
-                                .spawn()
-                                .unwrap();
                         },
                         Err(e) => {
                             send.send(TypesetterAction::Error(format!("{}", e)));

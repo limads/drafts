@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="128"
+   height="128"
+   viewBox="0 0 33.866666 33.866668"
+   version="1.1"
+   id="svg4243"
+   inkscape:version="1.1.1 (3bf5ae0d25, 2021-09-20)"
+   sodipodi:docname="presentation.svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview4245"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:pageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:document-units="mm"
+     showgrid="false"
+     units="px"
+     inkscape:zoom="3.9408307"
+     inkscape:cx="27.659143"
+     inkscape:cy="48.340062"
+     inkscape:window-width="1920"
+     inkscape:window-height="1016"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="layer1" />
+  <defs
+     id="defs4240" />
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1">
+    <g
+       id="g893-3"
+       transform="matrix(0.30448121,0,0,0.30448121,50.852782,-68.685942)"
+       style="fill:#969696;stroke:#969696">
+      <rect
+         style="fill:#969696;stroke:#969696;stroke-width:2.02281;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+         id="rect831-6"
+         width="26.970306"
+         height="2.0428505"
+         x="-142.82663"
+         y="295.60092"
+         rx="0"
+         ry="0" />
+    </g>
+    <g
+       id="g889-2"
+       transform="matrix(0.30448121,0,0,0.30448121,-7.2846063,8.0950718)"
+       style="fill:#969696;stroke:#969696">
+      <rect
+         style="fill:#969696;stroke:#969696;stroke-width:2.02281;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+         id="rect835-1"
+         width="26.970306"
+         height="2.0428505"
+         x="48.112534"
+         y="51.00898"
+         rx="0"
+         ry="0" />
+    </g>
+    <rect
+       style="fill:#969696;stroke:#969696;stroke-width:0.834292;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+       id="rect2013-5"
+       width="18.636093"
+       height="1.1307169"
+       x="3.9274189"
+       y="6.8518615"
+       rx="0"
+       ry="0"
+       inkscape:export-filename="/home/diego/Downloads/paper.png"
+       inkscape:export-xdpi="200"
+       inkscape:export-ydpi="200" />
+    <rect
+       style="fill:#969696;stroke:#969696;stroke-width:0.551041"
+       id="rect3546"
+       width="5.7439728"
+       height="5.3900595"
+       x="19.394184"
+       y="19.942736"
+       rx="0.77557391"
+       ry="0.78194898" />
+    <rect
+       style="fill:#969696;stroke:#969696;stroke-width:0.61591;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+       id="rect4129"
+       width="18.463131"
+       height="0.62200975"
+       x="7.2126489"
+       y="13.255222"
+       rx="0"
+       ry="0" />
+    <rect
+       style="fill:#969696;stroke:#969696;stroke-width:0.61591;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+       id="rect4131"
+       width="18.463131"
+       height="0.62200975"
+       x="7.2126489"
+       y="16.05414"
+       rx="0"
+       ry="0" />
+    <rect
+       id="rect3489"
+       width="25.680908"
+       height="32.860771"
+       x="3.571121"
+       y="-33.408272"
+       style="fill:none;stroke:#969696;stroke-width:0.947301;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+       ry="1.2909167"
+       rx="1.2909167"
+       inkscape:export-filename="/home/diego/Downloads/empty.png"
+       inkscape:export-xdpi="200"
+       inkscape:export-ydpi="200"
+       transform="rotate(90)" />
+    <rect
+       id="rect3491"
+       width="25.680908"
+       height="32.860771"
+       x="3.571121"
+       y="-33.408272"
+       style="fill:none;stroke:#969696;stroke-width:0.947301;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+       ry="1.2909167"
+       rx="1.2909167"
+       inkscape:export-filename="/home/diego/Downloads/empty.png"
+       inkscape:export-xdpi="200"
+       inkscape:export-ydpi="200"
+       transform="rotate(90)" />
+  </g>
+</svg>

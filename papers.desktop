@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=Papers
+GenericName=Papers
+Comment=LaTex editor
+Categories=Productivity;GTK
+Icon=papers
+Exec=papers
+Terminal=false
+Type=Application
+
