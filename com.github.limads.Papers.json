@@ -1,20 +1,29 @@
 {
     "app-id" : "com.github.limads.Papers",
     "runtime" : "org.gnome.Platform",
-    "runtime-version" : "master",
+    "runtime-version" : "41",
     "sdk" : "org.gnome.Sdk",
-    "sdk-extensions" : ["org.freedesktop.Sdk.Extension.rust-stable"],
-    "build-options": { "append-path": "/usr/lib/sdk/rust-stable/bin" },
-    "command" : "papers",
+    "sdk-extensions" : [
+        "org.freedesktop.Sdk.Extension.rust-stable"
+    ],
+    "command" : "Papers",
     "finish-args" : [
         "--share=network",
         "--share=ipc",
         "--socket=fallback-x11",
-        "--socket=wayland",
-        "--filesystem=xdg-documents",
-        "--filesystem=home",
-	"--env=RUST_BACKTRACE=1"
+        "--device=dri",
+        "--socket=wayland"
     ],
+    "build-options" : {
+        "append-path" : "/usr/lib/sdk/rust-stable/bin",
+        "build-args" : [
+            "--share=network"
+        ],
+        "env" : {
+            "RUST_BACKTRACE" : "1",
+            "RUST_LOG" : "Papers=debug"
+        }
+    },
     "cleanup" : [
         "/include",
         "/lib/pkgconfig",
@@ -26,27 +35,17 @@
         "*.la",
         "*.a"
     ],
-
-    "build-options": {
-        "append-path" : "/usr/lib/sdk/rust-stable/bin",
-        "build-args" : [
-            "--share=network"
-        ]
-    },
-
     "modules" : [
         {
-            "name" : "papers",
+            "name" : "Papers",
             "builddir" : true,
-            "buildsystem" : "simple",
-            "build-commands" : ["cargo build"],
+            "buildsystem" : "meson",
             "sources" : [
                 {
                     "type" : "git",
-                    "url" : "file:///home/diego/Software/papers"
+                    "url" : "file:///home/diego/Software/Papers"
                 }
             ]
         }
     ]
 }
-

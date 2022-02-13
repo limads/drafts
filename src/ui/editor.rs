@@ -1,5 +1,6 @@
 use super::*;
 use crate::analyzer::Analyzer;
+use glib::signal::SignalHandlerId;
 
 #[derive(Debug, Clone)]
 pub struct PapersEditor {
@@ -7,7 +8,8 @@ pub struct PapersEditor {
     pub scroll : ScrolledWindow,
     pub overlay : libadwaita::ToastOverlay,
     pub paned : Paned,
-    pub ignore_file_save_action : gio::SimpleAction
+    pub ignore_file_save_action : gio::SimpleAction,
+    pub buf_change_handler : Rc<RefCell<Option<SignalHandlerId>>>
 }
 
 // set_right_margin
@@ -41,15 +43,21 @@ impl PapersEditor {
         let paned = Paned::new(Orientation::Horizontal);
         let ignore_file_save_action = gio::SimpleAction::new("ignore_file_save", None);
 
-        Self { scroll, view, overlay, paned, ignore_file_save_action }
+        Self { scroll, view, overlay, paned, ignore_file_save_action, buf_change_handler : Rc::new(RefCell::new(None)) }
     }
 }
 
-pub fn connect_manager_to_editor(manager : &FileManager, view : &sourceview5::View) {
+pub fn connect_manager_to_editor(manager : &FileManager, view : &sourceview5::View, buf_change_handler : &Rc<RefCell<Option<SignalHandlerId>>>) {
     manager.connect_opened({
         let view = view.clone();
+        let change_handler = buf_change_handler.clone();
         move |(path, content)| {
+            println!("Text set");
+            let handler_guard = change_handler.borrow();
+            let change_handler = handler_guard.as_ref().unwrap();
+            view.buffer().block_signal(&change_handler);
             view.buffer().set_text(&content);
+            view.buffer().unblock_signal(&change_handler);
         }
     });
     manager.connect_buffer_read_request({
@@ -68,7 +76,7 @@ pub fn connect_manager_to_editor(manager : &FileManager, view : &sourceview5::Vi
 impl React<FileManager> for PapersEditor {
 
     fn react(&self, manager : &FileManager) {
-        connect_manager_to_editor(manager, &self.view);
+        connect_manager_to_editor(manager, &self.view, &self.buf_change_handler);
         manager.connect_close_confirm({
             let overlay = self.overlay.clone();
             move |file| {
@@ -76,6 +84,17 @@ impl React<FileManager> for PapersEditor {
                     .title(&format!("{} has unsaved changes", file))
                     .button_label("Close anyway")
                     .action_name("win.ignore_file_save")
+                    .priority(libadwaita::ToastPriority::High)
+                    .timeout(0)
+                    .build();
+                overlay.add_toast(&toast);
+            }
+        });
+        manager.connect_error({
+            let overlay = self.overlay.clone();
+            move |msg| {
+                let toast = libadwaita::Toast::builder()
+                    .title(&msg)
                     .priority(libadwaita::ToastPriority::High)
                     .timeout(0)
                     .build();

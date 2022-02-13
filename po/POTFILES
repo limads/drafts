@@ -1,0 +1,4 @@
+data/com.github.limads.testproj.desktop.in
+data/com.github.limads.testproj.appdata.xml.in
+data/com.github.limads.testproj.gschema.xml
+src/window.ui

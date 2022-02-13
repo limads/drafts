@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist gettext-domain="testproj">
+	<schema id="com.github.limads.testproj" path="/com/github/limads/testproj/">
+	</schema>
+</schemalist>

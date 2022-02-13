@@ -13,7 +13,7 @@ const APP_ID : &'static str = "com.github.limads.papers";
 // flatpak install gnome-nightly org.gnome.Platform master
 // flatpak install flathub org.freedesktop.Sdk.Extension.rust-stable
 // To install locally, pass the --install flag without any arguments.
-// flatpak-builder --repo=/home/diego/Downloads/papers-repo /home/diego/Downloads/papers-build com.github.limads.Papers.json
+// flatpak-builder --force-clean --install /home/diego/Downloads/papers-build com.github.limads.Papers.json
 
 fn main() {
     gtk4::init().unwrap();

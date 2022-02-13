@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=testproj
+Exec=testproj
+Icon=com.github.limads.testproj
+Terminal=false
+Type=Application
+Categories=GTK;
+StartupNotify=true

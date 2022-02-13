@@ -16,6 +16,20 @@ pub type Callbacks<T> = Rc<RefCell<Vec<boxed::Box<dyn Fn(T) + 'static>>>>;
 
 pub type ValuedCallbacks<A, R> = Rc<RefCell<Vec<boxed::Box<dyn Fn(A)->R + 'static>>>>;
 
+pub fn call<T>(callbacks : &Callbacks<T>, arg : T)
+where
+    T : Clone
+{
+    match callbacks.try_borrow() {
+        Ok(cbs) => {
+            cbs.iter().for_each(|cb| cb(arg.clone()) );
+        },
+        Err(e) => {
+            println!("{}",e );
+        }
+    }
+}
+
 pub trait React<S> {
 
     fn react(&self, source : &S);
