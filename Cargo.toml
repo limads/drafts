@@ -13,6 +13,7 @@ either = "1.6.1"
 anyhow = "^1"
 tectonic = "0.8.0"
 tectonic_bridge_core = "0.3.0"
+regex = "1.5.4"
 # poppler-rs = "0.19.0"
 
 # Poppler is not distributed on the Gnome SDK, therefore it is not being used

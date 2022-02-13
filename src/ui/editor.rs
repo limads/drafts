@@ -123,7 +123,18 @@ impl React<Typesetter> for PapersEditor {
 
 }
 
-fn edit_or_insert_at_cursor(view : &View, txt : &str) {
+// just insert the given text at cursor.
+pub fn insert_at_cursor(btn : &Button, view : View, popover : Popover, txt : &'static str) {
+    btn.connect_clicked(move|btn|{
+        let buffer = view.buffer();
+        buffer.insert_at_cursor(&txt);
+        popover.popdown();
+        view.grab_focus();
+    });
+}
+
+/// Completely replaces the selected string (if any), or just insert the given text at cursor.
+pub fn edit_or_insert_at_cursor(view : &View, txt : &str) {
     let buffer = view.buffer();
     if let Some((mut start, mut end)) = buffer.selection_bounds() {
         buffer.delete(&mut start, &mut end);
@@ -133,7 +144,9 @@ fn edit_or_insert_at_cursor(view : &View, txt : &str) {
     }
 }
 
-fn wrap_or_insert_at_cursor(btn : &Button, view : View, popover : Popover, tag : &'static str) {
+/* Given a command tag such as \textbf{SomeText}, wrap the selected text as the argument to the given
+command, or just insert the empty command if no text is selected */
+pub fn wrap_or_insert_at_cursor(btn : &Button, view : View, popover : Popover, tag : &'static str) {
     btn.connect_clicked(move |_| {
         let buffer = view.buffer();
         let txt = if let Some((start, end)) = buffer.selection_bounds() {
@@ -141,6 +154,23 @@ fn wrap_or_insert_at_cursor(btn : &Button, view : View, popover : Popover, tag :
             format!("\\{}{{{}}}", tag, prev)
         } else {
             format!("\\{}{{}}", tag)
+        };
+        edit_or_insert_at_cursor(&view, &txt[..]);
+        popover.popdown();
+        view.grab_focus();
+    });
+}
+
+/* Given arbitrary characters, either insert them or, if there is some selected text,
+wrap the text between the two tags. */
+pub fn enclose_or_insert_at_cursor(btn : &Button, view : View, popover : Popover, start_tag : &'static str, end_tag : &'static str) {
+    btn.connect_clicked(move |_| {
+        let buffer = view.buffer();
+        let txt = if let Some((start, end)) = buffer.selection_bounds() {
+            let prev = buffer.text(&start, &end, true).to_string();
+            format!("{}{}{}", start_tag, prev, end_tag)
+        } else {
+            format!("{}{}", start_tag, end_tag)
         };
         edit_or_insert_at_cursor(&view, &txt[..]);
         popover.popdown();
@@ -173,6 +203,28 @@ impl React<Titlebar> for PapersEditor {
         wrap_or_insert_at_cursor(&titlebar.fmt_popover.underline_btn, view.clone(), popover.clone(), "underline");
         wrap_or_insert_at_cursor(&titlebar.fmt_popover.italic_btn, view.clone(), popover.clone(), "textit");
         wrap_or_insert_at_cursor(&titlebar.fmt_popover.strike_btn, view.clone(), popover.clone(), "sout");
+        wrap_or_insert_at_cursor(&titlebar.fmt_popover.sub_btn, view.clone(), popover.clone(), "textsubscript");
+        wrap_or_insert_at_cursor(&titlebar.fmt_popover.sup_btn, view.clone(), popover.clone(), "textsuperscript");
+        wrap_or_insert_at_cursor(&titlebar.fmt_popover.small_btn, view.clone(), popover.clone(), "small");
+        wrap_or_insert_at_cursor(&titlebar.fmt_popover.normal_btn, view.clone(), popover.clone(), "normalsize");
+        wrap_or_insert_at_cursor(&titlebar.fmt_popover.large_btn, view.clone(), popover.clone(), "large");
+        wrap_or_insert_at_cursor(&titlebar.fmt_popover.huge_btn, view.clone(), popover.clone(), "huge");
+        insert_at_cursor(&titlebar.fmt_popover.par_indent_10, view.clone(), popover.clone(), "\\setlength{\\parindent}{10pt}");
+        insert_at_cursor(&titlebar.fmt_popover.par_indent_15, view.clone(), popover.clone(), "\\setlength{\\parindent}{15pt}");
+        insert_at_cursor(&titlebar.fmt_popover.par_indent_20, view.clone(), popover.clone(), "\\setlength{\\parindent}{20pt}");
+        insert_at_cursor(&titlebar.fmt_popover.line_height_10, view.clone(), popover.clone(), "\\linespread{1.0}");
+        insert_at_cursor(&titlebar.fmt_popover.line_height_15, view.clone(), popover.clone(), "\\linespread{1.5}");
+        insert_at_cursor(&titlebar.fmt_popover.line_height_20, view.clone(), popover.clone(), "\\linespread{2.0}");
+
+        insert_at_cursor(&titlebar.fmt_popover.onecol_btn, view.clone(), popover.clone(), "\\onecolumn");
+        insert_at_cursor(&titlebar.fmt_popover.twocol_btn, view.clone(), popover.clone(), "\\twocolumn");
+
+        // \usepackage{parskip}
+        // \setlength{\parindent}{1cm}
+        // titlebar.fmt_popover.indent_entry
+
+        //\linespread{factor}
+        // titlebar.fmt_popover.line_height_entry
     }
 }
 

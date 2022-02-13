@@ -233,7 +233,7 @@ impl DocBtn {
         lbl.set_halign(Align::Start);
         let sub_lbl = Label::builder().use_markup(true).label(&format!("<span font_weight='normal'>{}</span>", sub)).build();
         sub_lbl.set_halign(Align::Start);
-        sub_lbl.set_justify(Justification::Left);
+        sub_lbl.set_justify(Justification::Fill);
         lbl_bx.append(&lbl);
         lbl_bx.append(&sub_lbl);
 

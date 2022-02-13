@@ -138,67 +138,126 @@ pub struct FormatPopover {
     pub strike_btn : Button,
     pub sub_btn : Button,
     pub sup_btn : Button,
-    pub popover : Popover
+    pub small_btn : Button,
+    pub normal_btn : Button,
+    pub large_btn : Button,
+    pub huge_btn : Button,
+    pub popover : Popover,
+    pub par_indent_10 : Button,
+    pub par_indent_15 : Button,
+    pub par_indent_20 : Button,
+    pub line_height_10 : Button,
+    pub line_height_15 : Button,
+    pub line_height_20 : Button,
+    pub onecol_btn : Button,
+    pub twocol_btn : Button
+}
+
+fn build_fmt_btn(label : &str) -> Button {
+    Button::builder().label(label) /*.css_classes(vec![String::from("flat")])*/ .build()
 }
 
 impl FormatPopover {
 
     pub fn build() -> Self {
-        let bx = Box::new(Orientation::Vertical, 0);
+        let bx = Box::new(Orientation::Horizontal, 24);
+        let left_bx = Box::new(Orientation::Vertical, 12);
+        let right_bx = Box::new(Orientation::Vertical, 12);
+        bx.append(&left_bx);
+        bx.append(&right_bx);
         let popover = Popover::new();
-        let char_bx = Box::new(Orientation::Horizontal, 0);
-        let bold_btn = Button::builder().icon_name("format-text-bold-symbolic").build();
+        popover.set_child(Some(&bx));
 
+        let char_upper_bx = Box::new(Orientation::Horizontal, 0);
+        let char_lower_bx = Box::new(Orientation::Horizontal, 0);
+
+        let bold_btn = Button::builder().icon_name("format-text-bold-symbolic").build();
+        let italic_btn = Button::builder().icon_name("format-text-italic-symbolic").build();
+        let underline_btn = Button::builder().icon_name("format-text-underline-symbolic").build();
+        let strike_btn = Button::builder().icon_name("format-text-strikethrough-symbolic").build();
+
+        // \small \normalsize \large \huge
         // \textsubscript{}
         let sub_btn = Button::builder().icon_name("subscript-symbolic").build();
 
         // \textsuperscript{}
         let sup_btn = Button::builder().icon_name("superscript-symbolic").build();
-        let italic_btn = Button::builder().icon_name("format-text-italic-symbolic").build();
-        let underline_btn = Button::builder().icon_name("format-text-underline-symbolic").build();
-        let strike_btn = Button::builder().icon_name("format-text-strikethrough-symbolic").build();
-        for btn in [&bold_btn, &italic_btn, &underline_btn, &strike_btn, &sub_btn, &sup_btn] {
-            btn.style_context().add_class("flat");
-            char_bx.append(btn);
-        }
-        bx.append(&Label::new(Some("Character")));
-        bx.append(&char_bx);
-        popover.set_child(Some(&bx));
 
-        // \setlength{\parindent}{1cm}
-        let par_bx = Box::new(Orientation::Vertical, 0);
+        let small_btn = Button::builder().icon_name("text-small-symbolic").build();
+        let normal_btn = Button::builder().icon_name("text-normal-symbolic").build();
+        let large_btn = Button::builder().icon_name("text-large-symbolic").build();
+        let huge_btn = Button::builder().icon_name("text-huge-symbolic").build();
+
+        for btn in [&bold_btn, &italic_btn, &underline_btn, &strike_btn, &sup_btn] {
+            btn.style_context().add_class("flat");
+            char_upper_bx.append(btn);
+        }
+
+        for btn in [&small_btn, &normal_btn, &large_btn, &huge_btn, &sub_btn] {
+            btn.style_context().add_class("flat");
+            char_lower_bx.append(btn);
+        }
+
+        let char_bx = Box::new(Orientation::Vertical, 0);
+        char_bx.append(&Label::builder().label("Character").halign(Align::Start).justify(Justification::Left).margin_bottom(6).build());
+        char_bx.append(&char_upper_bx);
+        char_bx.append(&char_lower_bx);
+
+        let par_bx = Box::new(Orientation::Horizontal, 12);
+
+        // par_bx.append(&Label::builder().label("Paragraph").halign(Align::Start).justify(Justification::Left).margin_bottom(6).build());
+
         let indent_entry = Entry::new();
         indent_entry.set_primary_icon_name(Some("format-indent-more-symbolic"));
         indent_entry.set_placeholder_text(Some("Indentation (mm)"));
-        par_bx.append(&indent_entry);
 
-        // \usepackage[a4paper, total={6in, 8in}, left=2cm, right=2cm, top=2cm, bottom=2cm]{geometry}
-        // \usepackage[legalpaper, landscape, margin=2in]{geometry}
+        // par_bx.append(&indent_entry);
+        //let line_height_entry = Entry::new();
+        //line_height_entry.set_placeholder_text(Some("Line height (em)"));
+        //line_height_entry.set_primary_icon_name(Some("line-height-symbolic"));
+        // par_bx.append(&line_height_entry);
 
-        let line_height_entry = Entry::new();
+        let height_bx = Box::new(Orientation::Vertical, 0);
+        let height_btn_bx = Box::new(Orientation::Horizontal, 0);
+        let (line_height_10, line_height_15, line_height_20) = (build_fmt_btn("100%"), build_fmt_btn("150%"), build_fmt_btn("200%"));
+        for btn in [&line_height_10, &line_height_15, &line_height_20] {
+            height_btn_bx.append(btn);
+        }
+        height_btn_bx.style_context().add_class("linked");
+        let height_title_bx = PackedImageLabel::build("line-height-symbolic", "Line height");
+        height_bx.append(&height_title_bx.bx);
+        height_bx.append(&height_btn_bx);
+        par_bx.append(&height_bx);
 
-        //\linespread{factor}
-        line_height_entry.set_placeholder_text(Some("Line height (em)"));
+        let indent_bx = Box::new(Orientation::Vertical, 0);
+        let indent_btn_bx = Box::new(Orientation::Horizontal, 0);
+        let (par_indent_10, par_indent_15, par_indent_20) = (build_fmt_btn("1.0"), build_fmt_btn("1.5"), build_fmt_btn("2.0"));
+        for btn in [&par_indent_10, &par_indent_15, &par_indent_20] {
+            indent_btn_bx.append(btn);
+        }
+        indent_btn_bx.style_context().add_class("linked");
+        let indent_title_bx = PackedImageLabel::build("format-indent-more-symbolic", "Indentation (pt)");
+        indent_bx.append(&indent_title_bx.bx);
+        indent_bx.append(&indent_btn_bx);
+        par_bx.append(&indent_bx);
 
-        line_height_entry.set_primary_icon_name(Some("line-height-symbolic"));
+        let alignment_bx = Box::new(Orientation::Vertical, 0);
+        alignment_bx.set_hexpand(true);
+        alignment_bx.set_halign(Align::Fill);
 
-        // size-horizontally-symbolic
-        // size-height-symbolic
+        let alignment_inner_bx = Box::new(Orientation::Horizontal, 0);
+        alignment_inner_bx.set_hexpand(true);
+        alignment_inner_bx.set_halign(Align::Fill);
 
-        // Select text, then set each line as a list item by clicking:
-        // format-ordered-list-symbolic
-        // format-unordered-list-symbolic
-        par_bx.append(&line_height_entry);
+        alignment_bx.append(&Label::builder().label("Align").halign(Align::Start).justify(Justification::Left).margin_bottom(6).build());
 
-        par_bx.style_context().add_class("linked");
-        let alignment_bx = Box::new(Orientation::Horizontal, 0);
         let center_btn = Button::new();
         center_btn.set_icon_name("format-justify-center-symbolic");
-        alignment_bx.append(&center_btn);
+        alignment_inner_bx.append(&center_btn);
 
         let fill_btn = Button::new();
         fill_btn.set_icon_name("format-justify-fill-symbolic");
-        alignment_bx.append(&fill_btn);
+        alignment_inner_bx.append(&fill_btn);
 
         /*\begin{multicols}{2}
         lots of text
@@ -212,24 +271,61 @@ impl FormatPopover {
 
         let left_btn = Button::new();
         left_btn.set_icon_name("format-justify-left-symbolic");
-        alignment_bx.append(&left_btn);
+        alignment_inner_bx.append(&left_btn);
 
         let right_btn = Button::new();
         right_btn.set_icon_name("format-justify-right-symbolic");
-        alignment_bx.append(&right_btn);
-        alignment_bx.style_context().add_class("linked");
+        alignment_inner_bx.append(&right_btn);
 
-        bx.append(&Label::new(Some("Line")));
-        bx.append(&par_bx);
+        alignment_inner_bx.style_context().add_class("linked");
+        alignment_bx.append(&alignment_inner_bx);
 
-        bx.append(&Label::new(Some("Alignment")));
-        bx.append(&alignment_bx);
-
-        bx.append(&Label::new(Some("Font")));
+        let font_bx = Box::new(Orientation::Vertical, 0);
+        font_bx.append(&Label::builder().label("Font").halign(Align::Start).justify(Justification::Left).margin_bottom(6).build());
         let font_btn = FontButton::new();
-        bx.append(&font_btn);
+        font_bx.append(&font_btn);
 
-        Self { bold_btn, italic_btn, underline_btn, strike_btn, sub_btn, sup_btn, popover }
+        let cols_bx = Box::new(Orientation::Vertical, 0);
+        cols_bx.append(&Label::builder().label("Columns").halign(Align::Start).justify(Justification::Left).margin_bottom(6).build());
+        let cols_btn_bx = Box::new(Orientation::Horizontal, 0);
+        cols_btn_bx.style_context().add_class("linked");
+        let onecol_btn = Button::builder().icon_name("format-justify-fill-symbolic").build();
+        let twocol_btn = Button::builder().icon_name("two-columns-symbolic").build();
+        cols_btn_bx.append(&onecol_btn);
+        cols_btn_bx.append(&twocol_btn);
+        cols_bx.append(&cols_btn_bx);
+
+        let layout_bx = Box::new(Orientation::Horizontal, 12);
+        layout_bx.append(&alignment_bx);
+        layout_bx.append(&cols_bx);
+
+        left_bx.append(&char_bx);
+        left_bx.append(&font_bx);
+
+        right_bx.append(&layout_bx);
+        right_bx.append(&par_bx);
+
+        Self {
+            bold_btn,
+            italic_btn,
+            underline_btn,
+            strike_btn,
+            sub_btn,
+            sup_btn,
+            popover,
+            small_btn,
+            large_btn,
+            normal_btn,
+            huge_btn,
+            par_indent_10,
+            line_height_10,
+            onecol_btn,
+            twocol_btn,
+            par_indent_15,
+            par_indent_20,
+            line_height_15,
+            line_height_20
+        }
     }
 
 }
@@ -316,6 +412,9 @@ impl Titlebar {
 
         \end{multicols}
         */
+
+        // \usepackage[a4paper, total={6in, 8in}, left=2cm, right=2cm, top=2cm, bottom=2cm]{geometry}
+        // \usepackage[legalpaper, landscape, margin=2in]{geometry}
 
         let fmt_popover = FormatPopover::build();
         let fmt_btn = MenuButton::new();

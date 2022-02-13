@@ -92,7 +92,7 @@ use tectonic::status::*;
 
 /// The StatusBackend implementors provided by tectonic all write to stdout/stderr. For
 /// a GUI, what we want is to accumulate the status into a string that will be displayed to
-/// a widget.
+/// a widget. This struct wraps this string and implements the tectonic StatusBackend trait.
 #[derive(Default)]
 struct PapersStatusBackend(String);
 
@@ -132,13 +132,29 @@ fn manual_patterns(msg : &str) -> Option<usize> {
         .or_else(|| msg.find("See the LaTeX\nmanual") )
 }
 
-/// The toast does not accept some characters which get mixed up with its markup.
+fn potentially_recoverable_patterns(msg : &str) -> Option<usize> {
+    msg.find("error: halted on potentially-recoverable error as specified")
+        .or_else(|| msg.find("error:\nhalted on potentially-recoverable error as specified") )
+        .or_else(|| msg.find("error: halted\non potentially-recoverable error as specified") )
+        .or_else(|| msg.find("error: halted on\npotentially-recoverable error as specified") )
+        .or_else(|| msg.find("error: halted on potentially-recoverable\nerror as specified") )
+        .or_else(|| msg.find("error: halted on potentially-recoverable error\nas specified") )
+        .or_else(|| msg.find("error: halted on potentially-recoverable error as\nspecified") )
+}
+
 fn format_message(status : &str) -> String {
+
+    // Transform all whitespace sequences of length 1+ to a single space.
+    let status = regex::Regex::new(r#"\s+"#).unwrap().replace_all(&status, " ").to_string();
+
+    /// The toast does not accept some characters which get mixed up with its markup.
+    /// Transform them here to their closest original meaning, at the same time inserting
+    /// line breaks if the current line is too long.
     let mut last_space = 0;
-    let msg = status.chars()
+    let msg : String = status.trim().chars()
         .map(|c| match c {
             '`' | '"' | '<' | '>' | '“' | '”' => '\'',
-            '\n' | '\t' => ' ',
+            '\n' | '\t' | '!' => ' ',
             _ => c
         })
         .map(|c| match c {
@@ -154,14 +170,37 @@ fn format_message(status : &str) -> String {
             _ => c
         })
         .collect::<String>();
-    if let Some(pos) = manual_patterns(&msg) {
-        msg[..pos].to_string()
+
+    // Remove final parts of the standard tectonic error message that do not give any
+    // information to the user specific to the problem at hand.
+    let msg_new = if let Some(man_pos) = manual_patterns(&msg) {
+        if let Some(rec_pos) = potentially_recoverable_patterns(&msg[..man_pos]) {
+            msg[..(man_pos.min(rec_pos))].to_string()
+        } else {
+            msg[..man_pos].to_string()
+        }
     } else {
-        msg
+        if let Some(pos) = potentially_recoverable_patterns(&msg) {
+            msg[..pos].to_string()
+        } else {
+            msg.to_string()
+        }
+    };
+
+    // Make a pretty line output, ignoring the file name.
+    if let Some(m) = regex::Regex::new(r#"tex:\d+:"#).unwrap().find(&msg_new[..]) {
+        let (start, end) = (m.start(), m.end());
+        if let Some(line_n) = msg_new[start..end].split(":").nth(1).and_then(|n_str| n_str.parse::<usize>().ok() ) {
+            format!("(Line {}): {}", line_n, &msg_new[end..])
+        } else {
+            format!("{}", &msg_new[end..])
+        }
+    } else {
+        msg_new.to_string()
     }
 }
 
-/// Slightly modified version of tectonic::latex_to_pdf, that uses a custom
+/// Slightly modified version of tectonic::latex_to_pdf (0.8.0), that uses a custom
 /// status backed to report errors.
 pub fn typeset_document<T: AsRef<str>>(latex: T) -> tectonic::Result<Vec<u8>> {
 

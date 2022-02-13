@@ -1646,6 +1646,7 @@ dependencies = [
  "gtk4",
  "libadwaita",
  "nom 7.1.0",
+ "regex",
  "sourceview5",
  "tectonic",
  "tectonic_bridge_core",
