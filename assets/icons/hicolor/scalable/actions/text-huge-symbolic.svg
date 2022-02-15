@@ -25,9 +25,9 @@
      showgrid="false"
      units="px"
      width="16px"
-     inkscape:zoom="11.146352"
-     inkscape:cx="9.7789842"
-     inkscape:cy="11.977013"
+     inkscape:zoom="22.292704"
+     inkscape:cx="8.1641061"
+     inkscape:cy="10.160275"
      inkscape:window-width="1920"
      inkscape:window-height="1016"
      inkscape:window-x="0"
@@ -43,13 +43,37 @@
     <text
        xml:space="preserve"
        style="font-style:normal;font-weight:normal;font-size:3.41977px;line-height:1.25;font-family:sans-serif;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.0854941"
-       x="0.68563986"
+       x="1.4964604"
        y="3.3631794"
        id="text1574"><tspan
          sodipodi:role="line"
          id="tspan1572"
          style="font-weight:bold;stroke-width:0.0854941"
-         x="0.68563986"
+         x="1.4964604"
          y="3.3631794">H</tspan></text>
+    <g
+       id="g952"
+       transform="translate(-0.12954394,-0.27217129)">
+      <g
+         id="g835"
+         transform="matrix(0.26458333,0,0,0.26458333,0.10424322,0.22646876)"
+         style="fill:#000000">
+        <g
+           id="g1531"
+           transform="matrix(0.75722066,0,0,0.75722066,-9.7603337,-6.7570486)"
+           style="fill:#000000;fill-opacity:1">
+          <path
+             d="m 19.629982,21.688562 h -0.823045 c -0.212191,0 -0.437243,0.128906 -0.591564,0.3125 l -1.054527,1.28125 v -8.59375 h -1.64609 v 8.59375 l -1.054527,-1.28125 c -0.157536,-0.183594 -0.379373,-0.3125 -0.591564,-0.3125 H 13.04562 v 1 c 0,0.308594 0.07394,0.550781 0.231481,0.75 l 3.0607,3.65625 3.060699,-3.65625 c 0.157536,-0.199219 0.231482,-0.441406 0.231482,-0.75 z m 0,0"
+             fill="#2e3436"
+             id="path1278"
+             style="fill:#000000;fill-opacity:1;stroke-width:0.907218" />
+          <path
+             d="m 19.629982,16.282312 h -0.823045 c -0.212191,0 -0.437243,-0.128906 -0.591564,-0.3125 l -1.054527,-1.28125 v 8.59375 h -1.64609 v -8.59375 l -1.054527,1.28125 c -0.157536,0.183594 -0.379373,0.3125 -0.591564,0.3125 H 13.04562 v -1 c 0,-0.308594 0.07394,-0.550781 0.231481,-0.75 l 3.0607,-3.65625 3.060699,3.65625 c 0.157536,0.199219 0.231482,0.441406 0.231482,0.75 z m 0,0"
+             fill="#2e3436"
+             id="path1494"
+             style="fill:#000000;fill-opacity:1;stroke-width:0.907218" />
+        </g>
+      </g>
+    </g>
   </g>
 </svg>

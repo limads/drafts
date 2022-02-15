@@ -274,13 +274,13 @@ const PAPERS_PRELUDE : &'static str = r"
 ";
 
 const EMPTY_DESCRIPTION : &'static str = r#"
-Start a document from scratch
-without a predefined class"#;
+Document without a
+predefined class"#;
 
 const MINIMAL_DESCRIPTION : &'static str = r#"
 Minimal document. Useful for notes, drafts
-or any kind of document which do not
-require sectioning or metadata."#;
+or any other kind of composition not
+requiring sections or metadata."#;
 
 const ARTICLE_DESCRIPTION : &'static str = r#"
 Short document divided into sections and
@@ -288,16 +288,17 @@ subsections. Aimed at journal articles."#;
 
 const REPORT_DESCRIPTION : &'static str = r#"
 Longer document divided into chapters.
-Usually aimed at technical reports or
-academic documents such as dissertations
-and thesis."#;
+Usually aimed at technical reports,
+dissertations and thesis."#;
 
 const BOOK_DESCRIPTION : &'static str = r#"
 Long document divided into chapters.
 Structured into front matter, main matter
 and back matter."#;
 
-const PRESENTATION_DESCRIPTION : &'static str = r#"A slide presentation."#;
+const PRESENTATION_DESCRIPTION : &'static str = r#"
+A document focused on visual presentation.
+Separated into slides."#;
 
 impl StartScreen {
 
@@ -573,11 +574,17 @@ impl PapersWindow {
         titlebar.symbol_btn.set_popover(Some(&symbol_popover.popover));
 
         // symbol_dialog.set_child(Some(&symbol_bx));
-        titlebar.math_actions.symbol.connect_activate(move |_, _| {
-            symbol_dialog.show();
-        });
+        // titlebar.math_actions.symbol.connect_activate(move |_, _| {
+        //    symbol_dialog.show();
+        // });
 
-        for action in titlebar.math_actions.iter().chain(titlebar.object_actions.iter().chain(titlebar.struct_actions.iter())) {
+        let titlebar_actions = titlebar.object_actions.iter()
+            .chain(titlebar.layout_actions.iter())
+            .chain(titlebar.sectioning_actions.iter())
+            .chain(titlebar.block_actions.iter())
+            .chain(titlebar.meta_actions.iter())
+            .chain(titlebar.indexing_actions.iter());
+        for action in titlebar_actions {
             window.add_action(&action);
         }
 

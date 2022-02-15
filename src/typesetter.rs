@@ -200,7 +200,7 @@ fn format_message(status : &str) -> String {
     }
 }
 
-/// Slightly modified version of tectonic::latex_to_pdf (0.8.0), that uses a custom
+/*/// Slightly modified version of tectonic::latex_to_pdf (0.8.0), that uses a custom
 /// status backed to report errors.
 pub fn typeset_document<T: AsRef<str>>(latex: T) -> tectonic::Result<Vec<u8>> {
 
@@ -236,7 +236,16 @@ pub fn typeset_document<T: AsRef<str>>(latex: T) -> tectonic::Result<Vec<u8>> {
 
         let mut sess =
             ctry!(sb.create(&mut status); "failed to initialize the LaTeX processing session");
-        ctry!(sess.run(&mut status); "the LaTeX engine failed");
+        // ctry!(sess.run(&mut status); "the LaTeX engine failed");
+        let ans = sess.run(&mut status);
+        match &ans {
+            Ok(_) => { },
+            Err(_) => {
+                let msg = format_message(&status.0[..]);
+                println!("Error: {}", msg);
+                ctry!(sess.run(&mut status); "the LaTeX engine failed");
+            }
+        }
         sess.into_file_data()
     };
 
@@ -246,21 +255,21 @@ pub fn typeset_document<T: AsRef<str>>(latex: T) -> tectonic::Result<Vec<u8>> {
             "LaTeX didn't report failure, but no PDF was created (??)"
         )),
     }
-}
+}*/
 
-/*fn typeset_document(latex : &str, ws : &mut Workspace) -> Result<Vec<u8>, String> {
+fn typeset_document(latex : &str, ws : &mut Workspace) -> Result<Vec<u8>, String> {
 
     let mut status = PapersStatusBackend(String::new());
     //let config = config::PersistentConfig::open(false)
     //    .map_err(|e| format!("Error opening tectonic config: {:#}", e) )?;
     let config = config::PersistentConfig::default();
-    let bundle = config.default_bundle(false, &mut status)
+    let mut bundle = config.default_bundle(false, &mut status)
         .map_err(|e| format!("Error opening default bundle: {:#}", e) )?;
     let format_cache_path = config.format_cache_path()
         .map_err(|e| format!("Error establishing cache path: {:#}", e) )?;
 
     println!("Format cache path = {}", format_cache_path.display());
-    //println!("Bundle = {}", bundle);
+    println!("Bundle = {:?}", bundle.all_files(&mut status));
 
     ws.file.write_all(latex.as_bytes()).unwrap();
 
@@ -285,7 +294,7 @@ pub fn typeset_document<T: AsRef<str>>(latex: T) -> tectonic::Result<Vec<u8>> {
 
             // Required, or else SessionBuilder panics. This defines the output pdf name
             // by looking at the file stem.
-            .tex_input_name("test.tex")
+            .tex_input_name("texput.tex")
 
             //.output_dir(&ws.outdir)
             .output_dir("/home/diego/Downloads")
@@ -337,7 +346,7 @@ pub fn typeset_document<T: AsRef<str>>(latex: T) -> tectonic::Result<Vec<u8>> {
         Some(file) => Ok(file.data),
         None => Err(format!("No PDF output generated"))
     }*/
-}*/
+}
 
 fn typeset_document_from_cli(ws : &mut Workspace, latex : &str, send : &glib::Sender<TypesetterAction>) {
     ws.file.seek(std::io::SeekFrom::Start(0));
@@ -367,7 +376,9 @@ fn typeset_document_from_cli(ws : &mut Workspace, latex : &str, send : &glib::Se
 }
 
 fn typeset_document_from_lib(ws : &mut Workspace, latex : &str, send : &glib::Sender<TypesetterAction>) {
-    match typeset_document(&latex[..]) {
+
+    println!("Processing: {}", latex);
+    match typeset_document(&latex[..], ws) {
         Ok(pdf_bytes) => {
             match File::create(&ws.out_uri) {
                 Ok(mut f) => {
@@ -414,7 +425,7 @@ impl Typesetter {
                 loop {
                     match content_recv.recv() {
                         Ok(content) => {
-                            // typeset_document_from_lib(&mut ws, &content, &send);
+                            //typeset_document_from_lib(&mut ws, &content, &send);
                             typeset_document_from_cli(&mut ws, &content, &send)
                         },
                         _ => { }

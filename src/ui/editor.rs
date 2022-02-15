@@ -123,13 +123,23 @@ impl React<Typesetter> for PapersEditor {
 
 }
 
+fn insert_at_cursor(view : View, popover : Popover, txt : &'static str) {
+    let buffer = view.buffer();
+    buffer.insert_at_cursor(&txt);
+    popover.popdown();
+    view.grab_focus();
+}
+
+pub fn insert_at_cursor_from_action(action : &gio::SimpleAction, view : View, popover : Popover, txt : &'static str) {
+    action.connect_activate(move |_, _|{
+        insert_at_cursor(view.clone(), popover.clone(), txt);
+    });
+}
+
 // just insert the given text at cursor.
-pub fn insert_at_cursor(btn : &Button, view : View, popover : Popover, txt : &'static str) {
+pub fn insert_at_cursor_from_btn(btn : &Button, view : View, popover : Popover, txt : &'static str) {
     btn.connect_clicked(move|btn|{
-        let buffer = view.buffer();
-        buffer.insert_at_cursor(&txt);
-        popover.popdown();
-        view.grab_focus();
+        insert_at_cursor(view.clone(), popover.clone(), txt);
     });
 }
 
@@ -144,16 +154,43 @@ pub fn edit_or_insert_at_cursor(view : &View, txt : &str) {
     }
 }
 
+fn wrap_parameter_or_insert_at_cursor(view : View, popover : Popover, tag : &'static str) {
+    let buffer = view.buffer();
+    let txt = if let Some((start, end)) = buffer.selection_bounds() {
+        let prev = buffer.text(&start, &end, true).to_string();
+        format!("\\{}{{{}}}", tag, prev)
+    } else {
+        format!("\\{}{{}}", tag)
+    };
+    edit_or_insert_at_cursor(&view, &txt[..]);
+    popover.popdown();
+    view.grab_focus();
+}
+
 /* Given a command tag such as \textbf{SomeText}, wrap the selected text as the argument to the given
 command, or just insert the empty command if no text is selected */
-pub fn wrap_or_insert_at_cursor(btn : &Button, view : View, popover : Popover, tag : &'static str) {
+pub fn wrap_parameter_or_insert_at_cursor_from_btn(btn : &Button, view : View, popover : Popover, tag : &'static str) {
+    btn.connect_clicked(move |_| {
+        wrap_parameter_or_insert_at_cursor(view.clone(), popover.clone(), tag);
+    });
+}
+
+pub fn wrap_parameter_or_insert_at_cursor_from_action(action : &gio::SimpleAction, view : View, popover : Popover, tag : &'static str) {
+    action.connect_activate(move |_, _| {
+        wrap_parameter_or_insert_at_cursor(view.clone(), popover.clone(), tag);
+    });
+}
+
+/// Wraps a command that can be used as an environment if nothing is selected, but wraps the
+/// text in a block if there is something selected.
+pub fn environment_or_wrap_at_block(btn : &Button, view : View, popover : Popover, tag : &'static str) {
     btn.connect_clicked(move |_| {
         let buffer = view.buffer();
         let txt = if let Some((start, end)) = buffer.selection_bounds() {
             let prev = buffer.text(&start, &end, true).to_string();
-            format!("\\{}{{{}}}", tag, prev)
+            format!("\\begin{{{}}}\n{}\n\\end{{{}}}", tag, prev, tag)
         } else {
-            format!("\\{}{{}}", tag)
+            format!("\\{}", tag)
         };
         edit_or_insert_at_cursor(&view, &txt[..]);
         popover.popdown();
@@ -199,32 +236,96 @@ impl React<Titlebar> for PapersEditor {
 
         let view = &self.view;
         let popover = &titlebar.fmt_popover.popover;
-        wrap_or_insert_at_cursor(&titlebar.fmt_popover.bold_btn, view.clone(), popover.clone(), "textbf");
-        wrap_or_insert_at_cursor(&titlebar.fmt_popover.underline_btn, view.clone(), popover.clone(), "underline");
-        wrap_or_insert_at_cursor(&titlebar.fmt_popover.italic_btn, view.clone(), popover.clone(), "textit");
-        wrap_or_insert_at_cursor(&titlebar.fmt_popover.strike_btn, view.clone(), popover.clone(), "sout");
-        wrap_or_insert_at_cursor(&titlebar.fmt_popover.sub_btn, view.clone(), popover.clone(), "textsubscript");
-        wrap_or_insert_at_cursor(&titlebar.fmt_popover.sup_btn, view.clone(), popover.clone(), "textsuperscript");
-        wrap_or_insert_at_cursor(&titlebar.fmt_popover.small_btn, view.clone(), popover.clone(), "small");
-        wrap_or_insert_at_cursor(&titlebar.fmt_popover.normal_btn, view.clone(), popover.clone(), "normalsize");
-        wrap_or_insert_at_cursor(&titlebar.fmt_popover.large_btn, view.clone(), popover.clone(), "large");
-        wrap_or_insert_at_cursor(&titlebar.fmt_popover.huge_btn, view.clone(), popover.clone(), "huge");
-        insert_at_cursor(&titlebar.fmt_popover.par_indent_10, view.clone(), popover.clone(), "\\setlength{\\parindent}{10pt}");
-        insert_at_cursor(&titlebar.fmt_popover.par_indent_15, view.clone(), popover.clone(), "\\setlength{\\parindent}{15pt}");
-        insert_at_cursor(&titlebar.fmt_popover.par_indent_20, view.clone(), popover.clone(), "\\setlength{\\parindent}{20pt}");
-        insert_at_cursor(&titlebar.fmt_popover.line_height_10, view.clone(), popover.clone(), "\\linespread{1.0}");
-        insert_at_cursor(&titlebar.fmt_popover.line_height_15, view.clone(), popover.clone(), "\\linespread{1.5}");
-        insert_at_cursor(&titlebar.fmt_popover.line_height_20, view.clone(), popover.clone(), "\\linespread{2.0}");
 
-        insert_at_cursor(&titlebar.fmt_popover.onecol_btn, view.clone(), popover.clone(), "\\onecolumn");
-        insert_at_cursor(&titlebar.fmt_popover.twocol_btn, view.clone(), popover.clone(), "\\twocolumn");
+        let fmt = [
+            (&titlebar.fmt_popover.bold_btn, "textbf"),
+            (&titlebar.fmt_popover.underline_btn, "underline"),
+            (&titlebar.fmt_popover.italic_btn, "textit"),
+            (&titlebar.fmt_popover.strike_btn, "sout"),
+            (&titlebar.fmt_popover.sub_btn, "textsubscript"),
+            (&titlebar.fmt_popover.sup_btn, "textsuperscript"),
+            (&titlebar.fmt_popover.small_btn, "small"),
+            (&titlebar.fmt_popover.normal_btn, "normalsize"),
+            (&titlebar.fmt_popover.large_btn, "large"),
+            (&titlebar.fmt_popover.huge_btn, "huge")
+        ];
+        for (btn, cmd) in fmt {
+            wrap_parameter_or_insert_at_cursor_from_btn(btn, view.clone(), popover.clone(), cmd);
+        }
 
-        // \usepackage{parskip}
-        // \setlength{\parindent}{1cm}
-        // titlebar.fmt_popover.indent_entry
+        let par = [
+            (&titlebar.fmt_popover.par_indent_10,"\\setlength{\\parindent}{10pt}"),
+            (&titlebar.fmt_popover.par_indent_15, "\\setlength{\\parindent}{15pt}"),
+            (&titlebar.fmt_popover.par_indent_20, "\\setlength{\\parindent}{20pt}"),
+            (&titlebar.fmt_popover.line_height_10, "\\linespread{1.0}"),
+            (&titlebar.fmt_popover.line_height_15, "\\linespread{1.5}"),
+            (&titlebar.fmt_popover.line_height_20, "\\linespread{2.0}"),
+            (&titlebar.fmt_popover.onecol_btn, "\\onecolumn"),
+            (&titlebar.fmt_popover.twocol_btn, "\\twocolumn")
+        ];
+        for (btn, cmd) in par {
+            insert_at_cursor_from_btn(btn, view.clone(), popover.clone(), cmd);
+        }
 
-        //\linespread{factor}
-        // titlebar.fmt_popover.line_height_entry
+        let align = [
+            (&titlebar.fmt_popover.center_btn, "center"),
+            (&titlebar.fmt_popover.left_btn, "flushleft"),
+            (&titlebar.fmt_popover.right_btn, "flushright")
+        ];
+        for (btn, cmd) in align {
+            environment_or_wrap_at_block(btn, view.clone(), popover.clone(), cmd);
+        }
+
+        let sectioning = [
+            (&titlebar.sectioning_actions.section, "section"),
+            (&titlebar.sectioning_actions.subsection, "subsection"),
+            (&titlebar.sectioning_actions.sub_subsection, "subsubsection"),
+            (&titlebar.sectioning_actions.chapter, "chapter")
+        ];
+        for (action, cmd) in sectioning {
+            wrap_parameter_or_insert_at_cursor_from_action(action, view.clone(), popover.clone(), cmd);
+        }
+
+        let block = [
+            (&titlebar.block_actions.list, "\\begin{itemize}\nitem a\n\\end{itemize}"),
+            (&titlebar.block_actions.verbatim, "\\begin{verbatim}\n\\end{verbatim}"),
+            (&titlebar.block_actions.eq, "$$\n$$"),
+            (&titlebar.block_actions.tbl, "\\begin{tabular}{ |c|c| }\\hline\na & b & \\\\ c & d \n\\end{tabular}"),
+            (&titlebar.block_actions.bib, "\\begin{filecontents}{references.bib}\n\\end{filecontents}\n\\bibliography{references}")
+        ];
+        for (action, cmd) in block {
+            insert_at_cursor_from_action(action, view.clone(), popover.clone(), cmd);
+        }
+
+        let layout = [
+            (&titlebar.layout_actions.page_break, "\\clearpage"),
+            (&titlebar.layout_actions.line_break, "\\newline"),
+            (&titlebar.layout_actions.vertical_space, "\\vspace{1cm}"),
+            (&titlebar.layout_actions.horizontal_space, "\\hspace{1cm}"),
+            (&titlebar.layout_actions.vertical_fill, "\\vfill"),
+            (&titlebar.layout_actions.horizontal_fill, "\\hfill")
+        ];
+        for (action, cmd) in layout {
+            insert_at_cursor_from_action(action, view.clone(), popover.clone(), cmd);
+        }
+
+        let meta = [
+            (&titlebar.meta_actions.author, "author"),
+            (&titlebar.meta_actions.date, "date"),
+            (&titlebar.meta_actions.title, "title")
+        ];
+        for (action, cmd) in meta {
+            wrap_parameter_or_insert_at_cursor_from_action(action, view.clone(), popover.clone(), cmd);
+        }
+
+        let indexing = [
+            (&titlebar.indexing_actions.toc, "\\tableofcontents"),
+            (&titlebar.indexing_actions.lof, "\\listoffigures"),
+            (&titlebar.indexing_actions.lot, "\\listoftables")
+        ];
+        for (action, cmd) in indexing {
+            insert_at_cursor_from_action(action, view.clone(), popover.clone(), cmd);
+        }
     }
 }
 

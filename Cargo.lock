@@ -1647,6 +1647,8 @@ dependencies = [
  "libadwaita",
  "nom 7.1.0",
  "regex",
+ "serde",
+ "serde_json",
  "sourceview5",
  "tectonic",
  "tectonic_bridge_core",

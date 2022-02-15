@@ -56,32 +56,91 @@ pub struct Titlebar {
     pub pdf_btn : Button,
     pub sidebar_toggle : ToggleButton,
     pub sidebar_hide_action : gio::SimpleAction,
-    pub struct_actions : StructActions,
+    pub sectioning_actions : SectioningActions,
     pub object_actions : ObjectActions,
-    pub math_actions : MathActions,
+    pub layout_actions : LayoutActions,
+    pub block_actions : BlockActions,
+    pub indexing_actions : IndexingActions,
+    pub meta_actions : MetaActions,
     pub fmt_popover : FormatPopover,
     pub bib_popover : BibPopover,
     pub symbol_btn : MenuButton
 }
 
 #[derive(Debug, Clone)]
-pub struct StructActions {
-    pub section : gio::SimpleAction,
-    pub subsection : gio::SimpleAction,
+pub struct BlockActions {
     pub list : gio::SimpleAction,
+    pub verbatim : gio::SimpleAction,
+    pub eq : gio::SimpleAction,
+    pub bib : gio::SimpleAction,
+    pub tbl : gio::SimpleAction
 }
 
-impl StructActions {
+impl BlockActions {
 
     pub fn build() -> Self {
-        let section = gio::SimpleAction::new("section", None);
-        let subsection = gio::SimpleAction::new("section", None);
         let list = gio::SimpleAction::new("list", None);
-        Self { section, list, subsection }
+        let verbatim = gio::SimpleAction::new("verbatim", None);
+        let eq = gio::SimpleAction::new("eq", None);
+        let bib = gio::SimpleAction::new("bib", None);
+        let tbl = gio::SimpleAction::new("tbl", None);
+        Self { list, verbatim, eq, bib, tbl }
     }
 
     pub fn iter<'a>(&'a self) -> impl Iterator<Item=gio::SimpleAction> + 'a {
-        [self.section.clone(), self.subsection.clone(), self.list.clone()].into_iter()
+        [self.list.clone(), self.verbatim.clone(), self.eq.clone(), self.bib.clone(), self.tbl.clone()].into_iter()
+    }
+
+}
+
+#[derive(Debug, Clone)]
+pub struct LayoutActions {
+    pub page_break : gio::SimpleAction,
+    pub line_break : gio::SimpleAction,
+    pub horizontal_space : gio::SimpleAction,
+    pub vertical_space : gio::SimpleAction,
+    pub horizontal_fill : gio::SimpleAction,
+    pub vertical_fill : gio::SimpleAction,
+}
+
+impl LayoutActions {
+
+    pub fn build() -> Self {
+        let page_break = gio::SimpleAction::new("page_break", None);
+        let line_break = gio::SimpleAction::new("line_break", None);
+        let horizontal_space = gio::SimpleAction::new("horizontal_space", None);
+        let vertical_space = gio::SimpleAction::new("vertical_space", None);
+        let horizontal_fill = gio::SimpleAction::new("horizontal_fill", None);
+        let vertical_fill = gio::SimpleAction::new("vertical_fill", None);
+        Self { page_break, line_break, horizontal_space, vertical_space, horizontal_fill, vertical_fill }
+    }
+
+    pub fn iter<'a>(&'a self) -> impl Iterator<Item=gio::SimpleAction> + 'a {
+        [self.page_break.clone(), self.line_break.clone(), self.horizontal_space.clone(), self.vertical_space.clone(), self.horizontal_fill.clone(), self.vertical_fill.clone()].into_iter()
+    }
+
+}
+
+#[derive(Debug, Clone)]
+pub struct SectioningActions {
+    pub chapter : gio::SimpleAction,
+    pub section : gio::SimpleAction,
+    pub subsection : gio::SimpleAction,
+    pub sub_subsection : gio::SimpleAction,
+}
+
+impl SectioningActions {
+
+    pub fn build() -> Self {
+        let section = gio::SimpleAction::new("section", None);
+        let subsection = gio::SimpleAction::new("subsection", None);
+        let sub_subsection = gio::SimpleAction::new("sub_subsection", None);
+        let chapter = gio::SimpleAction::new("chapter", None);
+        Self { section, subsection, sub_subsection, chapter }
+    }
+
+    pub fn iter<'a>(&'a self) -> impl Iterator<Item=gio::SimpleAction> + 'a {
+        [self.section.clone(), self.subsection.clone(), self.sub_subsection.clone(), self.chapter.clone()].into_iter()
     }
 
 }
@@ -90,7 +149,9 @@ impl StructActions {
 pub struct ObjectActions {
     pub image : gio::SimpleAction,
     pub table : gio::SimpleAction,
-    pub code : gio::SimpleAction,
+    pub link : gio::SimpleAction,
+    pub latex : gio::SimpleAction,
+    pub bibfile : gio::SimpleAction,
 }
 
 impl ObjectActions {
@@ -98,17 +159,62 @@ impl ObjectActions {
     pub fn build() -> Self {
         let image = gio::SimpleAction::new("image", None);
         let table = gio::SimpleAction::new("table", None);
-        let code = gio::SimpleAction::new("code", None);
-        Self { image, table, code }
+        let link = gio::SimpleAction::new("link", None);
+        let bibfile = gio::SimpleAction::new("bibfile", None);
+        let latex = gio::SimpleAction::new("latex", None);
+        Self { image, table, link, bibfile, latex }
     }
 
     pub fn iter<'a>(&'a self) -> impl Iterator<Item=gio::SimpleAction> + 'a {
-        [self.image.clone(), self.table.clone(), self.code.clone()].into_iter()
+        [self.image.clone(), self.table.clone(), self.link.clone(), self.bibfile.clone(), self.latex.clone()].into_iter()
     }
 
 }
 
 #[derive(Debug, Clone)]
+pub struct IndexingActions {
+    pub toc : gio::SimpleAction,
+    pub lof : gio::SimpleAction,
+    pub lot : gio::SimpleAction,
+}
+
+impl IndexingActions {
+
+    pub fn build() -> Self {
+        let toc = gio::SimpleAction::new("toc", None);
+        let lof = gio::SimpleAction::new("lof", None);
+        let lot = gio::SimpleAction::new("lot", None);
+        Self { toc, lof, lot }
+    }
+
+    pub fn iter<'a>(&'a self) -> impl Iterator<Item=gio::SimpleAction> + 'a {
+        [self.toc.clone(), self.lof.clone(), self.lot.clone()].into_iter()
+    }
+
+}
+
+#[derive(Debug, Clone)]
+pub struct MetaActions {
+    pub author : gio::SimpleAction,
+    pub date : gio::SimpleAction,
+    pub title : gio::SimpleAction,
+}
+
+impl MetaActions {
+
+    pub fn build() -> Self {
+        let author = gio::SimpleAction::new("author", None);
+        let date = gio::SimpleAction::new("date", None);
+        let title = gio::SimpleAction::new("title", None);
+        Self { author, date, title }
+    }
+
+    pub fn iter<'a>(&'a self) -> impl Iterator<Item=gio::SimpleAction> + 'a {
+        [self.author.clone(), self.date.clone(), self.title.clone()].into_iter()
+    }
+
+}
+/*#[derive(Debug, Clone)]
 pub struct MathActions {
     pub operator : gio::SimpleAction,
     pub symbol : gio::SimpleAction,
@@ -128,7 +234,7 @@ impl MathActions {
         [self.operator.clone(), self.symbol.clone(), self.function.clone()].into_iter()
     }
 
-}
+}*/
 
 #[derive(Debug, Clone)]
 pub struct FormatPopover {
@@ -150,7 +256,10 @@ pub struct FormatPopover {
     pub line_height_15 : Button,
     pub line_height_20 : Button,
     pub onecol_btn : Button,
-    pub twocol_btn : Button
+    pub twocol_btn : Button,
+    pub left_btn : Button,
+    pub right_btn : Button,
+    pub center_btn : Button
 }
 
 fn build_fmt_btn(label : &str) -> Button {
@@ -219,7 +328,7 @@ impl FormatPopover {
 
         let height_bx = Box::new(Orientation::Vertical, 0);
         let height_btn_bx = Box::new(Orientation::Horizontal, 0);
-        let (line_height_10, line_height_15, line_height_20) = (build_fmt_btn("100%"), build_fmt_btn("150%"), build_fmt_btn("200%"));
+        let (line_height_10, line_height_15, line_height_20) = (build_fmt_btn("1.0"), build_fmt_btn("1.5"), build_fmt_btn("2.0"));
         for btn in [&line_height_10, &line_height_15, &line_height_20] {
             height_btn_bx.append(btn);
         }
@@ -231,7 +340,7 @@ impl FormatPopover {
 
         let indent_bx = Box::new(Orientation::Vertical, 0);
         let indent_btn_bx = Box::new(Orientation::Horizontal, 0);
-        let (par_indent_10, par_indent_15, par_indent_20) = (build_fmt_btn("1.0"), build_fmt_btn("1.5"), build_fmt_btn("2.0"));
+        let (par_indent_10, par_indent_15, par_indent_20) = (build_fmt_btn("10"), build_fmt_btn("15"), build_fmt_btn("20"));
         for btn in [&par_indent_10, &par_indent_15, &par_indent_20] {
             indent_btn_bx.append(btn);
         }
@@ -253,11 +362,14 @@ impl FormatPopover {
 
         let center_btn = Button::new();
         center_btn.set_icon_name("format-justify-center-symbolic");
+        center_btn.set_hexpand(true);
+        center_btn.set_halign(Align::Fill);
         alignment_inner_bx.append(&center_btn);
 
-        let fill_btn = Button::new();
-        fill_btn.set_icon_name("format-justify-fill-symbolic");
-        alignment_inner_bx.append(&fill_btn);
+        // Latex justifies the text by default - not needed here.
+        // let fill_btn = Button::new();
+        // fill_btn.set_icon_name("format-justify-fill-symbolic");
+        // alignment_inner_bx.append(&fill_btn);
 
         /*\begin{multicols}{2}
         lots of text
@@ -270,10 +382,14 @@ impl FormatPopover {
         // previous forms when the user selected some text.
 
         let left_btn = Button::new();
+        left_btn.set_hexpand(true);
+        left_btn.set_halign(Align::Fill);
         left_btn.set_icon_name("format-justify-left-symbolic");
         alignment_inner_bx.append(&left_btn);
 
         let right_btn = Button::new();
+        right_btn.set_hexpand(true);
+        right_btn.set_halign(Align::Fill);
         right_btn.set_icon_name("format-justify-right-symbolic");
         alignment_inner_bx.append(&right_btn);
 
@@ -291,11 +407,17 @@ impl FormatPopover {
         cols_btn_bx.style_context().add_class("linked");
         let onecol_btn = Button::builder().icon_name("format-justify-fill-symbolic").build();
         let twocol_btn = Button::builder().icon_name("two-columns-symbolic").build();
+        onecol_btn.set_hexpand(true);
+        onecol_btn.set_halign(Align::Fill);
+        twocol_btn.set_hexpand(true);
+        twocol_btn.set_halign(Align::Fill);
         cols_btn_bx.append(&onecol_btn);
         cols_btn_bx.append(&twocol_btn);
         cols_bx.append(&cols_btn_bx);
 
         let layout_bx = Box::new(Orientation::Horizontal, 12);
+        layout_bx.set_vexpand(true);
+        layout_bx.set_valign(Align::Start);
         layout_bx.append(&alignment_bx);
         layout_bx.append(&cols_bx);
 
@@ -324,7 +446,10 @@ impl FormatPopover {
             par_indent_15,
             par_indent_20,
             line_height_15,
-            line_height_20
+            line_height_20,
+            center_btn,
+            left_btn,
+            right_btn
         }
     }
 
@@ -389,44 +514,82 @@ fn build_dash(n : i32) -> Vec<f64> {
     dashes
 }
 
-impl Titlebar {
+pub struct PaperPopover {
+    pub popover : Popover
+}
+
+fn draw_paper_background(ctx : &cairo::Context, paper_x_offset : f64, paper_y_offset : f64, paper_width : f64, paper_height : f64) {
+
+    let fold_sz = 10.0;
+
+    // Draw paper background
+    ctx.set_line_width(2.0);
+    ctx.move_to(paper_x_offset, paper_y_offset);
+    ctx.line_to(paper_x_offset + paper_width - fold_sz, paper_y_offset);
+    ctx.line_to(paper_x_offset + paper_width, paper_y_offset + fold_sz);
+    ctx.line_to(paper_x_offset + paper_width, paper_y_offset + paper_height);
+    ctx.line_to(paper_x_offset, paper_y_offset + paper_height);
+    ctx.line_to(paper_x_offset, paper_y_offset);
+    ctx.stroke();
+
+    // Draw top-right fold at paper
+    ctx.move_to(paper_x_offset + paper_width - fold_sz, paper_y_offset);
+    ctx.line_to(paper_x_offset + paper_width, paper_y_offset + fold_sz);
+    ctx.line_to(paper_x_offset + paper_width - fold_sz, paper_y_offset + fold_sz);
+    ctx.line_to(paper_x_offset + paper_width - fold_sz, paper_y_offset);
+    ctx.fill();
+}
+
+fn draw_paper(da : &DrawingArea, ctx : &cairo::Context, dim : &PaperDimension) {
+    ctx.save();
+    let allocation = da.allocation();
+    let color = 0.5843;
+    ctx.set_source_rgb(color, color, color);
+    draw_paper_background(&ctx, dim.x_offset, dim.y_offset, dim.width, dim.height);
+    draw_margins(&ctx, &dim);
+    ctx.restore();
+}
+
+struct PaperDimension {
+    x_offset : f64,
+    y_offset : f64,
+    width : f64,
+    height : f64,
+    margin_left : f64,
+    margin_top : f64,
+    margin_right : f64,
+    margin_bottom : f64
+}
+
+fn draw_margins(ctx : &cairo::Context, dim : &PaperDimension) {
+    let dashes = build_dash(2);
+    ctx.set_dash(&dashes[..], 0.0);
+
+    // Left margin
+    ctx.move_to(dim.x_offset + dim.margin_left, dim.y_offset);
+    ctx.line_to(dim.x_offset + dim.margin_left, 140.);
+    ctx.stroke();
+
+    // Right margin
+    ctx.move_to(dim.x_offset + dim.width - dim.margin_right, dim.y_offset);
+    ctx.line_to(dim.x_offset + dim.width - dim.margin_right, dim.y_offset + dim.height);
+    ctx.stroke();
+
+    // Margin top
+    ctx.move_to(dim.x_offset, dim.y_offset + dim.margin_top);
+    ctx.line_to(dim.x_offset + dim.width, dim.y_offset + dim.margin_top);
+    ctx.stroke();
+
+    // Margin bottom
+    ctx.move_to(dim.x_offset, dim.y_offset + dim.height - dim.margin_bottom);
+    ctx.line_to(dim.x_offset + dim.width, dim.y_offset + dim.height - dim.margin_bottom);
+    ctx.stroke();
+}
+
+impl PaperPopover {
 
     pub fn build() -> Self {
-        let header = HeaderBar::new();
-        let menu_button = MenuButton::builder().icon_name("open-menu-symbolic").build();
-
-        let pdf_btn = Button::builder().icon_name("evince-symbolic").build();
-        let sidebar_toggle = ToggleButton::builder().icon_name("view-sidebar-symbolic").build();
-
-        // \begin{center}
-        // \end{center}
-
-        // \begin{flushleft}
-        // \begin{flushright}
-        // \noindent - inline command that applies to current paragarph
-        // \setlength{\parindent}{20pt} - At document config.
-
-        /*
-        \usepackage{multicol}
-        \begin{multicols}{2}
-
-        \end{multicols}
-        */
-
-        // \usepackage[a4paper, total={6in, 8in}, left=2cm, right=2cm, top=2cm, bottom=2cm]{geometry}
-        // \usepackage[legalpaper, landscape, margin=2in]{geometry}
-
-        let fmt_popover = FormatPopover::build();
-        let fmt_btn = MenuButton::new();
-        fmt_btn.set_icon_name("insert-text-symbolic");
-        fmt_btn.set_popover(Some(&fmt_popover.popover));
-
-        let bib_popover = BibPopover::build();
-        let bib_btn = MenuButton::new();
-        bib_btn.set_popover(Some(&bib_popover.popover));
-        bib_btn.set_icon_name("user-bookmarks-symbolic");
-
-        let page_popover = Popover::new();
+        let popover = Popover::new();
         let page_bx = Box::new(Orientation::Horizontal, 1);
 
         let page_da = DrawingArea::new();
@@ -434,65 +597,17 @@ impl Titlebar {
         page_da.set_height_request(144);
         page_da.set_draw_func({
             move |da, ctx, _, _| {
-                ctx.save();
-                let allocation = da.allocation();
-
-                let color = 0.5843;
-                ctx.set_source_rgb(color, color, color);
-
-                ctx.set_line_width(2.0);
-
-                let paper_x_offset = 42.0;
-                let paper_y_offset = 10.0;
-                let paper_width = 80.0;
-                let paper_height = 130.0;
-                let fold_sz = 10.0;
-
-                // Draw paper
-                ctx.move_to(paper_x_offset, paper_y_offset);
-                ctx.line_to(paper_x_offset + paper_width - fold_sz, paper_y_offset);
-                ctx.line_to(paper_x_offset + paper_width, paper_y_offset + fold_sz);
-                ctx.line_to(paper_x_offset + paper_width, paper_y_offset + paper_height);
-                ctx.line_to(paper_x_offset, paper_y_offset + paper_height);
-                ctx.line_to(paper_x_offset, paper_y_offset);
-                ctx.stroke();
-
-                // Draw top-right fold at paper
-                ctx.move_to(paper_x_offset + paper_width - fold_sz, paper_y_offset);
-                ctx.line_to(paper_x_offset + paper_width, paper_y_offset + fold_sz);
-                ctx.line_to(paper_x_offset + paper_width - fold_sz, paper_y_offset + fold_sz);
-                ctx.line_to(paper_x_offset + paper_width - fold_sz, paper_y_offset);
-                ctx.fill();
-
-                let margin_left = 10.;
-                let margin_right = 10.;
-                let margin_bottom = 10.;
-                let margin_top = 10.;
-
-                let dashes = build_dash(2);
-                ctx.set_dash(&dashes[..], 0.0);
-
-                // Left margin
-                ctx.move_to(paper_x_offset + margin_left, paper_y_offset);
-                ctx.line_to(paper_x_offset + margin_left, 140.);
-                ctx.stroke();
-
-                // Right margin
-                ctx.move_to(paper_x_offset + paper_width - margin_right, paper_y_offset);
-                ctx.line_to(paper_x_offset + paper_width - margin_right, paper_y_offset + paper_height);
-                ctx.stroke();
-
-                // Margin top
-                ctx.move_to(paper_x_offset, paper_y_offset + margin_top);
-                ctx.line_to(paper_x_offset + paper_width, paper_y_offset + margin_top);
-                ctx.stroke();
-
-                // Margin bottom
-                ctx.move_to(paper_x_offset, paper_y_offset + paper_height - margin_bottom);
-                ctx.line_to(paper_x_offset + paper_width, paper_y_offset + paper_height - margin_bottom);
-                ctx.stroke();
-
-                ctx.restore();
+                let dim = PaperDimension {
+                    x_offset : 42.0,
+                    y_offset : 10.0,
+                    width : 80.0,
+                    height : 130.0,
+                    margin_left : 10.,
+                    margin_right : 10.,
+                    margin_bottom : 10.,
+                    margin_top : 10.
+                };
+                draw_paper(&da, &ctx, &dim);
             }
         });
 
@@ -516,10 +631,10 @@ impl Titlebar {
         margin_bx.set_margin_top(10);
 
         let paper_combo = ComboBoxText::new();
-        paper_combo.append(None, "A4");
-        paper_combo.append(None, "Letter");
-        paper_combo.append(None, "Legal");
-        paper_combo.append(None, "Custom");
+        paper_combo.append(Some("A4"), "A4");
+        paper_combo.append(Some("Letter"), "Letter");
+        paper_combo.append(Some("Legal"), "Legal");
+        paper_combo.append(Some("Custom"), "Custom");
 
         margin_bx.style_context().add_class("linked");
         for entry in [&top_entry, &bottom_entry, &left_entry, &right_entry] {
@@ -542,11 +657,49 @@ impl Titlebar {
         page_bx.append(&page_left_bx);
         page_bx.append(&page_right_bx);
 
-        page_popover.set_child(Some(&page_bx));
+        popover.set_child(Some(&page_bx));
+        Self { popover }
+    }
 
+}
+
+impl Titlebar {
+
+    pub fn build() -> Self {
+        let header = HeaderBar::new();
+        let menu_button = MenuButton::builder().icon_name("open-menu-symbolic").build();
+
+        let pdf_btn = Button::builder().icon_name("evince-symbolic").build();
+        let sidebar_toggle = ToggleButton::builder().icon_name("view-sidebar-symbolic").build();
+
+
+        // \noindent - inline command that applies to current paragarph
+        // \setlength{\parindent}{20pt} - At document config.
+
+        /*
+        \usepackage{multicol}
+        \begin{multicols}{2}
+
+        \end{multicols}
+        */
+
+        // \usepackage[a4paper, total={6in, 8in}, left=2cm, right=2cm, top=2cm, bottom=2cm]{geometry}
+        // \usepackage[legalpaper, landscape, margin=2in]{geometry}
+
+        let fmt_popover = FormatPopover::build();
+        let fmt_btn = MenuButton::new();
+        fmt_btn.set_icon_name("insert-text-symbolic");
+        fmt_btn.set_popover(Some(&fmt_popover.popover));
+
+        let bib_popover = BibPopover::build();
+        let bib_btn = MenuButton::new();
+        bib_btn.set_popover(Some(&bib_popover.popover));
+        bib_btn.set_icon_name("user-bookmarks-symbolic");
+
+        let paper_popover = PaperPopover::build();
         let page_btn = MenuButton::new();
         page_btn.set_icon_name("crop-symbolic");
-        page_btn.set_popover(Some(&page_popover));
+        page_btn.set_popover(Some(&paper_popover.popover));
 
         // let bx = Box::new(Orientation::Vertical, 0);
         /*let section_btn = Button::with_label("Section");
@@ -555,11 +708,11 @@ impl Titlebar {
             bx.append(btn);
         }*/
 
-        let menu = gio::Menu::new();
-        menu.append_item(&gio::MenuItem::new(Some("Image"), Some("win.image")));
-        menu.append_item(&gio::MenuItem::new(Some("Table"), Some("win.table")));
-        menu.append_item(&gio::MenuItem::new(Some("Link to resource"), Some("win.list")));
-        menu.append_item(&gio::MenuItem::new(Some("Bibliography file"), Some("win.table")));
+        let obj_menu = gio::Menu::new();
+        obj_menu.append_item(&gio::MenuItem::new(Some("Image"), Some("win.image")));
+        obj_menu.append_item(&gio::MenuItem::new(Some("Table"), Some("win.table")));
+        obj_menu.append_item(&gio::MenuItem::new(Some("Link to resource"), Some("win.link")));
+        obj_menu.append_item(&gio::MenuItem::new(Some("Bibliography file"), Some("win.bibfile")));
 
         // let struct_submenu = gio::Menu::new();
 
@@ -580,7 +733,7 @@ impl Titlebar {
         menu.append_item(&gio::MenuItem::new_submenu(Some("Math"), &math_submenu));*/
 
         // menu.append_item(Some("Math"), &math_submenu);
-        let add_popover = PopoverMenu::from_model(Some(&menu));
+        let add_popover = PopoverMenu::from_model(Some(&obj_menu));
 
         // let item = gio::MenuItem::new_submenu(Some("Call"), &submenu);
         // menu.append_item(&item);
@@ -614,18 +767,21 @@ impl Titlebar {
         let org_menu = gio::Menu::new();
 
         let sectioning_submenu = gio::Menu::new();
-        sectioning_submenu.append_item(&gio::MenuItem::new(Some("Chapter"), Some("win.section")));
+        sectioning_submenu.append_item(&gio::MenuItem::new(Some("Chapter"), Some("win.chapter")));
         sectioning_submenu.append_item(&gio::MenuItem::new(Some("Section"), Some("win.section")));
         sectioning_submenu.append_item(&gio::MenuItem::new(Some("Subsection"), Some("win.subsection")));
-        sectioning_submenu.append_item(&gio::MenuItem::new(Some("Sub-subsection"), Some("win.subsection")));
+        sectioning_submenu.append_item(&gio::MenuItem::new(Some("Sub-subsection"), Some("win.sub_subsection")));
         org_menu.append_item(&gio::MenuItem::new_submenu(Some("Sectioning"), &sectioning_submenu));
 
         //\clearpage
         let layout_submenu = gio::Menu::new();
-        layout_submenu.append_item(&gio::MenuItem::new(Some("Page break"), Some("win.subsection")));
-        layout_submenu.append_item(&gio::MenuItem::new(Some("Line break"), Some("win.subsection")));
-        layout_submenu.append_item(&gio::MenuItem::new(Some("Horizontal space"), Some("win.subsection")));
-        layout_submenu.append_item(&gio::MenuItem::new(Some("Vertical space"), Some("win.subsection")));
+        layout_submenu.append_item(&gio::MenuItem::new(Some("Page break"), Some("win.page_break")));
+        layout_submenu.append_item(&gio::MenuItem::new(Some("Line break"), Some("win.line_break")));
+        layout_submenu.append_item(&gio::MenuItem::new(Some("Horizontal space"), Some("win.horizontal_space")));
+        layout_submenu.append_item(&gio::MenuItem::new(Some("Vertical space"), Some("win.vertical_space")));
+        layout_submenu.append_item(&gio::MenuItem::new(Some("Horizontal fill"), Some("win.horizontal_fill")));
+        layout_submenu.append_item(&gio::MenuItem::new(Some("Vertical fill"), Some("win.vertical_fill")));
+
         // \hspace{2cm}
         // \vspace{2cm}
 
@@ -637,32 +793,32 @@ impl Titlebar {
         org_menu.append_item(&gio::MenuItem::new_submenu(Some("Layout"), &layout_submenu));
 
         let block_submenu = gio::Menu::new();
-        block_submenu.append_item(&gio::MenuItem::new(Some("Equation"), Some("win.list")));
-        block_submenu.append_item(&gio::MenuItem::new(Some("List"), Some("win.operator")));
+        block_submenu.append_item(&gio::MenuItem::new(Some("Equation"), Some("win.eq")));
+        block_submenu.append_item(&gio::MenuItem::new(Some("List"), Some("win.list")));
 
         // \quote{}
-        block_submenu.append_item(&gio::MenuItem::new(Some("Quote (simple)"), Some("win.function")));
+        // block_submenu.append_item(&gio::MenuItem::new(Some("Quote (simple)"), Some("win.function")));
 
         // \quotation{}
-        block_submenu.append_item(&gio::MenuItem::new(Some("Quote (long)"), Some("win.function")));
+        // block_submenu.append_item(&gio::MenuItem::new(Some("Quote (long)"), Some("win.function")));
 
-        block_submenu.append_item(&gio::MenuItem::new(Some("Verbatim"), Some("win.function")));
-        block_submenu.append_item(&gio::MenuItem::new(Some("Abstract"), Some("win.operator")));
-        block_submenu.append_item(&gio::MenuItem::new(Some("Code listing"), Some("win.function")));
-        block_submenu.append_item(&gio::MenuItem::new(Some("Table (embedded)"), Some("win.symbol")));
-        block_submenu.append_item(&gio::MenuItem::new(Some("Bibliography (embedded)"), Some("win.symbol")));
+        block_submenu.append_item(&gio::MenuItem::new(Some("Verbatim"), Some("win.verbatim")));
+        // block_submenu.append_item(&gio::MenuItem::new(Some("Abstract"), Some("win.operator")));
+        // block_submenu.append_item(&gio::MenuItem::new(Some("Code listing"), Some("win.code")));
+        block_submenu.append_item(&gio::MenuItem::new(Some("Table (embedded)"), Some("win.tbl")));
+        block_submenu.append_item(&gio::MenuItem::new(Some("Bibliography (embedded)"), Some("win.bib")));
         org_menu.append_item(&gio::MenuItem::new_submenu(Some("Block"), &block_submenu));
 
         let meta_submenu = gio::Menu::new();
-        meta_submenu.append_item(&gio::MenuItem::new(Some("Author"), Some("win.symbol")));
-        meta_submenu.append_item(&gio::MenuItem::new(Some("Title"), Some("win.operator")));
-        meta_submenu.append_item(&gio::MenuItem::new(Some("Date"), Some("win.function")));
+        meta_submenu.append_item(&gio::MenuItem::new(Some("Author"), Some("win.author")));
+        meta_submenu.append_item(&gio::MenuItem::new(Some("Title"), Some("win.title")));
+        meta_submenu.append_item(&gio::MenuItem::new(Some("Date"), Some("win.date")));
         org_menu.append_item(&gio::MenuItem::new_submenu(Some("Metadata"), &meta_submenu));
 
         let indexing_submenu = gio::Menu::new();
-        indexing_submenu.append_item(&gio::MenuItem::new(Some("Table of contents"), Some("win.symbol")));
-        indexing_submenu.append_item(&gio::MenuItem::new(Some("List of tables"), Some("win.symbol")));
-        indexing_submenu.append_item(&gio::MenuItem::new(Some("List of figures"), Some("win.symbol")));
+        indexing_submenu.append_item(&gio::MenuItem::new(Some("Table of contents"), Some("win.toc")));
+        indexing_submenu.append_item(&gio::MenuItem::new(Some("List of tables"), Some("win.lot")));
+        indexing_submenu.append_item(&gio::MenuItem::new(Some("List of figures"), Some("win.lof")));
         org_menu.append_item(&gio::MenuItem::new_submenu(Some("Indexing"), &indexing_submenu));
 
         let org_popover = PopoverMenu::from_model(Some(&org_menu));
@@ -679,7 +835,23 @@ impl Titlebar {
         header.pack_start(&add_btn);
         header.pack_start(&bib_btn);
 
-        Self { symbol_btn, main_menu, header, menu_button, pdf_btn, sidebar_toggle, sidebar_hide_action, bib_popover, math_actions : MathActions::build(), struct_actions : StructActions::build(), object_actions : ObjectActions::build(), fmt_popover }
+        Self {
+            symbol_btn,
+            main_menu,
+            header,
+            menu_button,
+            pdf_btn,
+            sidebar_toggle,
+            sidebar_hide_action,
+            bib_popover,
+            object_actions : ObjectActions::build(),
+            layout_actions : LayoutActions::build(),
+            block_actions : BlockActions::build(),
+            sectioning_actions : SectioningActions::build(),
+            indexing_actions : IndexingActions::build(),
+            meta_actions : MetaActions::build(),
+            fmt_popover
+        }
     }
 }
 
