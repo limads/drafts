@@ -12,7 +12,7 @@ nom = "7.1.0"
 either = "1.6.1"
 anyhow = "^1"
 tectonic = "0.8.0"
-tectonic_bridge_core = "0.3.0"
+# tectonic_bridge_core = "0.3.0"
 regex = "1.5.4"
 serde_json = "1.0.68"
 serde = { version="1.0.130", features=["derive"] }

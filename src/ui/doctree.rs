@@ -15,7 +15,8 @@ pub struct DocIcons {
     tbl_icon : Pixbuf,
     img_icon : Pixbuf,
     code_icon : Pixbuf,
-    eq_icon : Pixbuf
+    eq_icon : Pixbuf,
+    err_icon : Pixbuf
 }
 
 #[derive(Debug, Clone)]
@@ -52,8 +53,10 @@ impl DocTree {
             tbl_icon : Pixbuf::from_file_at_scale("assets/icons/queries-symbolic.svg", 16, 16, true).unwrap(),
             img_icon : Pixbuf::from_file_at_scale("assets/icons/image-x-generic-symbolic.svg", 16, 16, true).unwrap(),
             code_icon : Pixbuf::from_file_at_scale("assets/icons/gnome-terminal-symbolic.svg", 16, 16, true).unwrap(),
-            eq_icon : Pixbuf::from_file_at_scale("assets/icons/equation-symbolic.svg", 16, 16, true).unwrap()
+            eq_icon : Pixbuf::from_file_at_scale("assets/icons/equation-symbolic.svg", 16, 16, true).unwrap(),
+            err_icon : Pixbuf::from_file_at_scale("assets/icons/dialog-error-symbolic.svg", 16, 16, true).unwrap()
         };
+
         Self { tree_view, bx, store, doc_icons }
     }
 }

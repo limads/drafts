@@ -20,6 +20,7 @@ fn main() {
     let application = Application::builder()
         .application_id(APP_ID)
         .build();
+
     match libadwaita::StyleManager::default() {
         Some(style_manager) => {
             style_manager.set_color_scheme(libadwaita::ColorScheme::Default);
@@ -75,7 +76,6 @@ fn main() {
             papers_win.react(&typesetter);
 
             papers_win.window.show();
-
         }
     });
     application.run();

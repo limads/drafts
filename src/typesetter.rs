@@ -15,7 +15,7 @@ use crate::ui::PapersEditor;
 use crate::ui::Titlebar;
 use std::error::Error;
 use std::fmt;
-use tectonic_bridge_core::{SecuritySettings, SecurityStance};
+// use tectonic_bridge_core::{SecuritySettings, SecurityStance};
 use tectonic::driver;
 use tectonic::config;
 use tectonic::status;
@@ -94,7 +94,26 @@ use tectonic::status::*;
 /// a GUI, what we want is to accumulate the status into a string that will be displayed to
 /// a widget. This struct wraps this string and implements the tectonic StatusBackend trait.
 #[derive(Default)]
-struct PapersStatusBackend(String);
+struct PapersStatusBackend {
+
+    errors : String,
+
+    warnings : String,
+
+    notes : String
+
+}
+
+/*
+Here's how tectonic installs the latex environment:
+(1) Verify if there exists a ~/.cache/Tectonic. If not, create it and its sub-directories (files, formats, etc).
+(2) Tectonic/indexes contains a space-delimited set of files in the format [File] [value] [number], Where
+[File] are tfm (fonts), sty (styles), etc.
+(3) Verify if there exists a ~/.config/Tectonic/config.toml. If not, create it. It will contain
+[[default_bundles]]
+url = "https://relay.fullyjustified.net/default_bundle.tar"
+
+*/
 
 impl tectonic::status::StatusBackend for PapersStatusBackend {
 
@@ -106,10 +125,15 @@ impl tectonic::status::StatusBackend for PapersStatusBackend {
     ) {
         use std::fmt::Write;
         match kind {
-            MessageKind::Error /*| MessageKind::Warning*/ => {
-                write!(&mut self.0, "{}\n", args);
+            MessageKind::Error => {
+                write!(&mut self.errors, "{}\n", args);
             },
-            _ => { }
+            MessageKind::Warning => {
+                write!(&mut self.warnings, "{}\n", args);
+            },
+            MessageKind::Note => {
+                write!(&mut self.notes, "{}\n", args);
+            }
         }
 
         /*if let Some(e) = err {
@@ -120,7 +144,7 @@ impl tectonic::status::StatusBackend for PapersStatusBackend {
     }
 
     fn dump_error_logs(&mut self, output: &[u8]) {
-
+        println!("{}", String::from_utf8(Vec::from(output)).unwrap());
     }
 
 }
@@ -257,19 +281,40 @@ pub fn typeset_document<T: AsRef<str>>(latex: T) -> tectonic::Result<Vec<u8>> {
     }
 }*/
 
+/*
+Here is an issue: If we call gtk::init(), any calls to Session::run
+Will generate the error: CFF: Parsing CFF DICT failed. (error=-1) for some
+obscure reason. The function below works fine in another process where
+gtk::init() is not called. Perhaps glib and tectonic rely on static variables with
+the same name. Perhaps gtk mess with tectonic launching external CLI tools.
+For whatever reason, tectonic and GTK cannot live in the same process.
+*/
 fn typeset_document(latex : &str, ws : &mut Workspace) -> Result<Vec<u8>, String> {
 
-    let mut status = PapersStatusBackend(String::new());
+    // let mut status = PapersStatusBackend{ errors : String::new(), notes : String::new(), warnings : String::new() };
+    let mut status = tectonic::status::plain::PlainStatusBackend::new(tectonic::status::ChatterLevel::Normal);
+
     //let config = config::PersistentConfig::open(false)
     //    .map_err(|e| format!("Error opening tectonic config: {:#}", e) )?;
-    let config = config::PersistentConfig::default();
-    let mut bundle = config.default_bundle(false, &mut status)
-        .map_err(|e| format!("Error opening default bundle: {:#}", e) )?;
+    let config = config::PersistentConfig::open(true).unwrap();
+
+    // By setting this to false, we let tectonic downloads files from the network.
+    let only_cached_bundle = false;
+    //let mut default_bundle = config.default_bundle(only_cached_bundle, &mut status)
+    //    .map_err(|e| format!("Error opening default bundle: {:#}", e) )?;
+    let uri_bundle = config.make_cached_url_provider("https://relay.fullyjustified.net/default_bundle.tar", only_cached_bundle, None, &mut status)
+        .map_err(|e| format!("Error opening URI bundle: {:#}", e) )?;
+
+    // Pass a custom bundle path with (path is passed as a CLI option):
+    // let local_bundle = sess_builder.bundle(config.make_local_file_provider(path, status)?);
+
     let format_cache_path = config.format_cache_path()
         .map_err(|e| format!("Error establishing cache path: {:#}", e) )?;
 
     println!("Format cache path = {}", format_cache_path.display());
-    println!("Bundle = {:?}", bundle.all_files(&mut status));
+    println!("Bundle path = {}", config.default_bundle_loc());
+
+    // println!("Bundle = {:?}", bundle.all_files(&mut status));
 
     ws.file.write_all(latex.as_bytes()).unwrap();
 
@@ -280,17 +325,20 @@ fn typeset_document(latex : &str, ws : &mut Workspace) -> Result<Vec<u8>, String
     };*/
 
     let mut files = {
-        // let mut sb = driver::ProcessingSessionBuilder::default();
-        let mut sb = driver::ProcessingSessionBuilder::new_with_security(SecuritySettings::new(SecurityStance::DisableInsecures));
+        let mut sb = driver::ProcessingSessionBuilder::default();
+        // let mut sb = driver::ProcessingSessionBuilder::new_with_security(SecuritySettings::new(SecurityStance::DisableInsecures));
         sb
-            .bundle(bundle)
+            .bundle(uri_bundle)
+            // .bundle(default_bundle)
+            // .bundle(local_bundle)
 
             //.unstables(unstables)
 
             // Overrides primary_input_path and stdin options.
             //.primary_input_buffer(latex.as_bytes())
             //.primary_input_path(ws.file.path())
-            .primary_input_path("/home/diego/Downloads/test.tex")
+            //.primary_input_path("/home/diego/Downloads/test.tex")
+            .primary_input_buffer(b"\\documentclass[a4,11pt]{article} \\usepackage{inputenc} \\begin{document}Text\\end{document}")
 
             // Required, or else SessionBuilder panics. This defines the output pdf name
             // by looking at the file stem.
@@ -301,6 +349,8 @@ fn typeset_document(latex : &str, ws : &mut Workspace) -> Result<Vec<u8>, String
 
             // A file called latex.fmt will be created if it does not exist yet.
             .format_name("latex")
+
+            .pass(driver::PassSetting::Default)
 
             // .pass(driver::PassSetting::Tex)
             // .pass(driver::PassSetting::BibtexFirst)
@@ -318,25 +368,30 @@ fn typeset_document(latex : &str, ws : &mut Workspace) -> Result<Vec<u8>, String
         match sess.run(&mut status) {
             Ok(_) => { },
             Err(e) => {
-                let msg = format_message(&status.0[..]);
 
+                /*let msg = format_message(&status.errors[..]);
+
+                println!("User message: {}", msg);
                 println!("{}", e);
+                println!("{}", status.warnings);
+                println!("{}", status.notes);
+                println!("{}", String::from_utf8(sess.get_stdout_content()).unwrap());
 
                 if msg.is_empty() {
                     let out = sess.get_stdout_content();
                     return Err(format!("Session error: {:#} ({})", e, String::from_utf8(out).unwrap()));
                 } else {
                     return Err(msg);
-                }
+                }*/
+                println!("Session error: {}",e );
             }
         }
         sess.into_file_data()
     };
 
     for (file_name, file) in files.iter() {
-        println!("Generated file: {}", file_name);
-        // pritnln!("{}", )
-        if file_name.ends_with(".pdf") {
+        if file_name.ends_with("texput.pdf") {
+            println!("Generated file: {}", file_name);
             return Ok(file.data.clone());
         }
     }
@@ -414,19 +469,19 @@ impl Typesetter {
         let on_done : Callbacks<TypesetterTarget> = Default::default();
         let on_error : Callbacks<String> = Default::default();
         let (content_send, content_recv) = mpsc::channel::<String>();
+
+        // typeset_document_from_lib(&mut Workspace::new(), "", &send);
+
         thread::spawn({
             let send = send.clone();
             move || {
                 let mut ws = Workspace::new();
                 println!("Outdir: {}", ws.outdir.path().display());
-
-                // TODO parse document and verify that block \begin{document} \end{document} is not empty.
-
                 loop {
                     match content_recv.recv() {
                         Ok(content) => {
-                            //typeset_document_from_lib(&mut ws, &content, &send);
-                            typeset_document_from_cli(&mut ws, &content, &send)
+                            typeset_document_from_lib(&mut ws, &content, &send);
+                            //typeset_document_from_cli(&mut ws, &content, &send)
                         },
                         _ => { }
                     }

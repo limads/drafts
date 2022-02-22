@@ -29,6 +29,8 @@ pub struct Analyzer {
 
     on_doc_cleared : Callbacks<()>,
 
+    on_doc_error : Callbacks<usize>,
+
     on_line_selection : Callbacks<usize>
 
 }
@@ -41,6 +43,7 @@ impl Analyzer {
         let on_section_changed : Callbacks<Difference> = Default::default();
         let on_doc_changed : Callbacks<Document> = Default::default();
         let on_line_selection : Callbacks<usize> = Default::default();
+        let on_doc_error : Callbacks<usize> = Default::default();
         let on_doc_cleared : Callbacks<()> = Default::default();
         // TODO keep an thread watching an external bib file (if any). The user can simply use
         // the embedded bibliography instead.
@@ -53,6 +56,7 @@ impl Analyzer {
             let on_doc_changed = on_doc_changed.clone();
             let on_line_selection = on_line_selection.clone();
             let on_doc_cleared = on_doc_cleared.clone();
+            let on_doc_error = on_doc_error.clone();
             move |action| {
                 match action {
                     AnalyzerAction::TextChanged(new_txt) => {
@@ -109,7 +113,7 @@ impl Analyzer {
                 Continue(true)
             }
         });
-        Self { send, on_reference_changed, on_section_changed, on_doc_changed, on_line_selection, on_doc_cleared }
+        Self { send, on_reference_changed, on_section_changed, on_doc_changed, on_line_selection, on_doc_cleared, on_doc_error }
     }
 
     pub fn connect_section_changed<F>(&self, f : F)
@@ -138,6 +142,13 @@ impl Analyzer {
         F : Fn(()) + 'static
     {
         self.on_doc_cleared.borrow_mut().push(boxed::Box::new(f));
+    }
+
+    pub fn connect_doc_error<F>(&self, f : F)
+    where
+        F : Fn(usize) + 'static
+    {
+        self.on_doc_error.borrow_mut().push(boxed::Box::new(f));
     }
 
     pub fn connect_line_selection<F>(&self, f : F)
