@@ -29,7 +29,7 @@ pub struct Analyzer {
 
     on_doc_cleared : Callbacks<()>,
 
-    on_doc_error : Callbacks<usize>,
+    on_doc_error : Callbacks<TexError>,
 
     on_line_selection : Callbacks<usize>
 
@@ -43,7 +43,7 @@ impl Analyzer {
         let on_section_changed : Callbacks<Difference> = Default::default();
         let on_doc_changed : Callbacks<Document> = Default::default();
         let on_line_selection : Callbacks<usize> = Default::default();
-        let on_doc_error : Callbacks<usize> = Default::default();
+        let on_doc_error : Callbacks<TexError> = Default::default();
         let on_doc_cleared : Callbacks<()> = Default::default();
         // TODO keep an thread watching an external bib file (if any). The user can simply use
         // the embedded bibliography instead.
@@ -51,6 +51,7 @@ impl Analyzer {
         recv.attach(None, {
             let mut tk_info = TokenInfo::default();
             let mut doc = Document::default();
+            let mut last_err : Option<TexError> = None;
             let on_reference_changed = on_reference_changed.clone();
             let on_section_changed = on_section_changed.clone();
             let on_doc_changed = on_doc_changed.clone();
@@ -75,23 +76,33 @@ impl Analyzer {
                                 tk_info = new_info;
                                 match Parser::from_tokens(tk_info.tokens()) {
                                     Ok(new_doc) => {
-                                        // println!("{:#?}", new_doc);
-                                        if doc != new_doc {
+
+                                        // Always update after an error or if the token sequence changed.
+                                        // If the token sequence remains the same, there is no update to
+                                        // be processed.
+                                        if doc != new_doc || last_err.is_some() {
                                             on_doc_changed.borrow().iter().for_each(|f| f(new_doc.clone()) );
                                         }
+
+                                        last_err = None;
                                         doc = new_doc;
                                     }
+
                                     Err(e) => {
+                                        last_err = Some(e.clone());
                                         println!("{}", e);
                                         doc = Document::default();
                                         on_doc_cleared.borrow().iter().for_each(|f| f(()) );
+                                        on_doc_error.borrow().iter().for_each(|f| f(e.clone()) );
                                     }
                                 }
                             },
                             Err(e) => {
+                                last_err = Some(e.clone());
                                 tk_info = TokenInfo::default();
                                 doc = Document::default();
                                 on_doc_cleared.borrow().iter().for_each(|f| f(()) );
+                                on_doc_error.borrow().iter().for_each(|f| f(e.clone()) );
                                 println!("{}", e);
                             }
                         }
@@ -146,7 +157,7 @@ impl Analyzer {
 
     pub fn connect_doc_error<F>(&self, f : F)
     where
-        F : Fn(usize) + 'static
+        F : Fn(TexError) + 'static
     {
         self.on_doc_error.borrow_mut().push(boxed::Box::new(f));
     }
@@ -187,15 +198,67 @@ impl React<PapersEditor> for Analyzer {
 
     fn react(&self, editor : &PapersEditor) {
 
-        let send = self.send.clone();
-        editor.view.buffer().connect_changed(move |buffer| {
-            let txt = buffer.text(
-                &buffer.start_iter(),
-                &buffer.end_iter(),
-                true
-            );
-            send.send(AnalyzerAction::TextChanged(txt.to_string()));
+        editor.view.buffer().connect_changed({
+            let send = self.send.clone();
+            let view = editor.view.clone();
+            move |buffer| {
+                let txt_up_to_cursor = buffer.text(
+                    &buffer.start_iter(),
+                    &buffer.iter_at_offset(buffer.cursor_position()),
+                    true
+                );
+                if txt_up_to_cursor.ends_with("}") || txt_up_to_cursor.ends_with("$") {
+                    let txt = buffer.text(
+                        &buffer.start_iter(),
+                        &buffer.end_iter(),
+                        true
+                    );
+                    send.send(AnalyzerAction::TextChanged(txt.to_string()));
+                }
+            }
         });
+
+        editor.view.buffer().connect_delete_range({
+            let send = self.send.clone();
+            move |buffer, _, _| {
+                let txt = buffer.text(
+                    &buffer.start_iter(),
+                    &buffer.end_iter(),
+                    true
+                );
+                send.send(AnalyzerAction::TextChanged(txt.to_string()));
+            }
+        });
+
+        editor.view.connect_paste_clipboard({
+            let send = self.send.clone();
+            let view = editor.view.clone();
+            move |view| {
+                let buffer = view.buffer();
+                let txt = buffer.text(
+                    &buffer.start_iter(),
+                    &buffer.end_iter(),
+                    true
+                );
+                send.send(AnalyzerAction::TextChanged(txt.to_string()));
+            }
+        });
+
+        // TODO also update on file opened.
+
+        /*editor.view.connect_delete_from_cursor({
+            let send = self.send.clone();
+            let view = editor.view.clone();
+            move |view, _, _| {
+                let buffer = view.buffer();
+                let txt = buffer.text(
+                    &buffer.start_iter(),
+                    &buffer.end_iter(),
+                    true
+                );
+                send.send(AnalyzerAction::TextChanged(txt.to_string()));
+            }
+        });*/
 
         /*// Get cursor
         view.iter_at_mark(view.get_insert());

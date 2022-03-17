@@ -453,10 +453,10 @@ fn valid_cmd_or_arg<'a>(s : &'a str) -> Result<(), nom::Err<Error<&'a str>>> {
 }
 
 pub fn command(s : &str) -> IResult<&str, Command> {
-    let (rem, cmd) = tuple((char('\\'), is_not("{[\n \t")))(s)?;
-    if cmd.1.contains("\\") {
-        return Err(nom::Err::Failure(Error::new(cmd.1, ErrorKind::Fail)));
-    }
+    let (rem, cmd) = tuple((char('\\'), is_not("{[\n \t\\}")))(s)?;
+    //if cmd.1.contains("\\") {
+    //    return Err(nom::Err::Failure(Error::new(cmd.1, ErrorKind::Fail)));
+    //}
     let (rem, opts) = opt(cmd_options)(rem)?;
 
     if let Some(opts) = &opts {
@@ -663,12 +663,55 @@ impl<'a> BibEntry<'a> {
 
 }
 
-fn bib_field_value(s : &str) -> IResult<&str, &str> {
+#[test]
+fn bib_cmd() {
+    println!("{:?}", command(r"\ifmmode"));
+    println!("{:?}", command(r"\check{s}"));
+    println!("{:?}", many0(command)(r"\ifmmode\check{s}"));
+    println!("{:?}", many0(command)(r"\ifmmode\check{s}\else\v{s}\fi"));
+    println!("{:?}", bib_command(r"{\ifmmode\check{s}\else\v{s}\fi}"));
+}
+
+#[test]
+fn bib_with_cmd() {
+
+    println!("{:?}", Lexer::scan(r#"@article{Vrabic2021,
+	    author = {Vrabi{\ifmmode\check{c}\else\v{c}\fi}, Nika and Juro{\ifmmode\check{s}\else\v{s}\fi}, Bor and Pompe,
+	    Manca Tekav{\ifmmode\check{c}\else\v{c}\fi}i{\ifmmode\check{c}\else\v{c}\fi}},
+	    title = {{Automated Visual Acuity Evaluation Based on Preferential Looking Technique and Controlled with Remote Eye Tracking}},
+	    journal = {Ophthalmic Res.},
+	    volume = {64},
+	    number = {3},
+	    pages = {389--397},
+	    year = {2021},
+	    issn = {0030-3747},
+	    publisher = {Karger Publishers},
+	    doi = {10.1159/000512395}
+    }"#));
+
+}
+
+/*fn bib_field_text<'a>(s : &'a str) -> IResult<&'a str, &'a str> {
+
+    // Bibtex fields might have braces to escape commands inside them.
     alt((
-        delimited(tag("{{"), is_not("}"), tag("}}")),
-        delimited(tag("{"), is_not("}"), tag("}")),
-        delimited(tag("\""), is_not("\""), tag("\"")),
+        delimited(tag("{"), many0(command), tag("}")),
+        is_not(close_delimiter)
     ))(s)
+}*/
+
+fn bib_command(s : &str) -> IResult<&str, &str> {
+    let rem = delimited(tag("{"), many0(command), tag("}"))(s)?.0;
+    Ok((rem, &s[..(s.len() - rem.len())]))
+}
+
+fn bib_field_value(s : &str) -> IResult<&str, &str> {
+    let rem = alt((
+        delimited(tag("{{"), many0(alt((bib_command, is_not("}")))), tag("}}")),
+        delimited(tag("{"), many0(alt((bib_command, is_not("}")))), tag("}")),
+        delimited(tag("\""), many0(alt((bib_command, is_not("\"")))), tag("\"")),
+    ))(s)?.0;
+    Ok((rem, &s[..(s.len() - rem.len())]))
 }
 
 fn bib_field(s : &str) -> IResult<&str, (&str, &str)> {
@@ -712,13 +755,44 @@ fn bib_entry(s : &str) -> IResult<&str, BibEntry> {
     }))
 }
 
+#[derive(Debug, Clone)]
+pub struct TexError {
+    pub msg : String,
+    pub line : usize
+}
+
+impl fmt::Display for TexError {
+
+    fn fmt(&self, f : &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Line {}: {}", self.line, self.msg)
+    }
+
+}
+
+impl std::error::Error for TexError { }
+
 impl Lexer {
 
-    pub fn scan(s : &str) -> Result<TexTokens<'_>, String> {
-        let (rem, tokens) = many0(eval_next_token)(s).map_err(|e| format!("{}", e ) )?;
+    pub fn scan(s : &str) -> Result<TexTokens<'_>, TexError> {
+        let (rem, tokens) = many0(eval_next_token)(s).map_err(|e| {
+            let line = 0;
+            let nom_msg = match e {
+                nom::Err::Error(e) => format!("Error at {}: {}", e.input, e),
+                nom::Err::Failure(e) => format!("Error at {} : {}", e.input, e),
+                nom::Err::Incomplete(e) => format!("Incomplete input")
+            };
+            // let msg = format!("Error at {}: {}", e.input, e);
+            TexError { msg : nom_msg[..nom_msg.len().min(100)].to_owned(), line }
+        })?;
+
         if !rem.is_empty() {
-            return Err(format!("Could not parse document end: {}", rem));
+            let line = s[..(s.len() - rem.len())].chars().filter(|c| *c == '\n' ).count();
+            return Err(TexError {
+                line,
+                msg : format!("Could not parse document end: {}", &rem[..rem.len().min(100)])
+            });
         }
+
         /*let lens : Vec<_> = tokens.iter().map(|tk| {
             match tk {
                 Token::Command(Command { cmd, opts, arg }) => {

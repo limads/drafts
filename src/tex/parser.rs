@@ -341,7 +341,14 @@ impl Document {
 
         // println!("Requesting position at {:?}", ixs);
 
+        for ix in ixs.iter() {
+            if self.items.len() <= *ix {
+                return None;
+            }
+        }
+
         match ixs.len() {
+            0 => None,
             1 => Some(self.items[ixs[0]].token_index()),
             2 => {
                 match &self.items[ixs[0]] {
@@ -474,9 +481,10 @@ pub struct Parser {
 
 impl Parser {
 
-    pub fn from_tokens<'a>(mut tks : impl Iterator<Item=Token<'a>> + Clone) -> Result<Document, String> {
+    pub fn from_tokens<'a>(mut tks : impl Iterator<Item=Token<'a>> + Clone) -> Result<Document, TexError> {
         let mut all_tks = Vec::new();
-        blocked_tokens(Vec::new(), &mut tks, &mut all_tks)?;
+        blocked_tokens(Vec::new(), &mut tks, &mut all_tks)
+            .map_err(|e| TexError { msg : e, line : 0 })?;
         // println!("{:#?}", all_tks);
         let mut doc_items : Option<Vec<Item>> = None;
 
@@ -488,7 +496,7 @@ impl Parser {
                 tk_ix += 1;
 
                 if doc_items.is_some() {
-                    return Err(String::from("Multiple document blocks found"));
+                    return Err(TexError { msg : String::from("Multiple document blocks found"), line : 0 } );
                 }
 
                 match tk {
@@ -497,8 +505,10 @@ impl Parser {
                         let mut curr_subsection : Option<(Subsection, usize)> = None;
                         let mut count = ItemCount::default();
                         let mut items : Vec<Item> = Vec::new();
+
                         for in_tk in inner {
-                            next_item(&mut items, &mut tk_ix, &mut curr_section, &mut curr_subsection, &mut count, in_tk)?;
+                            next_item(&mut items, &mut tk_ix, &mut curr_section, &mut curr_subsection, &mut count, in_tk)
+                                .map_err(|e| TexError { msg : e, line : 0 } )?;
                         }
 
                         // Push any residual subsections into any residual sections.
@@ -506,7 +516,7 @@ impl Parser {
                             if let Some((ref mut section, _)) = curr_section {
                                 section.items.push(Item::Subsection(subsection, sub_tk_ix));
                             } else {
-                                return Err(String::from("Subsection without section parent"));
+                                return Err(TexError { msg : String::from("Subsection without section parent"), line : 0});
                             }
                         }
 
@@ -534,11 +544,11 @@ impl Parser {
 
         match doc_items {
             Some(items) => Ok(Document { items }),
-            None => Err(String::from("Missing document block"))
+            None => Err(TexError { msg : String::from("Missing document block"), line : 0 })
         }
     }
 
-    pub fn parse(s : &str) -> Result<Document, String> {
+    pub fn parse(s : &str) -> Result<Document, TexError> {
         let tks = Lexer::scan(s)?;
         Self::from_tokens(tks.iter())
     }

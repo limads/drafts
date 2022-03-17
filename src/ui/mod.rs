@@ -1102,3 +1102,12 @@ pub fn title_label(txt : &str) -> Label {
     lbl
 }
 
+pub fn connect_toast_dismissed(t : &libadwaita::Toast, last : &Rc<RefCell<Option<libadwaita::Toast>>>) {
+    let last = last.clone();
+    t.connect_dismissed(move|_| {
+        if let Ok(mut last) = last.try_borrow_mut() {
+            *last = None;
+        }
+    });
+}
+

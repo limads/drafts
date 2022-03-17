@@ -9,8 +9,13 @@ pub struct PapersEditor {
     pub overlay : libadwaita::ToastOverlay,
     pub paned : Paned,
     pub ignore_file_save_action : gio::SimpleAction,
-    pub buf_change_handler : Rc<RefCell<Option<SignalHandlerId>>>
+    pub buf_change_handler : Rc<RefCell<Option<SignalHandlerId>>>,
+    pub curr_toast : Rc<RefCell<Option<libadwaita::Toast>>>
 }
+
+/*
+TODO configure set_enable_undo AND max_undo_levels
+*/
 
 // set_right_margin
 // set_top_margin
@@ -42,8 +47,9 @@ impl PapersEditor {
         overlay.set_child(Some(&scroll));
         let paned = Paned::new(Orientation::Horizontal);
         let ignore_file_save_action = gio::SimpleAction::new("ignore_file_save", None);
+        let curr_toast : Rc<RefCell<Option<libadwaita::Toast>>> = Rc::new(RefCell::new(None));
 
-        Self { scroll, view, overlay, paned, ignore_file_save_action, buf_change_handler : Rc::new(RefCell::new(None)) }
+        Self { scroll, view, overlay, paned, ignore_file_save_action, buf_change_handler : Rc::new(RefCell::new(None)), curr_toast }
     }
 }
 
@@ -79,7 +85,12 @@ impl React<FileManager> for PapersEditor {
         connect_manager_to_editor(manager, &self.view, &self.buf_change_handler);
         manager.connect_close_confirm({
             let overlay = self.overlay.clone();
+            let curr_toast = self.curr_toast.clone();
             move |file| {
+                let mut last_toast = curr_toast.borrow_mut();
+                if let Some(t) = last_toast.take() {
+                    t.dismiss();
+                }
                 let toast = libadwaita::Toast::builder()
                     .title(&format!("{} has unsaved changes", file))
                     .button_label("Close anyway")
@@ -87,18 +98,27 @@ impl React<FileManager> for PapersEditor {
                     .priority(libadwaita::ToastPriority::High)
                     .timeout(0)
                     .build();
+                connect_toast_dismissed(&toast, &curr_toast);
                 overlay.add_toast(&toast);
+                *last_toast = Some(toast);
             }
         });
         manager.connect_error({
             let overlay = self.overlay.clone();
+            let curr_toast = self.curr_toast.clone();
             move |msg| {
+                let mut last_toast = curr_toast.borrow_mut();
+                if let Some(t) = last_toast.take() {
+                    t.dismiss();
+                }
                 let toast = libadwaita::Toast::builder()
                     .title(&msg)
                     .priority(libadwaita::ToastPriority::High)
                     .timeout(0)
                     .build();
+                connect_toast_dismissed(&toast, &curr_toast);
                 overlay.add_toast(&toast);
+                *last_toast = Some(toast);
             }
         });
     }
@@ -110,12 +130,18 @@ impl React<Typesetter> for PapersEditor {
     fn react(&self, typesetter : &Typesetter) {
         typesetter.connect_error({
             let overlay = self.overlay.clone();
+            let curr_toast = self.curr_toast.clone();
             move |e| {
+                let mut last_toast = curr_toast.borrow_mut();
+                if let Some(t) = last_toast.take() {
+                    t.dismiss();
+                }
                 let toast = libadwaita::Toast::builder()
                     .title(&e)
                     .priority(libadwaita::ToastPriority::High)
                     .timeout(0)
                     .build();
+                connect_toast_dismissed(&toast, &curr_toast);
                 overlay.add_toast(&toast);
             }
         });
@@ -491,7 +517,7 @@ fn configure_view(view : &View) {
     buffer.set_style_scheme(Some(&scheme));
     buffer.set_highlight_syntax(true);
     let provider = CssProvider::new();
-    provider.load_from_data(b"textview { font-family: \"Source Code Pro\"; font-size: 13pt; }");
+    provider.load_from_data(b"textview { font-family: \"Sans Regular\"; font-size: 13pt; }");
     let ctx = view.style_context();
     ctx.add_provider(&provider, 800);
     let lang_manager = sourceview5::LanguageManager::default().unwrap();

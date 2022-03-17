@@ -222,6 +222,17 @@ impl React<Analyzer> for DocTree {
                 }
             }
         });
+
+        analyzer.connect_doc_error({
+            let store = self.store.clone();
+            let doc_icons = self.doc_icons.clone();
+            let tree_view = self.tree_view.clone();
+            move |err| {
+                store.clear();
+                let iter = store.append(None);
+                store.set(&iter, &[(0, &doc_icons.err_icon), (1, &err.msg)]);
+            }
+        });
     }
 
 }

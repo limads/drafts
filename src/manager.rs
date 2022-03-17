@@ -498,7 +498,7 @@ pub fn connect_manager_with_editor(
     view.buffer().connect_changed({
         let send = send.clone();
         move |buf| {
-            println!("Buffer changed to {}", buf.text(&buf.start_iter(), &buf.end_iter(), false));
+            // println!("Buffer changed to {}", buf.text(&buf.start_iter(), &buf.end_iter(), false));
             send.send(FileAction::FileChanged).unwrap();
         }
     })
