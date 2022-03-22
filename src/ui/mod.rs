@@ -822,11 +822,19 @@ pub fn set_border_to_title(bx : &Box) {
     bx.style_context().add_provider(&provider, 800);
 }
 
+pub fn try_get_child_by_index<W>(w : &Box, pos : usize) -> Option<W>
+where
+    W : IsA<glib::Object>
+{
+    w.observe_children().item(pos as u32)?.clone().downcast::<W>().ok()
+}
+
 pub fn get_child_by_index<W>(w : &Box, pos : usize) -> W
 where
     W : IsA<glib::Object>
 {
-    w.observe_children().item(pos as u32).unwrap().clone().downcast::<W>().unwrap()
+    // w.observe_children().item(pos as u32).unwrap().clone().downcast::<W>().unwrap()
+    try_get_child_by_index::<W>(w, pos).unwrap()
 }
 
 pub fn set_margins<W : WidgetExt>(w : &W, horizontal : i32, vertical : i32) {
@@ -910,11 +918,11 @@ fn preserve_ratio_on_resize(win : &ApplicationWindow, paned : &Paned, ratio : &R
 
 const A4 : (f64, f64) = (210.0, 297.4);
 
-const LEGAL : (f64, f64) = (215.9, 355.6);
-
 const LETTER : (f64, f64) = (215.9, 279.4);
 
-const PX_PER_MM : f64 = 3.0;
+const LEGAL : (f64, f64) = (215.9, 355.6);
+
+// const PX_PER_MM : f64 = 3.0;
 
 const DEFAULT_SCALE : f64 = 1.5;
 
@@ -1110,4 +1118,28 @@ pub fn connect_toast_dismissed(t : &libadwaita::Toast, last : &Rc<RefCell<Option
         }
     });
 }
+
+pub const MARGIN_MAX : f64 = 5.0;
+
+pub const MARGIN_MIN : f64 = 0.0;
+
+pub struct PaperMargins {
+    pub left : f64,
+    pub top : f64,
+    pub right : f64,
+    pub bottom : f64
+}
+
+pub fn parse_int_or_float(txt : &str) -> Option<f64> {
+    if let Ok(val) = txt.parse::<f64>() {
+        Some(val)
+    } else {
+        if let Ok(val) = txt.parse::<i64>() {
+            Some(val as f64)
+        } else {
+            None
+        }
+    }
+}
+
 

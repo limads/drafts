@@ -64,7 +64,8 @@ pub struct Titlebar {
     pub meta_actions : MetaActions,
     pub fmt_popover : FormatPopover,
     pub bib_popover : BibPopover,
-    pub symbol_btn : MenuButton
+    pub symbol_btn : MenuButton,
+    pub paper_popover : PaperPopover
 }
 
 #[derive(Debug, Clone)]
@@ -487,19 +488,21 @@ impl BibPopover {
                     if txt.is_empty() {
                         row.set_visible(true);
                     } else {
-                        let ref_row = ReferenceRow::recover(&row);
-                        if ref_row.key().to_lowercase().contains(&txt) ||
-                            ref_row.authors().to_lowercase().contains(&txt) ||
-                            ref_row.title().to_lowercase().contains(&txt) {
-                            row.set_visible(true);
-                        } else {
-                            row.set_visible(false);
+                        if let Some(ref_row) = ReferenceRow::recover(&row) {
+                            if ref_row.key().to_lowercase().contains(&txt) ||
+                                ref_row.authors().to_lowercase().contains(&txt) ||
+                                ref_row.title().to_lowercase().contains(&txt) {
+                                row.set_visible(true);
+                            } else {
+                                row.set_visible(false);
+                            }
                         }
                     }
                     ix += 1;
                 }
             }
         });
+        create_init_row(&list);
         BibPopover { list, popover, search_entry }
     }
 
@@ -514,11 +517,24 @@ fn build_dash(n : i32) -> Vec<f64> {
     dashes
 }
 
+#[derive(Debug, Clone)]
 pub struct PaperPopover {
-    pub popover : Popover
+    pub popover : Popover,
+    pub update_btn : Button,
+    pub paper_combo : ComboBoxText,
+    pub left_entry : Entry,
+    pub top_entry : Entry,
+    pub right_entry : Entry,
+    pub bottom_entry : Entry
 }
 
-fn draw_paper_background(ctx : &cairo::Context, paper_x_offset : f64, paper_y_offset : f64, paper_width : f64, paper_height : f64) {
+fn draw_paper_background(
+    ctx : &cairo::Context,
+    paper_x_offset : f64,
+    paper_y_offset : f64,
+    paper_width : f64,
+    paper_height : f64
+) {
 
     let fold_sz = 10.0;
 
@@ -567,7 +583,7 @@ fn draw_margins(ctx : &cairo::Context, dim : &PaperDimension) {
 
     // Left margin
     ctx.move_to(dim.x_offset + dim.margin_left, dim.y_offset);
-    ctx.line_to(dim.x_offset + dim.margin_left, 140.);
+    ctx.line_to(dim.x_offset + dim.margin_left, dim.y_offset + dim.height);
     ctx.stroke();
 
     // Right margin
@@ -586,6 +602,30 @@ fn draw_margins(ctx : &cairo::Context, dim : &PaperDimension) {
     ctx.stroke();
 }
 
+const PX_PER_MM : f64 = 0.5;
+
+fn update_margin(old_v : &mut f64, entry : &Entry, page_da : &DrawingArea, update_btn : &Button) {
+    let txt = entry.buffer().text().to_string();
+    if txt.is_empty() {
+        *old_v = 20. * PX_PER_MM;
+        update_btn.set_sensitive(true);
+    } else {
+        if let Some(v) = super::parse_int_or_float(&txt) {
+            if v > super::MARGIN_MIN && v < super::MARGIN_MAX {
+                *old_v = PX_PER_MM * 10. * v;
+                update_btn.set_sensitive(true);
+            } else {
+                *old_v = 20. * PX_PER_MM;
+                update_btn.set_sensitive(false);
+            }
+        } else {
+            *old_v = 20. * PX_PER_MM;
+            update_btn.set_sensitive(false);
+        }
+    }
+    page_da.queue_draw();
+}
+
 impl PaperPopover {
 
     pub fn build() -> Self {
@@ -593,48 +633,107 @@ impl PaperPopover {
         let page_bx = Box::new(Orientation::Horizontal, 1);
 
         let page_da = DrawingArea::new();
-        page_da.set_width_request(172);
-        page_da.set_height_request(144);
+        //page_da.set_width_request(172);
+        //page_da.set_height_request(144);
+        page_da.set_width_request(180);
+        page_da.set_height_request(200);
+        let update_btn = Button::new();
+
+        let dim = Rc::new(RefCell::new(PaperDimension {
+            x_offset : 42.0,
+            y_offset : 10.0,
+            width : super::A4.0 * PX_PER_MM ,
+            height : super::A4.1 * PX_PER_MM,
+            margin_left : 20. * PX_PER_MM,
+            margin_right : 20. * PX_PER_MM,
+            margin_bottom : 20. * PX_PER_MM,
+            margin_top : 20. * PX_PER_MM
+        }));
         page_da.set_draw_func({
+            let dim = dim.clone();
             move |da, ctx, _, _| {
-                let dim = PaperDimension {
-                    x_offset : 42.0,
-                    y_offset : 10.0,
-                    width : 80.0,
-                    height : 130.0,
-                    margin_left : 10.,
-                    margin_right : 10.,
-                    margin_bottom : 10.,
-                    margin_top : 10.
-                };
-                draw_paper(&da, &ctx, &dim);
+                draw_paper(&da, &ctx, &dim.borrow());
             }
         });
 
         let top_entry = Entry::new();
         top_entry.set_primary_icon_name(Some("margin-top-symbolic"));
-        top_entry.set_placeholder_text(Some("Top margin (1cm)"));
+        top_entry.set_placeholder_text(Some("Top margin (cm)"));
+        top_entry.connect_changed({
+            let page_da = page_da.clone();
+            let dim = dim.clone();
+            let update_btn = update_btn.clone();
+            move |entry| {
+                update_margin(&mut dim.borrow_mut().margin_top, &entry, &page_da, &update_btn);
+
+            }
+        });
 
         let right_entry = Entry::new();
         right_entry.set_primary_icon_name(Some("margin-right-symbolic"));
-        right_entry.set_placeholder_text(Some("Right margin (1cm)"));
+        right_entry.set_placeholder_text(Some("Right margin (cm)"));
+        right_entry.connect_changed({
+            let page_da = page_da.clone();
+            let dim = dim.clone();
+            let update_btn = update_btn.clone();
+            move |entry| {
+                update_margin(&mut dim.borrow_mut().margin_right, &entry, &page_da, &update_btn);
+            }
+        });
 
         let bottom_entry = Entry::new();
         bottom_entry.set_primary_icon_name(Some("margin-bottom-symbolic"));
-        bottom_entry.set_placeholder_text(Some("Bottom margin (1cm)"));
+        bottom_entry.set_placeholder_text(Some("Bottom margin (cm)"));
+        bottom_entry.connect_changed({
+            let page_da = page_da.clone();
+            let dim = dim.clone();
+            let update_btn = update_btn.clone();
+            move |entry| {
+                update_margin(&mut dim.borrow_mut().margin_bottom, &entry, &page_da, &update_btn);
+            }
+        });
 
         let left_entry = Entry::new();
         left_entry.set_primary_icon_name(Some("margin-left-symbolic"));
-        left_entry.set_placeholder_text(Some("Left margin (1cm)"));
+        left_entry.set_placeholder_text(Some("Left margin (cm)"));
+        left_entry.connect_changed({
+            let page_da = page_da.clone();
+            let dim = dim.clone();
+            let update_btn = update_btn.clone();
+            move |entry| {
+                update_margin(&mut dim.borrow_mut().margin_left, &entry, &page_da, &update_btn);
+            }
+        });
 
         let margin_bx = Box::new(Orientation::Vertical, 0);
-        margin_bx.set_margin_top(10);
+        //margin_bx.set_margin_top(24);
+        //margin_bx.set_margin_bottom(32);
+        margin_bx.set_vexpand(true);
+        margin_bx.set_valign(Align::Center);
 
         let paper_combo = ComboBoxText::new();
         paper_combo.append(Some("A4"), "A4");
         paper_combo.append(Some("Letter"), "Letter");
         paper_combo.append(Some("Legal"), "Legal");
         paper_combo.append(Some("Custom"), "Custom");
+        paper_combo.connect_changed({
+            let page_da = page_da.clone();
+            let dim = dim.clone();
+            move |combo| {
+                if let Some(id) = combo.active_id() {
+                    let dims_mm = match &id.to_string()[..] {
+                        "A4" => super::A4,
+                        "Letter" => super::LETTER,
+                        "Legal" => super::LEGAL,
+                        _ => super::A4
+                    };
+                    let mut dim = dim.borrow_mut();
+                    dim.width = dims_mm.0 * PX_PER_MM;
+                    dim.height = dims_mm.1 * PX_PER_MM;
+                    page_da.queue_draw();
+                }
+            }
+        });
 
         margin_bx.style_context().add_class("linked");
         for entry in [&top_entry, &bottom_entry, &left_entry, &right_entry] {
@@ -649,7 +748,6 @@ impl PaperPopover {
 
         let page_right_bx = Box::new(Orientation::Vertical, 12);
         super::set_margins(&page_right_bx, 6, 6);
-        let update_btn = Button::new();
         update_btn.set_label("Update");
 
         page_right_bx.append(&margin_bx);
@@ -658,7 +756,7 @@ impl PaperPopover {
         page_bx.append(&page_right_bx);
 
         popover.set_child(Some(&page_bx));
-        Self { popover }
+        Self { popover, update_btn, paper_combo, left_entry, top_entry, right_entry, bottom_entry }
     }
 
 }
@@ -672,7 +770,6 @@ impl Titlebar {
         let pdf_btn = Button::builder().icon_name("evince-symbolic").build();
         let sidebar_toggle = ToggleButton::builder().icon_name("view-sidebar-symbolic").build();
 
-
         // \noindent - inline command that applies to current paragarph
         // \setlength{\parindent}{20pt} - At document config.
 
@@ -682,9 +779,6 @@ impl Titlebar {
 
         \end{multicols}
         */
-
-        // \usepackage[a4paper, total={6in, 8in}, left=2cm, right=2cm, top=2cm, bottom=2cm]{geometry}
-        // \usepackage[legalpaper, landscape, margin=2in]{geometry}
 
         let fmt_popover = FormatPopover::build();
         let fmt_btn = MenuButton::new();
@@ -850,7 +944,8 @@ impl Titlebar {
             sectioning_actions : SectioningActions::build(),
             indexing_actions : IndexingActions::build(),
             meta_actions : MetaActions::build(),
-            fmt_popover
+            fmt_popover,
+            paper_popover
         }
     }
 }
@@ -899,13 +994,13 @@ impl ReferenceRow {
 
     // TODO add different icons for book, article, etc.
 
-    pub fn recover(row : &ListBoxRow) -> Self {
+    pub fn recover(row : &ListBoxRow) -> Option<Self> {
         let bx = row.child().unwrap().downcast::<Box>().unwrap();
-        let header_bx = super::get_child_by_index::<Box>(&bx, 0);
-        let key_label = super::get_child_by_index::<Label>(&header_bx, 1);
-        let authors_label = super::get_child_by_index::<Label>(&header_bx, 2);
-        let title_label = super::get_child_by_index::<Label>(&bx, 1);
-        Self { row : row.clone(), key_label, authors_label, title_label }
+        let header_bx = super::try_get_child_by_index::<Box>(&bx, 0)?;
+        let key_label = super::try_get_child_by_index::<Label>(&header_bx, 1)?;
+        let authors_label = super::try_get_child_by_index::<Label>(&header_bx, 2)?;
+        let title_label = super::try_get_child_by_index::<Label>(&bx, 1)?;
+        Some(Self { row : row.clone(), key_label, authors_label, title_label })
     }
 
     pub fn update(&self, entry : &BibEntry) {
@@ -1000,8 +1095,9 @@ impl React<Analyzer> for BibPopover {
                     match Token::from_str(&txt) {
                         Ok(Token::Reference(bib_entry, _)) => {
                             if let Some(row) = bib_list.row_at_index(pos as i32) {
-                                let ref_row = ReferenceRow::recover(&row);
-                                ref_row.update(&bib_entry);
+                                if let Some(ref_row) = ReferenceRow::recover(&row) {
+                                    ref_row.update(&bib_entry);
+                                }
                             }
                         },
                         _ => { }
@@ -1014,17 +1110,48 @@ impl React<Analyzer> for BibPopover {
                 }
             }
         });
-        analyzer.connect_doc_cleared({
+        analyzer.connect_references_cleared({
             let list = self.list.clone();
             move |_| {
-                let mut ix = 0;
-                while let Some(r) = list.row_at_index(ix) {
-                    list.remove(&r);
-                    ix += 1;
-                }
+                clear_list(&list);
+                create_init_row(&list);
+            }
+        });
+        analyzer.connect_doc_error({
+            let list = self.list.clone();
+            move |err| {
+                clear_list(&list);
+                create_unique_row(&list, &format!("Parsing error: {}", err), "dialog-error-symbolic");
             }
         });
     }
 
 }
+
+fn clear_list(list : &ListBox) {
+    // let mut ix = 0;
+    while let Some(r) = list.row_at_index(0) {
+        list.remove(&r);
+        // ix += 1;
+    }
+}
+
+fn create_init_row(list : &ListBox) {
+    create_unique_row(&list, "Insert a bibliography section to search its references here", "user-bookmarks-symbolic");
+}
+
+fn create_unique_row(list : &ListBox, label : &str, icon : &str) {
+    let row = ListBoxRow::new();
+    row.set_selectable(false);
+    row.set_activatable(false);
+    let bx = Box::new(Orientation::Horizontal, 0);
+    let icon = Image::from_icon_name(Some(icon));
+    super::set_all_margins(&icon, 6);
+    bx.append(&icon);
+    let label = Label::new(Some(label));
+    bx.append(&label);
+    row.set_child(Some(&bx));
+    list.insert(&row, 0);
+}
+
 

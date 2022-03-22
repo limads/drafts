@@ -149,11 +149,17 @@ impl React<Typesetter> for PapersEditor {
 
 }
 
-fn insert_at_cursor(view : View, popover : Popover, txt : &'static str) {
+fn insert_at_cursor(view : View, popover : Popover, txt : &str) {
     let buffer = view.buffer();
     buffer.insert_at_cursor(&txt);
     popover.popdown();
     view.grab_focus();
+
+    if txt.ends_with("{}") {
+        let iter = buffer.iter_at_offset(buffer.cursor_position() - 1);
+        buffer.place_cursor(&iter);
+    }
+
 }
 
 pub fn insert_at_cursor_from_action(action : &gio::SimpleAction, view : View, popover : Popover, txt : &'static str) {
@@ -191,6 +197,11 @@ fn wrap_parameter_or_insert_at_cursor(view : View, popover : Popover, tag : &'st
     edit_or_insert_at_cursor(&view, &txt[..]);
     popover.popdown();
     view.grab_focus();
+
+    if txt.ends_with("{}") {
+        let iter = buffer.iter_at_offset(buffer.cursor_position() - 1);
+        buffer.place_cursor(&iter);
+    }
 }
 
 /* Given a command tag such as \textbf{SomeText}, wrap the selected text as the argument to the given
@@ -352,6 +363,37 @@ impl React<Titlebar> for PapersEditor {
         for (action, cmd) in indexing {
             insert_at_cursor_from_action(action, view.clone(), popover.clone(), cmd);
         }
+
+        titlebar.paper_popover.update_btn.connect_clicked({
+            let paper_combo = titlebar.paper_popover.paper_combo.clone();
+            let left_entry = titlebar.paper_popover.left_entry.clone();
+            let top_entry = titlebar.paper_popover.top_entry.clone();
+            let right_entry = titlebar.paper_popover.right_entry.clone();
+            let bottom_entry = titlebar.paper_popover.bottom_entry.clone();
+            let view = view.clone();
+            let popover = titlebar.paper_popover.popover.clone();
+            move |_| {
+
+                // TODO support
+                // \usepackage[a4paper, total={6in, 8in}, left=2cm, right=2cm, top=2cm, bottom=2cm]{geometry}
+                // \usepackage[legalpaper, landscape, margin=2in]{geometry}
+
+                let top = super::parse_int_or_float(&top_entry.buffer().text().to_string()).unwrap_or(2.);
+                let left = super::parse_int_or_float(&left_entry.buffer().text().to_string()).unwrap_or(2.);
+                let bottom = super::parse_int_or_float(&bottom_entry.buffer().text().to_string()).unwrap_or(2.);
+                let right = super::parse_int_or_float(&right_entry.buffer().text().to_string()).unwrap_or(2.);
+                let paper = paper_combo.active_id().map(|id| id.to_string().to_lowercase() ).unwrap_or(String::from("a4"));
+                let cmd = format!(
+                    "\\usepackage[{}paper, left={:.1}cm, right={:.1}cm, top={:.1}cm, bottom={:.1}cm]{{geometry}}",
+                    paper,
+                    left,
+                    right,
+                    top,
+                    bottom
+                );
+                insert_at_cursor(view.clone(), popover.clone(), &cmd);
+            }
+        });
     }
 }
 
@@ -442,7 +484,11 @@ impl React<BibPopover> for PapersEditor {
         let popover = bib_popover.popover.clone();
         let view = self.view.clone();
         bib_popover.list.connect_row_activated(move |_, row| {
-            let ref_row = ReferenceRow::recover(&row);
+            let ref_row = if let Some(row) = ReferenceRow::recover(&row) {
+                row
+            } else {
+                return;
+            };
             let key = ref_row.key();
             let buffer = view.buffer();
             let replaced = match move_backwards_to_command_start(&buffer) {

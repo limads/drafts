@@ -29,6 +29,8 @@ pub struct Analyzer {
 
     on_doc_cleared : Callbacks<()>,
 
+    on_refs_cleared : Callbacks<()>,
+
     on_doc_error : Callbacks<TexError>,
 
     on_line_selection : Callbacks<usize>
@@ -45,6 +47,7 @@ impl Analyzer {
         let on_line_selection : Callbacks<usize> = Default::default();
         let on_doc_error : Callbacks<TexError> = Default::default();
         let on_doc_cleared : Callbacks<()> = Default::default();
+        let on_refs_cleared : Callbacks<()> = Default::default();
         // TODO keep an thread watching an external bib file (if any). The user can simply use
         // the embedded bibliography instead.
 
@@ -58,6 +61,7 @@ impl Analyzer {
             let on_line_selection = on_line_selection.clone();
             let on_doc_cleared = on_doc_cleared.clone();
             let on_doc_error = on_doc_error.clone();
+            let on_refs_cleared = on_refs_cleared.clone();
             move |action| {
                 match action {
                     AnalyzerAction::TextChanged(new_txt) => {
@@ -68,9 +72,13 @@ impl Analyzer {
                                 //    on_section_changed.borrow().iter().for_each(|f| f(diff.clone() ) );
                                 //}
 
-                                for diff in tk_info.compare_tokens(&new_info, Comparison::References) {
-                                    println!("{:?}", diff);
-                                    on_reference_changed.borrow().iter().for_each(|f| f(diff.clone() ) );
+                                if tk_info.references().is_empty() {
+                                    on_refs_cleared.borrow().iter().for_each(|f| f(()) );
+                                } else {
+                                    for diff in tk_info.compare_tokens(&new_info, Comparison::References) {
+                                        // println!("{:?}", diff);
+                                        on_reference_changed.borrow().iter().for_each(|f| f(diff.clone() ) );
+                                    }
                                 }
 
                                 tk_info = new_info;
@@ -124,7 +132,7 @@ impl Analyzer {
                 Continue(true)
             }
         });
-        Self { send, on_reference_changed, on_section_changed, on_doc_changed, on_line_selection, on_doc_cleared, on_doc_error }
+        Self { send, on_reference_changed, on_section_changed, on_doc_changed, on_line_selection, on_doc_cleared, on_doc_error, on_refs_cleared }
     }
 
     pub fn connect_section_changed<F>(&self, f : F)
@@ -153,6 +161,13 @@ impl Analyzer {
         F : Fn(()) + 'static
     {
         self.on_doc_cleared.borrow_mut().push(boxed::Box::new(f));
+    }
+
+    pub fn connect_references_cleared<F>(&self, f : F)
+    where
+        F : Fn(()) + 'static
+    {
+        self.on_refs_cleared.borrow_mut().push(boxed::Box::new(f));
     }
 
     pub fn connect_doc_error<F>(&self, f : F)
@@ -221,6 +236,19 @@ impl React<PapersEditor> for Analyzer {
         editor.view.buffer().connect_delete_range({
             let send = self.send.clone();
             move |buffer, _, _| {
+                let txt = buffer.text(
+                    &buffer.start_iter(),
+                    &buffer.end_iter(),
+                    true
+                );
+                send.send(AnalyzerAction::TextChanged(txt.to_string()));
+            }
+        });
+
+        editor.view.connect_delete_from_cursor({
+            let send = self.send.clone();
+            move |view, _, _| {
+                let buffer = view.buffer();
                 let txt = buffer.text(
                     &buffer.start_iter(),
                     &buffer.end_iter(),

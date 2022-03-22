@@ -782,14 +782,14 @@ impl Lexer {
                 nom::Err::Incomplete(e) => format!("Incomplete input")
             };
             // let msg = format!("Error at {}: {}", e.input, e);
-            TexError { msg : nom_msg[..nom_msg.len().min(100)].to_owned(), line }
+            TexError { msg : nom_msg.chars().take(100).collect::<String>(), line }
         })?;
 
         if !rem.is_empty() {
             let line = s[..(s.len() - rem.len())].chars().filter(|c| *c == '\n' ).count();
             return Err(TexError {
                 line,
-                msg : format!("Could not parse document end: {}", &rem[..rem.len().min(100)])
+                msg : format!("Could not parse document end: {}", &rem.chars().take(100).collect::<String>() )
             });
         }
 
