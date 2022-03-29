@@ -31,6 +31,8 @@ pub struct Analyzer {
 
     on_refs_cleared : Callbacks<()>,
 
+    on_refs_validated : Callbacks<()>,
+
     on_doc_error : Callbacks<TexError>,
 
     on_line_selection : Callbacks<usize>
@@ -48,6 +50,7 @@ impl Analyzer {
         let on_doc_error : Callbacks<TexError> = Default::default();
         let on_doc_cleared : Callbacks<()> = Default::default();
         let on_refs_cleared : Callbacks<()> = Default::default();
+        let on_refs_validated : Callbacks<()> = Default::default();
         // TODO keep an thread watching an external bib file (if any). The user can simply use
         // the embedded bibliography instead.
 
@@ -62,9 +65,11 @@ impl Analyzer {
             let on_doc_cleared = on_doc_cleared.clone();
             let on_doc_error = on_doc_error.clone();
             let on_refs_cleared = on_refs_cleared.clone();
+            let on_refs_validated = on_refs_validated.clone();
             move |action| {
                 match action {
                     AnalyzerAction::TextChanged(new_txt) => {
+                        println!("Text changed");
                         match Lexer::scan(&new_txt[..]).map(|tks| tks.to_owned() ) {
                             Ok(new_info) => {
 
@@ -72,12 +77,21 @@ impl Analyzer {
                                 //    on_section_changed.borrow().iter().for_each(|f| f(diff.clone() ) );
                                 //}
 
-                                if tk_info.references().is_empty() {
+                                if new_info.references().is_empty() {
                                     on_refs_cleared.borrow().iter().for_each(|f| f(()) );
+                                    println!("References cleared");
                                 } else {
+
+                                    // Old tkinfo had empty references, but new one is not empty.
+                                    if tk_info.references().is_empty() {
+                                        on_refs_validated.borrow().iter().for_each(|f| f(()) );
+                                        println!("References validated");
+                                    }
+
                                     for diff in tk_info.compare_tokens(&new_info, Comparison::References) {
                                         // println!("{:?}", diff);
                                         on_reference_changed.borrow().iter().for_each(|f| f(diff.clone() ) );
+                                        println!("References changed");
                                     }
                                 }
 
@@ -132,7 +146,7 @@ impl Analyzer {
                 Continue(true)
             }
         });
-        Self { send, on_reference_changed, on_section_changed, on_doc_changed, on_line_selection, on_doc_cleared, on_doc_error, on_refs_cleared }
+        Self { send, on_reference_changed, on_section_changed, on_doc_changed, on_line_selection, on_doc_cleared, on_doc_error, on_refs_cleared, on_refs_validated }
     }
 
     pub fn connect_section_changed<F>(&self, f : F)
@@ -168,6 +182,13 @@ impl Analyzer {
         F : Fn(()) + 'static
     {
         self.on_refs_cleared.borrow_mut().push(boxed::Box::new(f));
+    }
+
+    pub fn connect_references_validated<F>(&self, f : F)
+    where
+        F : Fn(()) + 'static
+    {
+        self.on_refs_validated.borrow_mut().push(boxed::Box::new(f));
     }
 
     pub fn connect_doc_error<F>(&self, f : F)

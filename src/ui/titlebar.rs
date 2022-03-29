@@ -471,8 +471,8 @@ impl BibPopover {
         let list = ListBox::new();
         let bib_scroll = ScrolledWindow::new();
         bib_scroll.set_child(Some(&list));
-        bib_scroll.set_width_request(480);
-        bib_scroll.set_height_request(280);
+        bib_scroll.set_width_request(520);
+        bib_scroll.set_height_request(360);
 
         let bx = Box::new(Orientation::Vertical, 0);
         popover.set_child(Some(&bx));
@@ -978,6 +978,11 @@ pub struct ReferenceRow {
     pub title_label : Label,
 }
 
+fn trim_braces(s : &str) -> &str {
+    s.trim_start_matches("{").trim_end_matches("}")
+        .trim_start_matches("{").trim_end_matches("}")
+}
+
 impl ReferenceRow {
 
     pub fn key(&self) -> String {
@@ -1006,7 +1011,7 @@ impl ReferenceRow {
     pub fn update(&self, entry : &BibEntry) {
         // println!("{:?}", entry);
         let key = format!("<b>{}</b>", entry.key());
-        let full_title = entry.title().unwrap_or("(Untitled)").trim().to_string();
+        let full_title = trim_braces(entry.title().unwrap_or("(Untitled)").trim()).to_string();
 
         let mut title = String::with_capacity(full_title.len());
         let mut should_break = false;
@@ -1020,15 +1025,14 @@ impl ReferenceRow {
                 should_break = false;
             }
         }
-        let mut authors = entry.author().unwrap_or("(No authors)").trim()
-            .trim_start_matches("{").trim_end_matches("}").trim_start_matches("{").trim_end_matches("}");
+        let mut authors = trim_braces(entry.author().unwrap_or("(No authors)").trim());
 
         let mut broken_authors = String::new();
         if authors.chars().count() > 60 {
             broken_authors = authors.chars().take(60).collect();
             broken_authors += "(...)";
         }
-        let year = entry.year().unwrap_or("No date").trim();
+        let year = trim_braces(entry.year().unwrap_or("No date").trim());
         // println!("authors = {}; title = {}; key = {}", authors, title, key);
         self.key_label.set_markup(&key);
         self.authors_label.set_text(&format!("{} ({})", authors, year));
@@ -1115,6 +1119,12 @@ impl React<Analyzer> for BibPopover {
             move |_| {
                 clear_list(&list);
                 create_init_row(&list);
+            }
+        });
+        analyzer.connect_references_validated({
+            let list = self.list.clone();
+            move |_| {
+                clear_list(&list);
             }
         });
         analyzer.connect_doc_error({

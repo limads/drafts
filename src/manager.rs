@@ -170,7 +170,7 @@ impl FileManager {
                     // just_opened is false.
                     FileAction::FileChanged => {
 
-                        println!("File changed");
+                        // println!("File changed");
 
                         // Use this decision branch to inhibit buffer changes
                         // when a new file is opened.
@@ -181,7 +181,7 @@ impl FileManager {
 
                         //else {
                         curr_file.last_saved = None;
-                        println!("File changed by key press");
+                        // println!("File changed by key press");
                         call(&on_file_changed, curr_file.path.clone());
                         //}
                     },
