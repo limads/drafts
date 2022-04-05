@@ -49,19 +49,20 @@ pub struct Workspace {
 
     outdir : tempfile::TempDir,
 
-    file : tempfile::NamedTempFile,
+    // file : tempfile::NamedTempFile,
 
-    out_uri : String
+    // out_uri : String
 }
 
 impl Workspace {
 
     pub fn new() -> Self {
         let outdir = tempfile::Builder::new().tempdir().unwrap();
-        let file = tempfile::Builder::new().suffix(".tex").tempfile().unwrap();
-        println!("Tempfile path = {}", file.path().to_str().unwrap());
-        let out_uri = format!("file://{}/{}.pdf", outdir.path().to_str().unwrap(), file.path().file_stem().unwrap().to_str().unwrap().trim_end_matches(".tex"));
-        Self { outdir, file, out_uri }
+        println!("Outdir = {}", outdir.path().display());
+        // let file = tempfile::Builder::new().suffix(".tex").tempfile().unwrap();
+        // println!("Tempfile path = {}", file.path().to_str().unwrap());
+        // let out_uri = format!("file://{}/{}.pdf", outdir.path().to_str().unwrap(), file.path().file_stem().unwrap().to_str().unwrap().trim_end_matches(".tex"));
+        Self { outdir, /*file, out_uri*/ }
     }
 
 }
@@ -289,10 +290,10 @@ gtk::init() is not called. Perhaps glib and tectonic rely on static variables wi
 the same name. Perhaps gtk mess with tectonic launching external CLI tools.
 For whatever reason, tectonic and GTK cannot live in the same process.
 */
-fn typeset_document(latex : &str, ws : &mut Workspace) -> Result<Vec<u8>, String> {
+pub fn typeset_document(latex : &str, /*ws : &mut Workspace*/ ) -> Result<Vec<u8>, String> {
 
-    // let mut status = PapersStatusBackend{ errors : String::new(), notes : String::new(), warnings : String::new() };
-    let mut status = tectonic::status::plain::PlainStatusBackend::new(tectonic::status::ChatterLevel::Normal);
+    let mut status = PapersStatusBackend{ errors : String::new(), notes : String::new(), warnings : String::new() };
+    // let mut status = tectonic::status::plain::PlainStatusBackend::new(tectonic::status::ChatterLevel::Normal);
 
     //let config = config::PersistentConfig::open(false)
     //    .map_err(|e| format!("Error opening tectonic config: {:#}", e) )?;
@@ -316,9 +317,10 @@ fn typeset_document(latex : &str, ws : &mut Workspace) -> Result<Vec<u8>, String
 
     // println!("Bundle = {:?}", bundle.all_files(&mut status));
 
-    ws.file.write_all(latex.as_bytes()).unwrap();
+    // ws.file.write_all(latex.as_bytes()).unwrap();
 
     use tectonic::unstable_opts::UnstableOptions;
+
     /*let unstables = UnstableOptions {
         continue_on_errors : true,
         ..Default::default()
@@ -335,10 +337,10 @@ fn typeset_document(latex : &str, ws : &mut Workspace) -> Result<Vec<u8>, String
             //.unstables(unstables)
 
             // Overrides primary_input_path and stdin options.
-            //.primary_input_buffer(latex.as_bytes())
+            .primary_input_buffer(latex.as_bytes())
             //.primary_input_path(ws.file.path())
             //.primary_input_path("/home/diego/Downloads/test.tex")
-            .primary_input_buffer(b"\\documentclass[a4,11pt]{article} \\usepackage{inputenc} \\begin{document}Text\\end{document}")
+            //.primary_input_buffer(b"\\documentclass[a4,11pt]{article} \\usepackage{inputenc} \\begin{document}Text\\end{document}")
 
             // Required, or else SessionBuilder panics. This defines the output pdf name
             // by looking at the file stem.
@@ -369,7 +371,7 @@ fn typeset_document(latex : &str, ws : &mut Workspace) -> Result<Vec<u8>, String
             Ok(_) => { },
             Err(e) => {
 
-                /*let msg = format_message(&status.errors[..]);
+                let msg = format_message(&status.errors[..]);
 
                 println!("User message: {}", msg);
                 println!("{}", e);
@@ -379,11 +381,12 @@ fn typeset_document(latex : &str, ws : &mut Workspace) -> Result<Vec<u8>, String
 
                 if msg.is_empty() {
                     let out = sess.get_stdout_content();
-                    return Err(format!("Session error: {:#} ({})", e, String::from_utf8(out).unwrap()));
+                    let full_msg = format_message(&format!("Session error: {:#} ({})", e, String::from_utf8(out).unwrap()));
+                    return Err(full_msg);
                 } else {
                     return Err(msg);
-                }*/
-                println!("Session error: {}",e );
+                }
+                // println!("Session error: {}",e );
             }
         }
         sess.into_file_data()
@@ -404,7 +407,7 @@ fn typeset_document(latex : &str, ws : &mut Workspace) -> Result<Vec<u8>, String
 }
 
 fn typeset_document_from_cli(ws : &mut Workspace, latex : &str, send : &glib::Sender<TypesetterAction>) {
-    ws.file.seek(std::io::SeekFrom::Start(0));
+    /*ws.file.seek(std::io::SeekFrom::Start(0));
     ws.file.write_all(latex.as_bytes()).unwrap();
     let out = Command::new("tectonic")
         .args(&["-X", "compile", ws.file.path().to_str().unwrap(), "--outdir", ws.outdir.path().to_str().unwrap(), "--outfmt", "pdf"])
@@ -413,12 +416,8 @@ fn typeset_document_from_cli(ws : &mut Workspace, latex : &str, send : &glib::Se
     println!("Command completed.");
     match out.status.success() {
         true => {
-            send.send(TypesetterAction::Done(TypesetterTarget::File(ws.out_uri.clone())));
-            /*let out = Command::new("evince")
-                .args(&[&ws.out_uri])
-                .spawn()
-                .unwrap();*/
-
+            unimplemented!()
+            // send.send(TypesetterAction::Done(TypesetterTarget::File(ws.out_uri.clone())));
             // sudo apt install libpoppler-dev libpoppler-glib-dev
         },
         false => {
@@ -427,32 +426,58 @@ fn typeset_document_from_cli(ws : &mut Workspace, latex : &str, send : &glib::Se
             println!("{}", e);
             send.send(TypesetterAction::Error(format_message(&format!("{}\n{}", e, out))));
         }
+    }*/
+    // unimplemented!()
+
+    use std::process::{Command, Stdio};
+
+    let mut cmd = Command::new("/home/diego/Software/papers/target/debug/helper")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let mut stdin = cmd.stdin.as_mut().unwrap().write_all(latex.as_bytes()).unwrap();
+    match cmd.wait_with_output() {
+        Ok(out) => {
+            if out.status.success() {
+                let out_path = format!("{}/out.pdf", &ws.outdir.path().display());
+                let mut f = File::create(&out_path).unwrap();
+                f.write_all(&out.stdout).unwrap();
+                send.send(TypesetterAction::Done(TypesetterTarget::File(out_path)));
+            } else {
+                send.send(TypesetterAction::Error(format!("{}",String::from_utf8(out.stderr).unwrap())));
+            }
+        },
+        Err(e) => {
+            send.send(TypesetterAction::Error(format!("{}",e)));
+        }
     }
 }
 
 fn typeset_document_from_lib(ws : &mut Workspace, latex : &str, send : &glib::Sender<TypesetterAction>) {
 
     println!("Processing: {}", latex);
-    match typeset_document(&latex[..], ws) {
+    match typeset_document(&latex[..]) {
         Ok(pdf_bytes) => {
-            match File::create(&ws.out_uri) {
+            let out_path = format!("{}/out.pdf", &ws.outdir.path().display());
+            match File::create(&out_path) {
                 Ok(mut f) => {
                     match f.write_all(&pdf_bytes) {
                         Ok(_) => {
-                            send.send(TypesetterAction::Done(TypesetterTarget::File(ws.out_uri.clone())));
+                            send.send(TypesetterAction::Done(TypesetterTarget::File(out_path.clone())));
                         },
                         Err(e) => {
-                            send.send(TypesetterAction::Error(format!("{}", e)));
+                            send.send(TypesetterAction::Error(format!("File writing error: {}", e)));
                         }
                     }
                 },
                 Err(e) => {
-                    send.send(TypesetterAction::Error(format!("{}", e)));
+                    send.send(TypesetterAction::Error(format!("File creation error: {}", e)));
                 }
             }
         },
         Err(e) => {
-            send.send(TypesetterAction::Error(format!("{}", e)));
+            send.send(TypesetterAction::Error(format!("Typesetting error: {}", e)));
         }
     }
 }
@@ -470,8 +495,6 @@ impl Typesetter {
         let on_error : Callbacks<String> = Default::default();
         let (content_send, content_recv) = mpsc::channel::<String>();
 
-        // typeset_document_from_lib(&mut Workspace::new(), "", &send);
-
         thread::spawn({
             let send = send.clone();
             move || {
@@ -480,8 +503,8 @@ impl Typesetter {
                 loop {
                     match content_recv.recv() {
                         Ok(content) => {
-                            typeset_document_from_lib(&mut ws, &content, &send);
-                            //typeset_document_from_cli(&mut ws, &content, &send)
+                            // typeset_document_from_lib(&mut ws, &content, &send);
+                            typeset_document_from_cli(&mut ws, &content, &send)
                         },
                         _ => { }
                     }

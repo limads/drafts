@@ -936,12 +936,15 @@ impl React<Typesetter> for PapersWindow {
             match target {
                 TypesetterTarget::File(path) => {
 
-                    #[cfg(feature="poppler")]
-                    {
-                        show_with_poppler(&win, &path[..]);
-                    }
+                    // #[cfg(feature="poppler-rs")]
+                    // {
+                    show_with_poppler(&win, &path[..]);
+                    println!("Showing with poppler");
+                    return;
+                    // }
 
-                    show_with_evince(&path);
+                    // println!("Not showing with poppler");
+                    // show_with_evince(&path);
                 },
                 _ => {
 
@@ -962,15 +965,15 @@ fn show_with_evince(path : &str) {
         .unwrap();
 }
 
-#[cfg(feature="poppler")]
+// #[cfg(feature="poppler")]
 fn show_with_poppler(win : &ApplicationWindow, path : &str) {
 
-    let doc = poppler::Document::from_file(&path, None).unwrap();
+    let doc = poppler::Document::from_file(&format!("file://{}", path), None).unwrap();
 
     let dialog = Dialog::new();
     dialog.set_default_width(1024);
     dialog.set_default_height(768);
-    dialog.set_transient_for(Some(&win));
+    dialog.set_transient_for(Some(win));
 
     let scroll = ScrolledWindow::new();
     let bx = Box::new(Orientation::Vertical, 12);
