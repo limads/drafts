@@ -25,6 +25,11 @@ use nom::error::ErrorKind;
 use nom::error::Error;
 use either::Either;
 
+/*
+TODO parsing tables is not working.
+Parse different lines with \\ and &
+*/
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Command<'a> {
 

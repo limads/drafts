@@ -41,7 +41,7 @@ impl MainMenu {
         menu.append(Some("Save as"), Some("win.save_as_file"));
         let popover = PopoverMenu::from_model(Some(&menu));
         let actions = FileActions::new();
-        let open_dialog = OpenDialog::build();
+        let open_dialog = OpenDialog::build("*.tex");
         let save_dialog = SaveDialog::build();
         Self { popover, actions, open_dialog, save_dialog }
     }

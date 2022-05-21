@@ -1,7 +1,7 @@
 {
     "app-id" : "com.github.limads.Papers",
     "runtime" : "org.gnome.Platform",
-    "runtime-version" : "42",
+    "runtime-version" : "41",
     "sdk" : "org.gnome.Sdk",
     "sdk-extensions" : [
         "org.freedesktop.Sdk.Extension.rust-stable"
@@ -43,34 +43,7 @@
             "sources" : [
                 {
                     "type" : "git",
-                    "url" : "file:///home/diego/Software/papers"
-                }
-            ]
-        },
-        {
-            "name" : "poppler",
-            "builddir" : true,
-            "buildsystem" : "cmake",
-            "config-opts" : [
-		"-DENABLE_BOOST=OFF",
-		"-DENABLE_LIBOPENJPEG=unmaintained",
-		"-DBUILD_GTK_TESTS=OFF",
-		"-DBUILD_QT5_TESTS=OFF",
-		"-DBUILD_QT6_TESTS=OFF",
-		"-DBUILD_CPP_TESTS=OFF",
-		"-DBUILD_MANUAL_TESTS=OFF",
-		"-DENABLE_UTILS=OFF",
-		"-DENABLE_CPP=OFF",
-		"-DENABLE_GOBJECT_INTROSPECTION=OFF",
-		"-DENABLE_QT5=OFF",
-		"-DENABLE_QT6=OFF",
-		"-DENABLE_LIBCURL=OFF",
-		"-DENABLE_ZLIB=OFF"
-            ],
-            "sources" : [
-                {
-                    "type" : "git",
-                    "url" : "https://gitlab.freedesktop.org/poppler/poppler.git"
+                    "url" : "file:///home/diego/Software/Papers"
                 }
             ]
         }

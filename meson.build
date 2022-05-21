@@ -6,6 +6,7 @@ project('papers', 'rust',
 )
 
 i18n = import('i18n')
+gnome = import('gnome')
 
 cargo_sources = files(
   'Cargo.toml',
@@ -16,4 +17,8 @@ subdir('data')
 subdir('src')
 subdir('po')
 
-meson.add_install_script('build-aux/meson/postinstall.py')
+gnome.post_install(
+  glib_compile_schemas: true,
+  gtk_update_icon_cache: true,
+  update_desktop_database: true,
+)
