@@ -17,7 +17,7 @@ regex = "1.5.4"
 serde_json = "1.0.68"
 serde = { version="1.0.130", features=["derive"] }
 # poppler-rs = "0.19.0"
-poppler-rs = { path = "/home/diego/Downloads/poppler-rs" }
+poppler-rs = { git = "https://github.com/limads/poppler-rs.git" }
 
 [[bin]]
 name = "helper"
