@@ -21,7 +21,7 @@ poppler-rs = "0.19.0"
 
 [[bin]]
 name="papers"
-path="src/papers.rs"
+path="src/main.rs"
 
 [[bin]]
 name = "helper"
