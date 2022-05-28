@@ -36,18 +36,8 @@
         "*.a"
     ],
     "modules" : [
-        {
-            "name" : "Papers",
-            "builddir" : true,
-            "buildsystem" : "meson",
-            "sources" : [
-                {
-                    "type" : "git",
-                    "url" : "file:///home/diego/Software/papers"
-                }
-            ]
-        },
-        {
+
+    	{
             "name" : "poppler",
             "builddir" : true,
             "buildsystem" : "cmake",
@@ -71,6 +61,18 @@
                 {
                     "type" : "git",
                     "url" : "https://gitlab.freedesktop.org/poppler/poppler.git"
+                }
+            ]
+        },
+
+        {
+            "name" : "Papers",
+            "builddir" : true,
+            "buildsystem" : "meson",
+            "sources" : [
+                {
+                    "type" : "git",
+                    "url" : "file:///home/diego/Software/papers"
                 }
             ]
         }
