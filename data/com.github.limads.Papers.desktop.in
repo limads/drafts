@@ -1,6 +1,6 @@
 [Desktop Entry]
 Name=Papers
-Exec=Papers
+Exec=papers
 Icon=com.github.limads.Papers
 Terminal=false
 Type=Application

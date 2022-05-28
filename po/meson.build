@@ -1,1 +1,1 @@
-i18n.gettext('testproj', preset: 'glib')
+i18n.gettext('Papers', preset: 'glib')

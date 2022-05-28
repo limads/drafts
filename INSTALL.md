@@ -3,8 +3,10 @@
 This exports the executable to the repo folder, and leave build artifacts at the build folder.
 
 ```
-flatpak-builder --repo=/home/diego/Downloads/papers-build/repo /home/diego/Downloads/papers-build/build com.github.limads.Papers.json --force-clean
+flatpak-builder --repo=/home/diego/Downloads/papers-build/repo /home/diego/Downloads/papers-build/build com.github.limads.Papers.json --state-dir=/home/diego/Downloads/papers-build/state --force-clean
 ```
+
+(This will leave a lot of artifacts at state dir (replacement for .flatpak-builder at current dir), which will be created at the directory the command is called).
 
 # To install locally
 
