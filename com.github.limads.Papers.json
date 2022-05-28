@@ -6,7 +6,7 @@
     "sdk-extensions" : [
         "org.freedesktop.Sdk.Extension.rust-stable"
     ],
-    "command" : "Papers",
+    "command" : "papers",
     "finish-args" : [
         "--share=network",
         "--share=ipc",
