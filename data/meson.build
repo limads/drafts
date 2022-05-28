@@ -1,6 +1,6 @@
 desktop_file = i18n.merge_file(
-  input: 'com.github.limads.testproj.desktop.in',
-  output: 'com.github.limads.testproj.desktop',
+  input: 'com.github.limads.Papers.desktop.in',
+  output: 'com.github.limads.Papers.desktop',
   type: 'desktop',
   po_dir: '../po',
   install: true,
@@ -15,8 +15,8 @@ if desktop_utils.found()
 endif
 
 appstream_file = i18n.merge_file(
-  input: 'com.github.limads.testproj.appdata.xml.in',
-  output: 'com.github.limads.testproj.appdata.xml',
+  input: 'com.github.limads.Papers.appdata.xml.in',
+  output: 'com.github.limads.Papers.appdata.xml',
   po_dir: '../po',
   install: true,
   install_dir: join_paths(get_option('datadir'), 'appdata')
@@ -29,7 +29,7 @@ if appstream_util.found()
   )
 endif
 
-install_data('com.github.limads.testproj.gschema.xml',
+install_data('com.github.limads.Papers.gschema.xml',
   install_dir: join_paths(get_option('datadir'), 'glib-2.0/schemas')
 )
 

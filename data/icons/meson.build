@@ -1,4 +1,4 @@
-application_id = 'com.github.limads.testproj'
+application_id = 'com.github.limads.Papers'
 
 scalable_dir = join_paths('hicolor', 'scalable', 'apps')
 install_data(

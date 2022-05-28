@@ -1,7 +1,7 @@
 [Desktop Entry]
-Name=testproj
-Exec=testproj
-Icon=com.github.limads.testproj
+Name=Papers
+Exec=Papers
+Icon=com.github.limads.Papers
 Terminal=false
 Type=Application
 Categories=GTK;
