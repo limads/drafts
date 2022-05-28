@@ -8,6 +8,8 @@ export OUTPUT="$3"
 export BUILDTYPE="$4"
 export APP_BIN="$5"
 
+export POPPLER_GLIB_NO_PKG_CONFIG=1
+
 if [ $BUILDTYPE = "release" ]
 then
     echo "RELEASE MODE"
