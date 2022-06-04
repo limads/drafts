@@ -55,13 +55,11 @@
 		"make check"
             ],
             "post-install" : [
-            	"pwd",
-            	"ls",
-            	"cp lib/libicudata.so.69.1 /app/lib",
-            	"cp lib/libicui18n.so.69.1 /app/lib",
-            	"cp lib/libicuio.so.69.1 /app/lib",
-            	"cp lib/libicutu.so.69.1 /app/lib",
-            	"cp lib/libicuuc.so.69.1 /app/lib"
+            	"cp lib/libicudata.so.69.1 /app/lib/libicudata.so.69.1",
+            	"cp lib/libicui18n.so.69.1 /app/lib/libicui18n.so.69.1",
+            	"cp lib/libicuio.so.69.1 /app/lib/libicuio.so.69.1",
+            	"cp lib/libicutu.so.69.1 /app/lib/libicutu.so.69.1",
+            	"cp lib/libicuuc.so.69.1 /app/lib/libicuuc.so.69.1"
             ]
         },
 
