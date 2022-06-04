@@ -40,15 +40,27 @@
 	{
             "name" : "icu",
             "builddir" : true,
-            "buildsystem" : "autotools",
+            "buildsystem" : "simple",
             "sources" : [
             	{
             	    "type" : "archive",
-            	    "url" : "https://github.com/unicode-org/icu/releases/download/release-69-1/icu4c-69_1-src.zip",
-            	    "sha256" : "d536cb42262b29a7d1cdc653a50652bced8101869938728392697c9194c76ea9"
+            	    "url" : "https://github.com/unicode-org/icu/releases/download/release-69-1/icu4c-69_1-src.tgz",
+            	    "sha256" : "4cba7b7acd1d3c42c44bb0c14be6637098c7faf2b330ce876bc5f3b915d09745"
             	}
+            ],
+            "commands" : [
+		"mkdir icu4c-build",
+		"cd icu4c-build",
+		"../icu/source/runConfigureICU Linux",
+		"make check"
+            ],
+            "post-install" : [
+            	"cp icu4c-build/lib/libicudata.so.69.1 /app/lib",
+            	"cp icu4c-build/lib/libicui18n.so.69.1 /app/lib",
+            	"cp icu4c-build/lib/libicuio.so.69.1 /app/lib",
+            	"cp icu4c-build/lib/libicutu.so.69.1 /app/lib",
+            	"cp icu4c-build/lib/libicuuc.so.69.1 /app/lib"
             ]
-
         },
 
     	{

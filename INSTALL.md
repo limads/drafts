@@ -61,5 +61,30 @@ Clean with `flatpak uninstall com.github.limads.Papers && flatpak uninstall --un
 To verify the checksum of the libicu zip:
 
 ```
-sha256sum icu4c-69_1-src.zip
+sha256sum icu4c-69_1-src.tgz
+```
+
+# Useful scripts
+
+## Local ICU build
+
+```
+wget https://github.com/unicode-org/icu/releases/download/release-69-1/icu4c-69_1-src.tgz
+mkdir icu4c-69_1-src
+tar -xvf icu4c-69_1-src.tgz -C icu4c-69_1-src
+cd icu4c-69_1-src
+mkdir icu4c-build
+cd icu4c-build
+../icu/source/runConfigureICU Linux
+make check
+```
+
+## Local poppler build
+
+```
+git clone https://gitlab.freedesktop.org/poppler/poppler.git
+cd poppler
+mkdir build && cd build
+cmake .. -DENABLE_BOOST=OFF -DENABLE_LIBOPENJPEG=unmaintained -DCMAKE_CXX_FLAGS=-I/usr/include -DBUILD_GTK_TESTS=OFF -DBUILD_QT5_TESTS=OFF -DBUILD_QT6_TESTS=OFF -DBUILD_CPP_TESTS=OFF -DBUILD_MANUAL_TESTS=OFF -DENABLE_UTILS=OFF -DENABLE_CPP=OFF -DENABLE_GOBJECT_INTROSPECTION=OFF -DENABLE_QT5=OFF -DENABLE_QT6=OFF -DENABLE_LIBCURL=OFF -DENABLE_ZLIB=OFF
+make
 ```
