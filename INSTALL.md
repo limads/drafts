@@ -116,6 +116,14 @@ actually worked. If we could compile it with "-DENABLE_DCTDECODER=none", the lib
 wget http://www.ijg.org/files/jpegsrc.v6b.tar.gz
 mkdir jpegsrc
 tar -xvf jpegsrc.v6b.tar.gz -C jpegsrc
+
+mkdir jpegsrc/out
+mkdir jpegsrc/out/bin
+mkdir jpegsrc/out/lib
+mkdir jpegsrc/out/include
+mkdir jpegsrc/out/man
+mkdir jpegsrc/out/man/man1
+
 cd jpegsrc
 ./configure --prefix=/home/diego/Downloads/jpegsrc/out --enable-shared
 

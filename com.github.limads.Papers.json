@@ -51,7 +51,7 @@
             "build-commands" : [
             	"mkdir build",
 		"cd build",
-		"../icu/source/runConfigureICU Linux --prefix=/app",
+		"../icu/source/runConfigureICU Linux --prefix=/app --enable-shared",
 		"make check",
 		"make install"
             ]
