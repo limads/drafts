@@ -63,7 +63,8 @@
             "config-opts": [
                 "-DCMAKE_BUILD_TYPE=release",
                 "-DENABLE_QT5:BOOL=true",
-                "-DCMAKE_INSTALL_LIBDIR:PATH=/app/lib"
+                "-DCMAKE_INSTALL_LIBDIR:PATH=/app/lib",
+                "-DENABLE_BOOST=OFF"
             ],
             "sources": [
                 {
