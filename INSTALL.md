@@ -86,7 +86,7 @@ make check
 git clone https://gitlab.freedesktop.org/poppler/poppler.git
 cd poppler
 mkdir build && cd build
-cmake .. -DENABLE_BOOST=OFF -DENABLE_LIBOPENJPEG=unmaintained -DCMAKE_CXX_FLAGS=-I/usr/include -DBUILD_GTK_TESTS=OFF -DBUILD_QT5_TESTS=OFF -DBUILD_QT6_TESTS=OFF -DBUILD_CPP_TESTS=OFF -DBUILD_MANUAL_TESTS=OFF -DENABLE_UTILS=OFF -DENABLE_CPP=OFF -DENABLE_GOBJECT_INTROSPECTION=OFF -DENABLE_QT5=OFF -DENABLE_QT6=OFF -DENABLE_LIBCURL=OFF -DENABLE_ZLIB=OFF
+cmake .. -DENABLE_BOOST=OFF -DENABLE_LIBOPENJPEG=none -DCMAKE_CXX_FLAGS=-I/usr/include -DBUILD_GTK_TESTS=OFF -DBUILD_QT5_TESTS=OFF -DBUILD_QT6_TESTS=OFF -DBUILD_CPP_TESTS=OFF -DBUILD_MANUAL_TESTS=OFF -DENABLE_UTILS=OFF -DENABLE_CPP=OFF -DENABLE_GOBJECT_INTROSPECTION=OFF -DENABLE_QT5=OFF -DENABLE_QT6=OFF -DENABLE_LIBCURL=OFF -DENABLE_ZLIB=OFF
 make
 ```
 
@@ -101,3 +101,32 @@ make
 	"cp lib/libicutu.so.69.1 /app/lib",
 	"cp lib/libicuuc.so.69.1 /app/lib"
 ]
+
+
+    	{
+            "name" : "poppler",
+            "builddir" : true,
+            "buildsystem" : "cmake",
+            "config-opts" : [
+		"-DENABLE_BOOST=OFF",
+		"-DENABLE_LIBOPENJPEG=none",
+		"-DBUILD_GTK_TESTS=OFF",
+		"-DBUILD_QT5_TESTS=OFF",
+		"-DBUILD_QT6_TESTS=OFF",
+		"-DBUILD_CPP_TESTS=OFF",
+		"-DBUILD_MANUAL_TESTS=OFF",
+		"-DENABLE_UTILS=OFF",
+		"-DENABLE_CPP=OFF",
+		"-DENABLE_GOBJECT_INTROSPECTION=OFF",
+		"-DENABLE_QT5=OFF",
+		"-DENABLE_QT6=OFF",
+		"-DENABLE_LIBCURL=OFF",
+		"-DENABLE_ZLIB=OFF"
+            ],
+            "sources" : [
+                {
+                    "type" : "git",
+                    "url" : "https://gitlab.freedesktop.org/poppler/poppler.git"
+                }
+            ]
+        },
