@@ -57,10 +57,15 @@
             ]
         },
 
-	{
-	    "name" : "libjpeg",
-
-	    "sources" : [
+        {
+            "name" : "libjpeg",
+            "buildsystem" : "simple",
+            "build-commands" : [
+		"./configure --prefix=/app --mandir=${FLATPAK_DEST}/share/man",
+		"make",
+		"make install"
+            ],
+            "sources" : [
 	    	{
                     "type": "archive",
                     "url": "http://www.ijg.org/files/jpegsrc.v6b.tar.gz",

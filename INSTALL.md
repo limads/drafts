@@ -124,3 +124,20 @@ actually worked. If we could compile it with "-DENABLE_DCTDECODER=none", the lib
         }
     ]
 },
+
+${FLATPAK_DEST}/share/man
+
+{
+	    "name" : "libjpeg",
+	    "build-options": [
+	    	"--prefix=/app",
+		"--mandir=${FLATPAK_DEST}/share/man"
+	    ],
+	    "sources" : [
+	    	{
+                    "type": "archive",
+                    "url": "http://www.ijg.org/files/jpegsrc.v6b.tar.gz",
+                    "sha256": "75c3ec241e9996504fe02a9ed4d12f16b74ade713972f3db9e65ce95cd27e35d"
+                }
+	    ]
+	},
