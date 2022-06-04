@@ -92,17 +92,8 @@ cmake .. -DENABLE_BOOST=OFF -DENABLE_LIBOPENJPEG=none -DCMAKE_CXX_FLAGS=-I/usr/i
 make
 ```
 
-"post-install" : [
-	"pwd",
-	"ls",
-	"mkdir app",
-	"mkdir app/lib",
-	"cp lib/libicudata.so.69.1 /app/lib",
-	"cp lib/libicui18n.so.69.1 /app/lib",
-	"cp lib/libicuio.so.69.1 /app/lib",
-	"cp lib/libicutu.so.69.1 /app/lib",
-	"cp lib/libicuuc.so.69.1 /app/lib"
-]
+libpoppler requires libjpeg if DENABLE_DCTDECODER is at the default value libjpeg. But if we set it to none or unmaintained, compilation fails at 
+CMakeFiles/poppler.dir/poppler/DCTStream.cc.o
 
 {
     "name" : "poppler",
