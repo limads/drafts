@@ -95,6 +95,8 @@ make
 libpoppler requires libjpeg if DENABLE_DCTDECODER is at the default value libjpeg. But if we set it to none or unmaintained, compilation fails at 
 CMakeFiles/poppler.dir/poppler/DCTStream.cc.o
 
+"-DENABLE_DCTDECODER=none", does not work.
+
 {
     "name" : "poppler",
     "builddir" : true,

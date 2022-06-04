@@ -57,6 +57,17 @@
             ]
         },
 
+	{
+	    "name" : "libjpeg",
+	    "sources" : [
+	    	{
+                    "type": "archive",
+                    "url": "http://www.ijg.org/files/jpegsrc.v9e.tar.gz",
+                    "sha256": "4077d6a6a75aeb01884f708919d25934c93305e49f7e3f36db9129320e6f4f3d"
+                }
+	    ]
+	},
+
         {
             "name": "poppler",
             "buildsystem": "cmake-ninja",
@@ -64,18 +75,17 @@
                 "-DENABLE_BOOST=OFF",
 		"-DENABLE_LIBOPENJPEG=none",
 		"-DBUILD_GTK_TESTS=OFF",
+		"-DENABLE_QT5=OFF",
+		"-DENABLE_QT6=OFF",
 		"-DBUILD_QT5_TESTS=OFF",
 		"-DBUILD_QT6_TESTS=OFF",
-		"-DBUILD_CPP_TESTS=OFF",
 		"-DBUILD_MANUAL_TESTS=OFF",
 		"-DENABLE_UTILS=OFF",
 		"-DENABLE_CPP=OFF",
+		"-DBUILD_CPP_TESTS=OFF",
 		"-DENABLE_GOBJECT_INTROSPECTION=OFF",
-		"-DENABLE_QT5=OFF",
-		"-DENABLE_QT6=OFF",
 		"-DENABLE_LIBCURL=OFF",
 		"-DENABLE_ZLIB=OFF",
-		"-DENABLE_DCTDECODER=none"
             ],
             "sources": [
                 {
