@@ -85,7 +85,7 @@
 		"-DBUILD_CPP_TESTS=OFF",
 		"-DENABLE_GOBJECT_INTROSPECTION=OFF",
 		"-DENABLE_LIBCURL=OFF",
-		"-DENABLE_ZLIB=OFF",
+		"-DENABLE_ZLIB=OFF"
             ],
             "sources": [
                 {
