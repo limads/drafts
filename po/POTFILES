@@ -1,4 +1,3 @@
 data/com.github.limads.Papers.desktop.in
 data/com.github.limads.Papers.appdata.xml.in
 data/com.github.limads.Papers.gschema.xml
-src/window.ui

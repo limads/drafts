@@ -581,6 +581,24 @@ fn test_bibtex_parser() {
 }
 
 #[test]
+fn templates_are_parseable() {
+
+    use crate::ui::*;
+
+    let templates = [
+        ARTICLE_TEMPLATE,
+        REPORT_TEMPLATE,
+        BOOK_TEMPLATE,
+        LETTER_TEMPLATE,
+        PRESENTATION_TEMPLATE
+    ];
+
+    for templ in templates {
+        println!("{:#?}", Parser::parse(txt).unwrap());
+    }
+}
+
+#[test]
 fn test_latex_parser() {
 
     let txt = r#"
@@ -620,8 +638,8 @@ fn test_latex_parser() {
 
     let math = r#"$$a$$ else"#;
 
-    println!("{:#?}", Lexer::scan(txt));
-    println!("{:#?}", Parser::parse(txt));
+    println!("{:#?}", Lexer::scan(txt).unwrap());
+    println!("{:#?}", Parser::parse(txt).unwrap());
 
     // println!("{:?}", bib_field_value("{Guestrin, E. D. and Eizenman, M.}"));
     // println!("{:?}", bib_field("author = {Guestrin, E. D. and Eizenman, M.}"));

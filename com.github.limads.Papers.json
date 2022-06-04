@@ -63,7 +63,7 @@
             "buildsystem" : "cmake",
             "config-opts" : [
 		"-DENABLE_BOOST=OFF",
-		"-DENABLE_LIBOPENJPEG=unmaintained",
+		"-DENABLE_LIBOPENJPEG=none",
 		"-DBUILD_GTK_TESTS=OFF",
 		"-DBUILD_QT5_TESTS=OFF",
 		"-DBUILD_QT6_TESTS=OFF",
