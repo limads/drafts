@@ -48,7 +48,7 @@
             	    "sha256" : "4cba7b7acd1d3c42c44bb0c14be6637098c7faf2b330ce876bc5f3b915d09745"
             	}
             ],
-            "commands" : [
+            "build-commands" : [
 		"mkdir icu4c-build",
 		"cd icu4c-build",
 		"../icu/source/runConfigureICU Linux",
