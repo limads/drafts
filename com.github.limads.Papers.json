@@ -55,11 +55,13 @@
 		"make check"
             ],
             "post-install" : [
-            	"cp icu4c-build/lib/libicudata.so.69.1 /app/lib",
-            	"cp icu4c-build/lib/libicui18n.so.69.1 /app/lib",
-            	"cp icu4c-build/lib/libicuio.so.69.1 /app/lib",
-            	"cp icu4c-build/lib/libicutu.so.69.1 /app/lib",
-            	"cp icu4c-build/lib/libicuuc.so.69.1 /app/lib"
+            	"pwd",
+            	"ls",
+            	"cp lib/libicudata.so.69.1 /app/lib",
+            	"cp lib/libicui18n.so.69.1 /app/lib",
+            	"cp lib/libicuio.so.69.1 /app/lib",
+            	"cp lib/libicutu.so.69.1 /app/lib",
+            	"cp lib/libicuuc.so.69.1 /app/lib"
             ]
         },
 
