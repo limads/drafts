@@ -88,3 +88,15 @@ mkdir build && cd build
 cmake .. -DENABLE_BOOST=OFF -DENABLE_LIBOPENJPEG=unmaintained -DCMAKE_CXX_FLAGS=-I/usr/include -DBUILD_GTK_TESTS=OFF -DBUILD_QT5_TESTS=OFF -DBUILD_QT6_TESTS=OFF -DBUILD_CPP_TESTS=OFF -DBUILD_MANUAL_TESTS=OFF -DENABLE_UTILS=OFF -DENABLE_CPP=OFF -DENABLE_GOBJECT_INTROSPECTION=OFF -DENABLE_QT5=OFF -DENABLE_QT6=OFF -DENABLE_LIBCURL=OFF -DENABLE_ZLIB=OFF
 make
 ```
+
+"post-install" : [
+	"pwd",
+	"ls",
+	"mkdir app",
+	"mkdir app/lib",
+	"cp lib/libicudata.so.69.1 /app/lib",
+	"cp lib/libicui18n.so.69.1 /app/lib",
+	"cp lib/libicuio.so.69.1 /app/lib",
+	"cp lib/libicutu.so.69.1 /app/lib",
+	"cp lib/libicuuc.so.69.1 /app/lib"
+]
