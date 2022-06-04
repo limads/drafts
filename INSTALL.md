@@ -104,12 +104,11 @@ make
 	"cp lib/libicuuc.so.69.1 /app/lib"
 ]
 
-
-    	{
-            "name" : "poppler",
-            "builddir" : true,
-            "buildsystem" : "cmake",
-            "config-opts" : [
+{
+    "name" : "poppler",
+    "builddir" : true,
+    "buildsystem" : "cmake",
+    "config-opts" : [
 		"-DENABLE_BOOST=OFF",
 		"-DENABLE_LIBOPENJPEG=none",
 		"-DBUILD_GTK_TESTS=OFF",
@@ -123,12 +122,13 @@ make
 		"-DENABLE_QT5=OFF",
 		"-DENABLE_QT6=OFF",
 		"-DENABLE_LIBCURL=OFF",
-		"-DENABLE_ZLIB=OFF"
-            ],
-            "sources" : [
-                {
-                    "type" : "git",
-                    "url" : "https://gitlab.freedesktop.org/poppler/poppler.git"
-                }
-            ]
-        },
+		"-DENABLE_ZLIB=OFF",
+		"-DENABLE_DCTDECODER=unmaintained"
+    ],
+    "sources" : [
+        {
+            "type" : "git",
+            "url" : "https://gitlab.freedesktop.org/poppler/poppler.git"
+        }
+    ]
+},
