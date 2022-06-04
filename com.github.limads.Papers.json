@@ -51,7 +51,7 @@
             "build-commands" : [
             	"mkdir build",
 		"cd build",
-		"../icu/source/runConfigureICU Linux",
+		"../icu/source/runConfigureICU Linux --prefix=/app",
 		"make check",
 		"make install"
             ]
