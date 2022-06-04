@@ -1,13 +1,22 @@
 # Local build
 
+The local build might be less convenient, since you must make sure
+dynamic library dependencies are available. But if they are, the
+build will be considerably faster than the flatpak build. You also
+are running a version of papers without flatpak container restrictions. 
+
 Building papers locally require the following system dependencies:
 
 ```
 sudo apt install libpoppler-glib-dev libpoppler-dev libicu-dev
 ```
 
-Poppler is a cairo-based PDF rendering library, and is used for PDF rendering inside the APP. 
+Poppler is a cairo-based PDF rendering library, and is used for PDF rendering inside the application. 
 ICU is required by tectonic (the Rust-based Latex engine wrapper used by drafts). 
+
+If you can't or don't want to use the system libraries, you can build them manually
+with the help from the scripts below. Just make sure to have all the generated
+dynamic libraries at $LD_LIBRARY_PATH when executing papers.
 
 # Flatpak build
 
@@ -56,10 +65,15 @@ This installs the executable to the local flatpak applications directory
 
 flatpak-builder --install /home/diego/Downloads/papers-build/build com.github.limads.Papers.json --force-clean
 
-The flatpak build output will result in three directories: bin (with the papers executable), lib (with libpoppler.so and libpoppler-glib.so) and share (with appdata/com.github.limads.Papers.appdata.xml, app-info/icons and app-info/xmls, applications/com.github.limads/Papers.desktop, glib-2.0/schemas/(gschema files) and icons/hicolor/scalable and icons/hicolor/symbolic)
+The flatpak build output will result in three directories: bin (with the papers executable), 
+lib (with libpoppler.so and libpoppler-glib.so) and share 
+(with appdata/com.github.limads.Papers.appdata.xml, app-info/icons and app-info/xmls, 
+applications/com.github.limads/Papers.desktop, glib-2.0/schemas/(gschema files) and 
+icons/hicolor/scalable and icons/hicolor/symbolic)
 Local install will be at `~/.local/share/flatpak/` (user) or `/var/lib/flatpak/repo` (system)
 
-Clean with `flatpak uninstall com.github.limads.Papers && flatpak uninstall --unused` (The second command will uninstall Gnome 42 SDK when not by other apps).
+Clean with `flatpak uninstall com.github.limads.Papers && flatpak uninstall --unused`
+(The second command will uninstall Gnome 42 SDK when not by other apps).
 
 To verify the checksum of the libicu zip:
 
@@ -67,7 +81,7 @@ To verify the checksum of the libicu zip:
 sha256sum icu4c-69_1-src.tgz
 ```
 
-# Useful scripts
+# Local dynamic libraries dependencies build scripts
 
 ## Local ICU build
 
@@ -95,6 +109,22 @@ make
 libjpeg is a transitive dependency of libpoppler. In theory, libpoppler requires libjpeg if DENABLE_DCTDECODER is at the default value libjpeg. 
 But if we set it to none or unmaintained, compilation fails at CMakeFiles/poppler.dir/poppler/DCTStream.cc.o. We could drop it if the flag
 actually worked. If we could compile it with "-DENABLE_DCTDECODER=none", the libjpeg module could be dropped.
+
+# Local libjpeg build
+
+```
+wget http://www.ijg.org/files/jpegsrc.v6b.tar.gz
+mkdir jpegsrc
+tar -xvf jpegsrc.v6b.tar.gz -C jpegsrc
+cd jpegsrc
+./configure --prefix=/home/diego/Downloads/jpegsrc/out --enable-shared
+
+# For some reason the Makefile is built with a reference to a local libtool executable. Change to system libtool.
+sed -i 's/\.\/libtool/libtool/g' Makefile
+
+make
+make install
+```
 
 {
     "name" : "poppler",

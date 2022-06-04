@@ -64,6 +64,7 @@
             	"mkdir ${FLATPAK_DEST}/man",
             	"mkdir ${FLATPAK_DEST}/man/man1",
 		"./configure --prefix=/app",
+		"sed -i 's/\.\/libtool/libtool/g' Makefile",
 		"make",
 		"make install"
             ],
