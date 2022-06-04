@@ -59,10 +59,7 @@
 
 	{
 	    "name" : "libjpeg",
-	    "build-options": [
-	    	"--prefix=/app",
-		"--mandir=${FLATPAK_DEST}/share/man"
-	    ],
+
 	    "sources" : [
 	    	{
                     "type": "archive",
