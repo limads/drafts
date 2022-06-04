@@ -75,7 +75,7 @@
 		"-DENABLE_QT6=OFF",
 		"-DENABLE_LIBCURL=OFF",
 		"-DENABLE_ZLIB=OFF",
-		"-DENABLE_DCTDECODER=unmaintained"
+		"-DENABLE_DCTDECODER=none"
             ],
             "sources": [
                 {
