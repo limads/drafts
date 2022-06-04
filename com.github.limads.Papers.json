@@ -51,7 +51,7 @@
             "build-commands" : [
             	"mkdir build",
 		"cd build",
-		"../icu/source/runConfigureICU Linux --prefix=/app --enable-shared",
+		"../icu/source/runConfigureICU Linux --prefix=/app",
 		"make check",
 		"make install"
             ]
@@ -63,7 +63,7 @@
             "build-commands" : [
             	"mkdir ${FLATPAK_DEST}/man",
             	"mkdir ${FLATPAK_DEST}/man/man1",
-		"./configure --prefix=/app",
+		"./configure --prefix=/app --enable-shared",
 		"sed -i 's/\\.\\/libtool/libtool/g' Makefile",
 		"make",
 		"make install"
