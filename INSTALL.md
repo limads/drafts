@@ -34,7 +34,9 @@ Workaround: Copy system libicuuc
 cp /usr/lib/x86_64-linux-gnu/libicuuc.so.67.1 /home/diego/Downloads/papers-build/build/files/bin
 mv /home/diego/Downloads/papers-build/build/files/bin/libicuuc.so.67.1 /home/diego/Downloads/papers-build/build/files/bin/libicuuc.so.69
 
+```
 LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/diego/Downloads/papers-build/build/files/lib ./papers
+```
 
 ## To build the application into a custom directory
 

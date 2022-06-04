@@ -58,19 +58,29 @@
         },
 
         {
-            "name": "poppler",
-            "buildsystem": "cmake-ninja",
-            "config-opts": [
-                "-DCMAKE_BUILD_TYPE=release",
-                "-DENABLE_QT5:BOOL=true",
-                "-DCMAKE_INSTALL_LIBDIR:PATH=/app/lib",
-                "-DENABLE_BOOST=OFF"
+            "name" : "poppler",
+            "builddir" : true,
+            "buildsystem" : "cmake",
+            "config-opts" : [
+		"-DENABLE_BOOST=OFF",
+		"-DENABLE_LIBOPENJPEG=none",
+		"-DBUILD_GTK_TESTS=OFF",
+		"-DBUILD_QT5_TESTS=OFF",
+		"-DBUILD_QT6_TESTS=OFF",
+		"-DBUILD_CPP_TESTS=OFF",
+		"-DBUILD_MANUAL_TESTS=OFF",
+		"-DENABLE_UTILS=OFF",
+		"-DENABLE_CPP=OFF",
+		"-DENABLE_GOBJECT_INTROSPECTION=OFF",
+		"-DENABLE_QT5=OFF",
+		"-DENABLE_QT6=OFF",
+		"-DENABLE_LIBCURL=OFF",
+		"-DENABLE_ZLIB=OFF"
             ],
-            "sources": [
+            "sources" : [
                 {
-                    "type": "archive",
-                    "url": "https://poppler.freedesktop.org/poppler-21.11.0.tar.xz",
-                    "sha256": "31b76b5cac0a48612fdd154c02d9eca01fd38fb8eaa77c1196840ecdeb53a584"
+                    "type" : "git",
+                    "url" : "https://gitlab.freedesktop.org/poppler/poppler.git"
                 }
             ]
         },
