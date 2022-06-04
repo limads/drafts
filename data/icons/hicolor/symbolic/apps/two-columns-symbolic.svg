@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   viewBox="0 0 16 16"
+   version="1.1"
+   id="svg14"
+   sodipodi:docname="format-justify-fill-symbolic.svg"
+   inkscape:version="1.1.1 (3bf5ae0d25, 2021-09-20)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs18" />
+  <sodipodi:namedview
+     id="namedview16"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:pageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     showgrid="false"
+     inkscape:zoom="25.25"
+     inkscape:cx="8.3168317"
+     inkscape:cy="12.811881"
+     inkscape:window-width="1920"
+     inkscape:window-height="1016"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg14" />
+  <g
+     transform="matrix(0.43606347,0,0,1,-83.16025,-400)"
+     color="#bebebe"
+     fill="#666666"
+     id="g12">
+    <rect
+       x="193"
+       y="401"
+       width="14"
+       height="1"
+       overflow="visible"
+       id="rect2" />
+    <rect
+       x="193"
+       y="404"
+       width="14"
+       height="1"
+       overflow="visible"
+       id="rect4" />
+    <rect
+       x="193"
+       y="410"
+       width="14"
+       height="1"
+       overflow="visible"
+       id="rect6" />
+    <rect
+       x="193"
+       y="413"
+       width="14"
+       height="1"
+       overflow="visible"
+       id="rect8" />
+    <rect
+       x="193"
+       y="407"
+       width="14"
+       height="1"
+       overflow="visible"
+       id="rect10" />
+  </g>
+  <g
+     transform="matrix(0.46528023,0,0,1,-81.204871,-400)"
+     color="#bebebe"
+     fill="#666666"
+     id="g845">
+    <rect
+       x="193"
+       y="401"
+       width="14"
+       height="1"
+       overflow="visible"
+       id="rect835" />
+    <rect
+       x="193"
+       y="404"
+       width="14"
+       height="1"
+       overflow="visible"
+       id="rect837" />
+    <rect
+       x="193"
+       y="410"
+       width="14"
+       height="1"
+       overflow="visible"
+       id="rect839" />
+    <rect
+       x="193"
+       y="413"
+       width="14"
+       height="1"
+       overflow="visible"
+       id="rect841" />
+    <rect
+       x="193"
+       y="407"
+       width="14"
+       height="1"
+       overflow="visible"
+       id="rect843" />
+  </g>
+</svg>

@@ -66,6 +66,19 @@
         },
 
         {
+            "name" : "icu",
+            "builddir" : true,
+            "buildsystem" : "autotools",
+            "sources" : [
+            	{
+            	    "type" : "archive",
+            	    "url" : "https://github.com/unicode-org/icu/releases/download/release-69-1/icu4c-69_1-src.zip"
+            	}
+            ]
+
+        },
+
+        {
             "name" : "Papers",
             "builddir" : true,
             "buildsystem" : "meson",

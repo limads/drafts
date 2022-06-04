@@ -1,4 +1,28 @@
-# To build the application into a specified directory
+# Local build
+
+Building papers locally require the following system dependencies:
+
+```
+sudo apt install libpoppler-glib-dev libpoppler-dev libicu-dev
+```
+
+Perhaps start with a base app by adding the following fields to the top-level object of the manifest
+
+```
+"base": "io.atom.electron.BaseApp",
+"base-version": "master",
+```
+
+# Flatpak build
+
+When using the flatpak build, poppler will be bundled. TODO figure how to bundle libicuuc, required by tectonic/crates/bridge_icu
+
+Workaround: Copy system libicuuc
+cp /usr/lib/x86_64-linux-gnu/libicuuc.so.67.1 /home/diego/Downloads/papers-build/build/files/bin
+mv /home/diego/Downloads/papers-build/build/files/bin/libicuuc.so.67.1 /home/diego/Downloads/papers-build/build/files/bin/libicuuc.so.69
+LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/diego/Downloads/papers-build/build/files/bin ./papers
+
+## To build the application into a specified directory
 
 This exports the executable to the repo folder, and leave build artifacts at the build folder.
 
@@ -8,7 +32,7 @@ flatpak-builder --repo=/home/diego/Downloads/papers-build/repo /home/diego/Downl
 
 (This will leave a lot of artifacts at state dir (replacement for .flatpak-builder at current dir), which will be created at the directory the command is called).
 
-# To install locally
+## To install locally
 
 This installs the executable to the local flatpak applications directory
 
@@ -18,7 +42,3 @@ The flatpak build output will result in three directories: bin (with the papers 
 Local install will be at `~/.local/share/flatpak/` (user) or `/var/lib/flatpak/repo` (system)
 
 Clean with `flatpak uninstall com.github.limads.Papers && flatpak uninstall --unused` (The second command will uninstall Gnome 42 SDK when not by other apps).
-
-
-
-

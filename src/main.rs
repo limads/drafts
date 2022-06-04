@@ -21,6 +21,12 @@ fn main() {
         .application_id(APP_ID)
         .build();
 
+    // For non-flatpak builds, store at XDG_CACHE_HOME/my.add.id (usually ~/.local/share/my.add.id)
+    // For flatpak build, store simply at XDG_CACHE_HOME, which will already point to the right location.
+    // Perhaps check if there exists a dir my.app.id under XDG_CACHE_HOME. If there is, use it; or
+    // create it otherwise.
+    // let cache = std::env::var("XDG_CACHE_HOME");
+
     match libadwaita::StyleManager::default() {
         Some(style_manager) => {
             style_manager.set_color_scheme(libadwaita::ColorScheme::Default);
@@ -78,6 +84,10 @@ fn main() {
             papers_win.window.show();
         }
     });
+
+    // application.connect_window_added()
+    // application.connect_window_removed()
+
     application.run();
 }
 
