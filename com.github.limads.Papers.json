@@ -63,7 +63,7 @@
             "build-commands" : [
             	"mkdir ${FLATPAK_DEST}/man",
             	"mkdir ${FLATPAK_DEST}/man/man1",
-		"./configure --prefix=/app --mandir=${FLATPAK_DEST}/share/man",
+		"./configure --prefix=/app",
 		"make",
 		"make install"
             ],
