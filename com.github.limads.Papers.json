@@ -61,7 +61,7 @@
 	    "name" : "libjpeg",
 	    "config-opts": [
 	    	"--prefix=/app",
-		"--mandir=${FLATPAK_DEST}/share/man"
+		"--mandir=${FLATPAK_DEST}/share"
 	    ],
 	    "sources" : [
 	    	{
