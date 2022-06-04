@@ -1,35 +1,64 @@
+use crate::manager::*;
+use tempfile;
+use std::io::Write;
+use std::rc::Rc;
+use std::cell::RefCell;
+use std::cmp::{PartialEq, Eq};
+
+#[derive(Clone, Copy, Eq, PartialEq)]
+enum TestAction {
+    New,
+    SaveUnknown,
+    Opened,
+    OpenRequest,
+    BufferReadRequest
+}
+
 #[test]
-fn archiver_transition() {
-
-    use crate::manager::*;
-    use tempfile;
-    use std::io::write;
-
+fn archiver_transitions() {
     let manager = FileManager::new();
     let mut temp = Tempfile::new();
-
-    const OPEN_REQUEST : u8 = 0;
-
-    const OPEN : u8 = 1;
-
-    const OPEN_SUCCESS : u8 = 2;
-
-    static mut sequence : Vec<u8> = Vec::new();
-
-    manager.connect_new(move |_| {
-
+    let sequence = Rc::new(RefCell::new(Vec::new()));
+    manager.connect_new({
+        let sequence = sequence.clone();
+        move |_| {
+            sequence.borrow_mut().push(TestAction::New);
+        }
     });
-    manager.connect_save_unknown_path(move || {
-
+    manager.connect_save_unknown_path({
+        let sequence = sequence.clone();
+        |_| {
+            sequence.borrow_mut().push(TestAction::SaveUnknownPath);
+        }
     });
     manager.connect_opened(|path, content| {
-        unsafe { sequence.push(OPEN) };
+        sequence.borrow_mut().push(TestAction::Opened);
     });
     manager.connect_open_request(|_| {
-        unsafe { sequence.push(OPEN_REQUEST) };
+        sequence.borrow_mut().push(TestAction::OpenRequest);
     });
     manager.connect_buffer_read_request(|_| {
+        sequence.borrow_mut().push(TestAction::BufferReadRequest);
+    });
+    manager.connect_close_confirm({
+        move |path| {
 
+        }
+    });
+    manager.connect_file_changed({
+        move |opt_path| {
+
+        }
+    });
+    manager.connect_window_close({
+        move |_| {
+
+        }
+    });
+    manager.connect_show_open({
+        move |_| {
+
+        }
     });
 
 }

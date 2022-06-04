@@ -555,13 +555,33 @@ impl Parser {
 
 }
 
-/*
-TODO submit the parser to
-https://en.wikibooks.org/wiki/LaTeX/Sample_LaTeX_documents
-*/
+// TODO test against PLOS latex template
+// https://journals.plos.org/plosone/s/latex
 
 #[test]
-fn test_parser() {
+fn test_bibtex_parser() {
+
+    let txt = r#"
+        @article{ Guestrin2006Jun,
+	        author = {Guestrin, E. D. and Eizenman, M.},
+	        title = {{General theory of remote gaze estimation using the pupil center and corneal reflections}},
+	        journal = {IEEE Trans. Biomed. Eng.},
+	        volume = {53},
+	        number = {6},
+	        pages = {1124--1133},
+	        year = {2006},
+	        month = {Jun},
+	        publisher = {IEEE},
+	        doi = {10.1109/TBME.2005.863952}
+         }
+    "#;
+
+    println!("{:#?}", Parser::parse(txt));
+
+}
+
+#[test]
+fn test_latex_parser() {
 
     let txt = r#"
 
@@ -589,20 +609,7 @@ fn test_parser() {
 
         \bibliography
 
-        @article{ Guestrin2006Jun,
-	        author = {Guestrin, E. D. and Eizenman, M.},
-	        title = {{General theory of remote gaze estimation using the pupil center and corneal reflections}},
-	        journal = {IEEE Trans. Biomed. Eng.},
-	        volume = {53},
-	        number = {6},
-	        pages = {1124--1133},
-	        year = {2006},
-	        month = {Jun},
-	        publisher = {IEEE},
-	        doi = {10.1109/TBME.2005.863952}
-         }
-
-         \end{document}
+        \end{document}
     "#;
 
     let cmd = r#"
@@ -614,7 +621,6 @@ fn test_parser() {
     let math = r#"$$a$$ else"#;
 
     println!("{:#?}", Lexer::scan(txt));
-
     println!("{:#?}", Parser::parse(txt));
 
     // println!("{:?}", bib_field_value("{Guestrin, E. D. and Eizenman, M.}"));

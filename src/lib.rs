@@ -2,6 +2,8 @@ use std::rc::Rc;
 use std::cell::RefCell;
 use std::boxed;
 
+pub const APP_ID : &'static str = "com.github.limads.papers";
+
 pub mod ui;
 
 pub mod manager;

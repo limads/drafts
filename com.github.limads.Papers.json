@@ -52,7 +52,8 @@
             	"mkdir build",
 		"cd build",
 		"../icu/source/runConfigureICU Linux",
-		"make check"
+		"make check",
+		"make install"
             ]
         },
 

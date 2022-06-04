@@ -6,8 +6,6 @@ use papers::typesetter::Typesetter;
 use papers::ui::*;
 use papers::analyzer::Analyzer;
 
-const APP_ID : &'static str = "com.github.limads.papers";
-
 // flatpak remote-add --if-not-exists gnome-nightly https://nightly.gnome.org/gnome-nightly.flatpakrepo
 // flatpak install gnome-nightly org.gnome.Sdk master
 // flatpak install gnome-nightly org.gnome.Platform master
@@ -18,7 +16,7 @@ const APP_ID : &'static str = "com.github.limads.papers";
 fn main() {
     gtk4::init().unwrap();
     let application = Application::builder()
-        .application_id(APP_ID)
+        .application_id(papers::APP_ID)
         .build();
 
     // For non-flatpak builds, store at XDG_CACHE_HOME/my.add.id (usually ~/.local/share/my.add.id)
