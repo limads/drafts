@@ -62,8 +62,8 @@
 	    "sources" : [
 	    	{
                     "type": "archive",
-                    "url": "http://www.ijg.org/files/jpegsrc.v9e.tar.gz",
-                    "sha256": "4077d6a6a75aeb01884f708919d25934c93305e49f7e3f36db9129320e6f4f3d"
+                    "url": "http://www.ijg.org/files/jpegsrc.v6b.tar.gz",
+                    "sha256": "75c3ec241e9996504fe02a9ed4d12f16b74ade713972f3db9e65ce95cd27e35d"
                 }
 	    ]
 	},

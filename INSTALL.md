@@ -92,10 +92,9 @@ cmake .. -DENABLE_BOOST=OFF -DENABLE_LIBOPENJPEG=none -DCMAKE_CXX_FLAGS=-I/usr/i
 make
 ```
 
-libpoppler requires libjpeg if DENABLE_DCTDECODER is at the default value libjpeg. But if we set it to none or unmaintained, compilation fails at 
-CMakeFiles/poppler.dir/poppler/DCTStream.cc.o
-
-"-DENABLE_DCTDECODER=none", does not work.
+libjpeg is a transitive dependency of libpoppler. In theory, libpoppler requires libjpeg if DENABLE_DCTDECODER is at the default value libjpeg. 
+But if we set it to none or unmaintained, compilation fails at CMakeFiles/poppler.dir/poppler/DCTStream.cc.o. We could drop it if the flag
+actually worked. If we could compile it with "-DENABLE_DCTDECODER=none", the libjpeg module could be dropped.
 
 {
     "name" : "poppler",
