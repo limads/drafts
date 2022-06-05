@@ -64,7 +64,7 @@
             	"mkdir ${FLATPAK_DEST}/man",
             	"mkdir ${FLATPAK_DEST}/man/man1",
 		"./configure --prefix=/app --enable-shared",
-		"sed -i 's/\\.\\/libtool/libtool/g' Makefile",
+		"sed -i 's/\\.\\/libtool/libtool --tag=CC/g' Makefile",
 		"make",
 		"make install"
             ],
