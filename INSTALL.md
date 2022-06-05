@@ -257,4 +257,27 @@ appstream-util validate-relax
 Note PKG_CONFIG_PATH needs to be explicitly set to /app/lib/pkgconfig when building the final module,
 or else the Rust build script of poppler-rs would pull this from the host environment.
 
+{
+    "name" : "Papers",
+    "builddir" : true,
+    "buildsystem" : "meson",
+    "build-options" : {
+"env": {
+    "PKG_CONFIG_PATH" : "/app/lib:/app/lib/pkgconfig"
+}
+    },
+    "sources" : [
+        {
+            "type" : "git",
+            "url" : "file:///home/diego/Software/papers"
+        }
+    ],
+    "post-install" : [
+    	"cp -r ${FLATPAK_BUILDER_BUILDDIR}/data/${FLATPAK_ID}.desktop ${FLATPAK_DEST}/share/applications",
+	"cp -r ${FLATPAK_BUILDER_BUILDDIR}/data/icons/hicolor/scalable/apps ${FLATPAK_DEST}/share/icons/hicolor/scalable/apps",
+	"cp -r ${FLATPAK_BUILDER_BUILDDIR}/data/icons/hicolor/symbolic/apps ${FLATPAK_DEST}/share/icons/hicolor/symbolic/apps",
+	"cp -r ${FLATPAK_BUILDER_BUILDDIR}/data/${FLATPAK_ID}.appdata.xml ${FLATPAK_DEST}/share/metainfo"
+    ]
+}
+
 

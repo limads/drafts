@@ -92,12 +92,15 @@
         {
             "name" : "Papers",
             "builddir" : true,
-            "buildsystem" : "meson",
+            "buildsystem" : "simple",
             "build-options" : {
 		"env": {
 		    "PKG_CONFIG_PATH" : "/app/lib:/app/lib/pkgconfig"
 		}
             },
+            "commands" : [
+            	"cargo build --manifest-path=${FLATPAK_BUILDER_BUILDDIR}/Cargo.toml --target-dir=$(pwd)"
+            ],
             "sources" : [
                 {
                     "type" : "git",
@@ -105,12 +108,10 @@
                 }
             ],
             "post-install" : [
-            	"pwd",
-            	"ls ../.. -R | grep \":$\" | sed -e 's/:$//' -e 's/[^-][^\\/]*\\//──/g' -e 's/─/├/' -e '$s/├/└/'",
-            	"cp ${FLATPAK_BUILDER_BUILDDIR}/data/${FLATPAK_ID}.desktop ${FLATPAK_DEST}/share/applications",
-    		"cp ${FLATPAK_BUILDER_BUILDDIR}/data/icons/hicolor/scalable/apps ${FLATPAK_DEST}/share/icons/hicolor/scalable/apps",
-    		"cp ${FLATPAK_BUILDER_BUILDDIR}/data/icons/hicolor/symbolic/apps ${FLATPAK_DEST}/share/icons/hicolor/symbolic/apps",
-    		"cp ${FLATPAK_BUILDER_BUILDDIR}/data/${FLATPAK_ID}.appdata.xml ${FLATPAK_DEST}/share/metainfo"
+            	"cp -r ${FLATPAK_BUILDER_BUILDDIR}/data/${FLATPAK_ID}.desktop ${FLATPAK_DEST}/share/applications",
+    		"cp -r ${FLATPAK_BUILDER_BUILDDIR}/data/icons/hicolor/scalable/apps ${FLATPAK_DEST}/share/icons/hicolor/scalable/apps",
+    		"cp -r ${FLATPAK_BUILDER_BUILDDIR}/data/icons/hicolor/symbolic/apps ${FLATPAK_DEST}/share/icons/hicolor/symbolic/apps",
+    		"cp -r ${FLATPAK_BUILDER_BUILDDIR}/data/${FLATPAK_ID}.appdata.xml ${FLATPAK_DEST}/share/metainfo"
             ]
         }
     ]
