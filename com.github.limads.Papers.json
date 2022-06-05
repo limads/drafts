@@ -98,7 +98,7 @@
 		],
 	    "post-install" : [
 	    	"pwd",
-	    	"ls ${FLATPAK_DEST}/lib -R | grep \":$\" | sed -e 's/:$//' -e 's/[^-][^\\/]*\\//──/g' -e 's/─/├/' -e '$s/├/└/'",
+	    	"ls ${FLATPAK_DEST} -R | grep \":$\" | sed -e 's/:$//' -e 's/[^-][^\\/]*\\//──/g' -e 's/─/├/' -e '$s/├/└/'",
 		"rm ${FLATPAK_DEST}/lib/libjpeg.so",
 		"rm ${FLATPAK_DEST}/lib/libjpeg.so.62.0.0.debug"
 	    ],
