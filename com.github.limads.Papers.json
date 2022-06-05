@@ -94,11 +94,11 @@
 		"./configure --prefix=/app --enable-shared",
 		"sed -i 's/\\.\\/libtool/libtool --tag=CC/g' Makefile",
 		"make",
-		"make install"
+		"make install",
+		"pwd",
+	    	"ls"
 		],
 	    "post-install" : [
-	    	"pwd",
-	    	"ls",
 		"rm libjpeg.so",
 		"rm libjpeg.so.62.0.0.debug"
 	    ],
