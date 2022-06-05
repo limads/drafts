@@ -169,34 +169,6 @@ or else the Rust linking will fail. Just keep libjpeg.so.62
 
 ${FLATPAK_DEST}/share/man
 
-{
-	    "name" : "libjpeg",
-	    "build-options": [
-	    	"--prefix=/app",
-		"--mandir=${FLATPAK_DEST}/share/man"
-	    ],
-	    "sources" : [
-	    	{
-                    "type": "archive",
-                    "url": "http://www.ijg.org/files/jpegsrc.v6b.tar.gz",
-                    "sha256": "75c3ec241e9996504fe02a9ed4d12f16b74ade713972f3db9e65ce95cd27e35d"
-                }
-	    ]
-	},
-	
-
-{
-            "name" : "Papers",
-            "builddir" : true,
-            "buildsystem" : "meson",
-            "sources" : [
-                {
-                    "type" : "git",
-                    "url" : "file:///home/diego/Software/papers"
-                }
-            ]
-        }
-
 Inspect dir 
         
 ls -R | grep ":$" | sed -e 's/:$//' -e 's/[^-][^\/]*\//──/g' -e 's/─/├/' -e '$s/├/└/'
@@ -211,3 +183,29 @@ commands : [
 		"rm ${FLATPAK_DEST}/lib/libjpeg.so",
 		"rm ${FLATPAK_DEST}/lib/libjpeg.so.62.0.0.debug"
 	    ],
+	    
+{
+    "name" : "libjpeg",
+    "buildsystem" : "simple",
+    "build-commands" : [
+    	"mkdir ${FLATPAK_DEST}/man",
+    	"mkdir ${FLATPAK_DEST}/man/man1",
+	"./configure --prefix=/app --enable-shared",
+	"sed -i 's/\\.\\/libtool/libtool --tag=CC/g' Makefile",
+	"make",
+	"make install"
+	],
+    "cleanup" : [
+    	"/bin",
+    	"/include",
+	"/lib/libjpeg.so",
+	"/lib/libjpeg.so.62.0.0.debug"
+    ],
+"sources" : [
+	    {
+	"type": "archive",
+	"url": "http://www.ijg.org/files/jpegsrc.v6b.tar.gz",
+	"sha256": "75c3ec241e9996504fe02a9ed4d12f16b74ade713972f3db9e65ce95cd27e35d"
+    }
+]
+},
