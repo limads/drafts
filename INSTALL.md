@@ -52,9 +52,32 @@ LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/diego/Downloads/papers-build/build/files/
 This exports the executable to the repo folder, and leave build artifacts at the build folder.
 
 ```
+# Just build, no install
 flatpak-builder --repo=/home/diego/Downloads/papers-build/repo \
     /home/diego/Downloads/papers-build/build com.github.limads.Papers.json \
-    --state-dir=/home/diego/Downloads/papers-build/state --force-clean --run papers
+    --state-dir=/home/diego/Downloads/papers-build/state --force-clean
+
+# Build + install
+flatpak-builder --repo=/home/diego/Downloads/papers-build/repo \
+    /home/diego/Downloads/papers-build/build com.github.limads.Papers.json \
+    --state-dir=/home/diego/Downloads/papers-build/state --force-clean --install --user
+
+
+# Instead of passing --repo to flatpak-builder, repo can be created with:
+flatpak build-finish /home/diego/Downloads/papers-build/build
+flatpak build-export /home/diego/Downloads/papers-build/repo /home/diego/Downloads/papers-build/build org.github.limads.Papers
+
+# Export a bundle
+flatpak build-bundle /home/diego/Downloads/papers-build/repo /home/diego/Downloads/papers-build/papers.flatpak com.github.limads.Papers master
+
+# Install from bundle
+flatpak install --user --bundle /home/diego/Downloads/papers-build/papers.flatpak
+
+# Run
+flatpak run com.github.limads.Papers master
+
+# Uninstall
+flatpak uninstall com.github.limads.Papers
 ```
 
 (This will leave a lot of artifacts at state dir (replacement for .flatpak-builder at current dir), which will be created at the directory the command is called).
@@ -138,52 +161,19 @@ libjpeg must installed **after** libpoppler, or else libpoppler compilation fail
 libjpeg.so symlink must be removed before the last Rust moduel is built, 
 or else the Rust linking will fail. Just keep libjpeg.so.62 
 
-{
-    "name" : "poppler",
-    "builddir" : true,
-    "buildsystem" : "cmake",
-    "config-opts" : [
-		"-DENABLE_BOOST=OFF",
-		"-DENABLE_LIBOPENJPEG=none",
-		"-DBUILD_GTK_TESTS=OFF",
-		"-DBUILD_QT5_TESTS=OFF",
-		"-DBUILD_QT6_TESTS=OFF",
-		"-DBUILD_CPP_TESTS=OFF",
-		"-DBUILD_MANUAL_TESTS=OFF",
-		"-DENABLE_UTILS=OFF",
-		"-DENABLE_CPP=OFF",
-		"-DENABLE_GOBJECT_INTROSPECTION=OFF",
-		"-DENABLE_QT5=OFF",
-		"-DENABLE_QT6=OFF",
-		"-DENABLE_LIBCURL=OFF",
-		"-DENABLE_ZLIB=OFF",
-		"-DENABLE_DCTDECODER=unmaintained"
-    ],
-    "sources" : [
-        {
-            "type" : "git",
-            "url" : "https://gitlab.freedesktop.org/poppler/poppler.git"
-        }
-    ]
-},
-
-${FLATPAK_DEST}/share/man
-
 Inspect dir 
-        
+
+```        
 ls -R | grep ":$" | sed -e 's/:$//' -e 's/[^-][^\/]*\//──/g' -e 's/─/├/' -e '$s/├/└/'
 
 commands : [
     "ls ../.. -R | grep \":$\" | sed -e 's/:$//' -e 's/[^-][^\\/]*\\//──/g' -e 's/─/├/' -e '$s/├/└/'"
 ]
+```
 
-"post-install" : [
-	    	"pwd",
-	    	"ls ../../.. -R | grep \":$\" | sed -e 's/:$//' -e 's/[^-][^\\/]*\\//──/g' -e 's/─/├/' -e '$s/├/└/'",
-		"rm ${FLATPAK_DEST}/lib/libjpeg.so",
-		"rm ${FLATPAK_DEST}/lib/libjpeg.so.62.0.0.debug"
-	    ],
-	    
+libjpeg module
+
+```json
 {
     "name" : "libjpeg",
     "buildsystem" : "simple",
@@ -196,10 +186,11 @@ commands : [
 	"make install"
 	],
     "cleanup" : [
+        "/man",
     	"/bin",
     	"/include",
-	"/lib/libjpeg.so",
-	"/lib/libjpeg.so.62.0.0.debug"
+	    "libjpeg.so",
+	    "libjpeg.so.62.0.0.debug"
     ],
 "sources" : [
 	    {
@@ -209,3 +200,14 @@ commands : [
     }
 ]
 },
+```
+
+To access the build directory of the current module (/run/build/$MODULE):
+
+$FLATPAK_BUILDER_BUILDDIR
+
+To access the executables directory (app/bin)
+
+$PATH
+
+

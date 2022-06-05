@@ -48,15 +48,25 @@ impl DocTree {
         bx.append(&title.bx);
         bx.append(&scroll);
 
-        let doc_icons = DocIcons {
+        let mut icons = crate::load_icons_as_pixbufs(
+            &["break-point-symbolic", "queries-symbolic", "image-x-generic-symbolic", "gnome-terminal-symbolic", "equation-symbolic", "dialog-error-symbolic"]
+        ).unwrap();
+        /*let doc_icons = DocIcons {
             section_icon : Pixbuf::from_file_at_scale("assets/icons/break-point-symbolic.svg", 16, 16, true).unwrap(),
             tbl_icon : Pixbuf::from_file_at_scale("assets/icons/queries-symbolic.svg", 16, 16, true).unwrap(),
             img_icon : Pixbuf::from_file_at_scale("assets/icons/image-x-generic-symbolic.svg", 16, 16, true).unwrap(),
             code_icon : Pixbuf::from_file_at_scale("assets/icons/gnome-terminal-symbolic.svg", 16, 16, true).unwrap(),
             eq_icon : Pixbuf::from_file_at_scale("assets/icons/equation-symbolic.svg", 16, 16, true).unwrap(),
             err_icon : Pixbuf::from_file_at_scale("assets/icons/dialog-error-symbolic.svg", 16, 16, true).unwrap()
+        };*/
+        let doc_icons = DocIcons {
+            section_icon : icons.remove("break-point-symbolic").unwrap(),
+            tbl_icon : icons.remove("queries-symbolic").unwrap(),
+            img_icon : icons.remove("image-x-generic-symbolic").unwrap(),
+            code_icon : icons.remove("gnome-terminal-symbolic").unwrap(),
+            eq_icon : icons.remove("equation-symbolic").unwrap(),
+            err_icon : icons.remove("dialog-error-symbolic").unwrap()
         };
-
         Self { tree_view, bx, store, doc_icons }
     }
 }

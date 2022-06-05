@@ -105,4 +105,33 @@ Your abstract goes here...
 \footnotetext{This is my footnote!}
 */
 
+use std::collections::HashMap;
+use gtk4::*;
+use gtk4::prelude::*;
+use gdk_pixbuf::Pixbuf;
+
+pub fn load_icons_as_pixbufs(icons : &[&'static str]) -> Result<HashMap<&'static str, Pixbuf>, String> {
+    if let Some(display) = gdk::Display::default() {
+        if let Some(theme) = IconTheme::for_display(&display) {
+            let mut icon_pixbufs = HashMap::new();
+            for icon_name in icons {
+                if let Some(icon) = theme.lookup_icon(icon_name, &[], 16, 1, TextDirection::Ltr, IconLookupFlags::empty()) {
+                    let path = icon.file()
+                        .ok_or(format!("Icon {} has no corresponing file", icon_name))?
+                        .path()
+                        .ok_or(format!("File for icon {} has no valid path", icon_name))?;
+                        let pxb = Pixbuf::from_file_at_scale(path, 16, 16, true).unwrap();
+                        icon_pixbufs.insert(*icon_name,pxb);
+                } else {
+                    return Err(format!("No icon named {}", icon_name));
+                }
+            }
+            Ok(icon_pixbufs)
+        } else {
+            Err(format!("No icon theme for default GDK display"))
+        }
+    } else {
+        Err(format!("No default GDK display"))
+    }
+}
 

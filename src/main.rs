@@ -13,6 +13,14 @@ use papers::analyzer::Analyzer;
 // To install locally, pass the --install flag without any arguments.
 // flatpak-builder --force-clean --install /home/diego/Downloads/papers-build com.github.limads.Papers.json
 
+/*
+At flatpak builds, the application can always read/write from (which will be resolved to the corresponding subdir of ~/.var/<appid>:
+XDG_DATA_HOME
+XDG_CONFIG_HOME
+XDG_CACHE_HOME
+XDG_STATE_HOME
+*/
+
 fn main() {
     gtk4::init().unwrap();
     let application = Application::builder()
@@ -36,7 +44,19 @@ fn main() {
 
     if let Some(display) = gdk::Display::default() {
         if let Some(theme) = IconTheme::for_display(&display) {
-            theme.add_search_path("/home/diego/Software/papers/assets/icons");
+            // Useful for local builds
+            // theme.add_search_path("/home/diego/Software/papers/assets/icons");
+            theme.add_search_path("/home/diego/Software/papers/data/icons");
+            // theme.add_search_path("/home/diego/Software/papers/data/icons/hicolor/symbolic");
+            // theme.add_search_path("/home/diego/Software/papers/data/icons/hicolor/scalable");
+
+            println!("Theme search path={:?}", theme.search_path());
+            println!("Icon names = {:?}", theme.icon_names());
+
+            let icon = theme.lookup_icon("break-point-symbolic", &[], 16, 1, TextDirection::Ltr, IconLookupFlags::empty());
+            println!("Icon = {:?}", icon);
+            println!("Icon file = {:?}", icon.and_then(|icon| icon.file().and_then(|f| f.path() )));
+            // Then Pixbuf::from_file_at_scale("assets/icons/break-point-symbolic.svg", 16, 16, true) with the desired path.
         }
     }
 
