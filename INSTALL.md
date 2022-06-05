@@ -238,8 +238,7 @@ symlinks to the actual application files. Those are located under /home/diego/.l
 /home/diego/.local/share/flatpak/app/<APPID>/x86_64/stable/hash/bin
 
 commands : [
-    "export PKG_CONFIG_PATH=$LD_LIBRARY_PATH/pkgconfig",
-    "cargo build --manifest-path=Cargo.toml --target-dir=${FLATPAK_BUILDER_BUILDDIR}",
+    "cargo build --manifest-path=${FLATPAK_BUILDER_BUILDDIR}/Cargo.toml --target-dir=$(pwd)",
     "cp data/${FLATPAK_ID}.desktop app/share/applications"
     "cp data/icons/hicolor/scalable/apps ${FLATPAK_DEST}/share/icons/hicolor/scalable/apps
     "cp data/icons/hicolor/symbolic/apps ${FLATPAK_DEST}/share/icons/hicolor/symbolic/apps
