@@ -52,18 +52,24 @@ LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/diego/Downloads/papers-build/build/files/
 This exports the executable to the repo folder, and leave build artifacts at the build folder.
 
 ```
-# Just build, no install
-flatpak-builder --repo=/home/diego/Downloads/papers-build/repo \
-    /home/diego/Downloads/papers-build/build com.github.limads.Papers.json \
-    --state-dir=/home/diego/Downloads/papers-build/state --force-clean
-
 # Build + install
+
 flatpak-builder --repo=/home/diego/Downloads/papers-build/repo \
     /home/diego/Downloads/papers-build/build com.github.limads.Papers.json \
     --state-dir=/home/diego/Downloads/papers-build/state --force-clean --install --user
+```
 
+```
+# Just build, no install
 
-# Instead of passing --repo to flatpak-builder, repo can be created with:
+flatpak-builder --repo=/home/diego/Downloads/papers-build/repo \
+    /home/diego/Downloads/papers-build/build com.github.limads.Papers.json \
+    --state-dir=/home/diego/Downloads/papers-build/state --force-clean
+```
+
+```
+# Step-by-step to install after build with no install
+
 flatpak build-finish /home/diego/Downloads/papers-build/build
 flatpak build-export /home/diego/Downloads/papers-build/repo /home/diego/Downloads/papers-build/build org.github.limads.Papers
 
@@ -72,10 +78,14 @@ flatpak build-bundle /home/diego/Downloads/papers-build/repo /home/diego/Downloa
 
 # Install from bundle
 flatpak install --user --bundle /home/diego/Downloads/papers-build/papers.flatpak
+```
 
+```
 # Run
 flatpak run com.github.limads.Papers master
+```
 
+```
 # Uninstall
 flatpak uninstall com.github.limads.Papers
 ```

@@ -49,13 +49,11 @@ fn main() {
             theme.add_search_path("/home/diego/Software/papers/data/icons");
             // theme.add_search_path("/home/diego/Software/papers/data/icons/hicolor/symbolic");
             // theme.add_search_path("/home/diego/Software/papers/data/icons/hicolor/scalable");
-
-            println!("Theme search path={:?}", theme.search_path());
-            println!("Icon names = {:?}", theme.icon_names());
-
-            let icon = theme.lookup_icon("break-point-symbolic", &[], 16, 1, TextDirection::Ltr, IconLookupFlags::empty());
-            println!("Icon = {:?}", icon);
-            println!("Icon file = {:?}", icon.and_then(|icon| icon.file().and_then(|f| f.path() )));
+            // println!("Theme search path={:?}", theme.search_path());
+            // println!("Icon names = {:?}", theme.icon_names());
+            // let icon = theme.lookup_icon("break-point-symbolic", &[], 16, 1, TextDirection::Ltr, IconLookupFlags::empty());
+            // println!("Icon = {:?}", icon);
+            // println!("Icon file = {:?}", icon.and_then(|icon| icon.file().and_then(|f| f.path() )));
             // Then Pixbuf::from_file_at_scale("assets/icons/break-point-symbolic.svg", 16, 16, true) with the desired path.
         }
     }
