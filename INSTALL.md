@@ -180,22 +180,4 @@ ${FLATPAK_DEST}/share/man
 	    ]
 	},
 	
-{
-        "name" : "libjpeg",
-        "buildsystem" : "simple",
-        "build-commands" : [
-        	"mkdir ${FLATPAK_DEST}/man",
-        	"mkdir ${FLATPAK_DEST}/man/man1",
-	"./configure --prefix=/app --enable-shared",
-	"sed -i 's/\\.\\/libtool/libtool --tag=CC/g' Makefile",
-	"make",
-	"make install"
-        ],
-        "sources" : [
-    	{
-                "type": "archive",
-                "url": "http://www.ijg.org/files/jpegsrc.v6b.tar.gz",
-                "sha256": "75c3ec241e9996504fe02a9ed4d12f16b74ade713972f3db9e65ce95cd27e35d"
-            }
-    ]
-},
+
