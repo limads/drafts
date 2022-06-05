@@ -92,6 +92,13 @@ flatpak uninstall com.github.limads.Papers
 
 (This will leave a lot of artifacts at state dir (replacement for .flatpak-builder at current dir), which will be created at the directory the command is called).
 
+# Checking the meson build
+
+```
+mkdir builddir
+meson compile -C builddir
+```
+
 ## To install locally
 
 This installs the executable to the local flatpak applications directory

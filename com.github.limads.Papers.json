@@ -57,7 +57,8 @@
 		"cd build",
 		"../icu/source/runConfigureICU Linux --prefix=/app",
 		"make check",
-		"make install"
+		"make install",
+		"ln -s $FLATPAK_BUILDER_BUILDDIR/lib/libicuuc.so.69 $FLATPAK_BUILDER_BUILDDIR/lib/libicuuc.so.67
             ]
         },
 
