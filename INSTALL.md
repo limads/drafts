@@ -185,3 +185,14 @@ ${FLATPAK_DEST}/share/man
 	},
 	
 
+{
+            "name" : "Papers",
+            "builddir" : true,
+            "buildsystem" : "meson",
+            "sources" : [
+                {
+                    "type" : "git",
+                    "url" : "file:///home/diego/Software/papers"
+                }
+            ]
+        }
