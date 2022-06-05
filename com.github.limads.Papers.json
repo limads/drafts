@@ -96,11 +96,11 @@
 		"make",
 		"make install"
 		],
-	    "post-install" : [
-	    	"pwd",
-	    	"ls ../../.. -R | grep \":$\" | sed -e 's/:$//' -e 's/[^-][^\\/]*\\//──/g' -e 's/─/├/' -e '$s/├/└/'",
-		"rm ${FLATPAK_DEST}/lib/libjpeg.so",
-		"rm ${FLATPAK_DEST}/lib/libjpeg.so.62.0.0.debug"
+	    "cleanup" : [
+	    	"/bin",
+	    	"/include",
+		"/lib/libjpeg.so",
+		"/lib/libjpeg.so.62.0.0.debug"
 	    ],
 	"sources" : [
     	    {

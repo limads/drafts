@@ -54,7 +54,7 @@ This exports the executable to the repo folder, and leave build artifacts at the
 ```
 flatpak-builder --repo=/home/diego/Downloads/papers-build/repo \
     /home/diego/Downloads/papers-build/build com.github.limads.Papers.json \
-    --state-dir=/home/diego/Downloads/papers-build/state --force-clean
+    --state-dir=/home/diego/Downloads/papers-build/state --force-clean --run papers
 ```
 
 (This will leave a lot of artifacts at state dir (replacement for .flatpak-builder at current dir), which will be created at the directory the command is called).
@@ -204,3 +204,10 @@ ls -R | grep ":$" | sed -e 's/:$//' -e 's/[^-][^\/]*\//──/g' -e 's/─/├/'
 commands : [
     "ls ../.. -R | grep \":$\" | sed -e 's/:$//' -e 's/[^-][^\\/]*\\//──/g' -e 's/─/├/' -e '$s/├/└/'"
 ]
+
+"post-install" : [
+	    	"pwd",
+	    	"ls ../../.. -R | grep \":$\" | sed -e 's/:$//' -e 's/[^-][^\\/]*\\//──/g' -e 's/─/├/' -e '$s/├/└/'",
+		"rm ${FLATPAK_DEST}/lib/libjpeg.so",
+		"rm ${FLATPAK_DEST}/lib/libjpeg.so.62.0.0.debug"
+	    ],
