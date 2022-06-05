@@ -92,10 +92,10 @@ flatpak uninstall com.github.limads.Papers
 
 (This will leave a lot of artifacts at state dir (replacement for .flatpak-builder at current dir), which will be created at the directory the command is called).
 
-# Checking the meson build
+# Checking the meson build of the final module
 
 ```
-mkdir builddir
+meson setup builddir
 meson compile -C builddir
 ```
 

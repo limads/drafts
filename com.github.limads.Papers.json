@@ -58,7 +58,7 @@
 		"../icu/source/runConfigureICU Linux --prefix=/app",
 		"make check",
 		"make install",
-		"ln -s $FLATPAK_BUILDER_BUILDDIR/lib/libicuuc.so.69 $FLATPAK_BUILDER_BUILDDIR/lib/libicuuc.so.67"
+		"cp $FLATPAK_BUILDER_BUILDDIR/lib/libicuuc.so.69 $FLATPAK_BUILDER_BUILDDIR/lib/libicuuc.so.67"
             ]
         },
 
