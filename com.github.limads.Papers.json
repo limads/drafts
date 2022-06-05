@@ -57,8 +57,7 @@
 		"cd build",
 		"../icu/source/runConfigureICU Linux --prefix=/app",
 		"make check",
-		"make install",
-		"cp $FLATPAK_BUILDER_BUILDDIR/lib/libicuuc.so.69 $FLATPAK_BUILDER_BUILDDIR/lib/libicuuc.so.67"
+		"make install"
             ]
         },
 
@@ -99,6 +98,12 @@
                     "type" : "git",
                     "url" : "file:///home/diego/Software/papers"
                 }
+            ],
+            "post-install" : [
+            	"cp data/${FLATPAK_ID}.desktop ${FLATPAK_DEST}/share/applications",
+    		"cp data/icons/hicolor/scalable/apps ${FLATPAK_DEST}/share/icons/hicolor/scalable/apps",
+    		"cp data/icons/hicolor/symbolic/apps ${FLATPAK_DEST}/share/icons/hicolor/symbolic/apps",
+    		"cp data/${FLATPAK_ID}.appdata.xml ${FLATPAK_DEST}/share/metainfo"
             ]
         }
     ]

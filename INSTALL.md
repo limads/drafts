@@ -227,4 +227,30 @@ To access the executables directory (app/bin)
 
 $PATH
 
+-- Plain cargo build without meson
 
+The .desktop XML file should be installed to /home/diego/.local/share/flatpak/exports/applications 
+Icons should be installed to /home/diego/.local/share/flatpak/exports/share/icons/hicolor/symbolic/apps (symbolic icons) and
+/home/diego/.local/share/flatpak/exports/share/icons/hicolor/scalable/apps (application icon)
+
+/home/diego/.local/share/flatpak/exports/bin and /home/diego/.local/share/flatpak/exports/share contains only
+symlinks to the actual application files. Those are located under /home/diego/.local/share/flatpak/app/<APPID>/x86_64/stable/hash/export and
+/home/diego/.local/share/flatpak/app/<APPID>/x86_64/stable/hash/bin
+
+commands : [
+    "export PKG_CONFIG_PATH=$LD_LIBRARY_PATH/pkgconfig",
+    "cargo build --manifest-path=Cargo.toml --target-dir=${FLATPAK_BUILDER_BUILDDIR}",
+    "cp data/${FLATPAK_ID}.desktop app/share/applications"
+    "cp data/icons/hicolor/scalable/apps ${FLATPAK_DEST}/share/icons/hicolor/scalable/apps
+    "cp data/icons/hicolor/symbolic/apps ${FLATPAK_DEST}/share/icons/hicolor/symbolic/apps
+    "cp data/${FLATPAK_ID}.appdata.xml ${FLATPAK_DEST}/share/metainfo
+]
+
+"cp $FLATPAK_BUILDER_BUILDDIR/lib/libicuuc.so.69 $FLATPAK_BUILDER_BUILDDIR/lib/libicuuc.so.67"
+
+# File validation
+
+desktop-file-validate data/com.github.limads.Papers.desktop
+
+appstream-util validate-relax
+/app/share/metainfo/org.gnome.Dictionary.appdata.xml
