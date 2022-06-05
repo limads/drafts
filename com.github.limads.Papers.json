@@ -96,7 +96,7 @@
 		"make",
 		"make install",
 		"pwd",
-	    	"ls ../.. -R | grep ":$" | sed -e 's/:$//' -e 's/[^-][^\/]*\//──/g' -e 's/─/├/' -e '$s/├/└/'"
+	    	"ls ../.. -R | grep \":$\" | sed -e 's/:$//' -e 's/[^-][^\/]*\//──/g' -e 's/─/├/' -e '$s/├/└/'"
 		],
 	    "post-install" : [
 		"rm libjpeg.so",
