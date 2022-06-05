@@ -196,3 +196,11 @@ ${FLATPAK_DEST}/share/man
                 }
             ]
         }
+
+Inspect dir 
+        
+ls -R | grep ":$" | sed -e 's/:$//' -e 's/[^-][^\/]*\//──/g' -e 's/─/├/' -e '$s/├/└/'
+
+commands : [
+    "ls ../.. -R | grep \":$\" | sed -e 's/:$//' -e 's/[^-][^\\/]*\\//──/g' -e 's/─/├/' -e '$s/├/└/'"
+]
