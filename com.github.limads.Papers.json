@@ -96,7 +96,7 @@
 		"make",
 		"make install",
 		"pwd",
-	    	"ls"
+	    	"ls .."
 		],
 	    "post-install" : [
 		"rm libjpeg.so",
