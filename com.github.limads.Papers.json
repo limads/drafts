@@ -96,13 +96,17 @@
 		"make",
 		"make install"
 		],
-		"sources" : [
-	    	{
-			"type": "archive",
-			"url": "http://www.ijg.org/files/jpegsrc.v6b.tar.gz",
-			"sha256": "75c3ec241e9996504fe02a9ed4d12f16b74ade713972f3db9e65ce95cd27e35d"
-		    }
-	    ]
+	    "post-install" : [
+		"rm ${FLATPAK_DEST}/lib/libjpeg.so",
+		"rm ${FLATPAK_DEST}/lib/libjpeg.so.62.0.0.debug",
+	    ],
+	"sources" : [
+    	    {
+		"type": "archive",
+		"url": "http://www.ijg.org/files/jpegsrc.v6b.tar.gz",
+		"sha256": "75c3ec241e9996504fe02a9ed4d12f16b74ade713972f3db9e65ce95cd27e35d"
+	    }
+	]
 	},
 
         {

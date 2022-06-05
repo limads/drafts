@@ -134,6 +134,10 @@ make
 make install
 ```
 
+libjpeg must installed **after** libpoppler, or else libpoppler compilation fails.
+libjpeg.so symlink must be removed before the last Rust moduel is built, 
+or else the Rust linking will fail. Just keep libjpeg.so.62 
+
 {
     "name" : "poppler",
     "builddir" : true,
