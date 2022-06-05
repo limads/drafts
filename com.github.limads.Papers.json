@@ -82,7 +82,7 @@
             "buildsystem": "cmake-ninja",
             "config-opts": [
                 "-DENABLE_BOOST=OFF",
-		"-DENABLE_LIBOPENJPEG=none",
+		"-DENABLE_LIBOPENJPEG=unmaintained",
 		"-DBUILD_GTK_TESTS=OFF",
 		"-DENABLE_QT5=OFF",
 		"-DENABLE_QT6=OFF",
