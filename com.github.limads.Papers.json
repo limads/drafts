@@ -98,7 +98,7 @@
 		    "PKG_CONFIG_PATH" : "/app/lib:/app/lib/pkgconfig"
 		}
             },
-            "commands" : [
+            "build-commands" : [
             	"cargo build --manifest-path=${FLATPAK_BUILDER_BUILDDIR}/Cargo.toml --target-dir=$(pwd)"
             ],
             "sources" : [
