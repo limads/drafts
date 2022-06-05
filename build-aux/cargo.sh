@@ -7,7 +7,7 @@ export CARGO_HOME="$MESON_BUILD_ROOT"/cargo-home
 export OUTPUT="$3"
 export BUILDTYPE="$4"
 export APP_BIN="$5"
-export PKG_CONFIG_PATH=/app/lib:/app/lib/pkgconfig
+# export PKG_CONFIG_PATH=/app/lib:/app/lib/pkgconfig
 
 if [ $BUILDTYPE = "release" ]
 then

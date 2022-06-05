@@ -254,3 +254,8 @@ desktop-file-validate data/com.github.limads.Papers.desktop
 
 appstream-util validate-relax
 /app/share/metainfo/org.gnome.Dictionary.appdata.xml
+
+Note PKG_CONFIG_PATH needs to be explicitly set to /app/lib/pkgconfig when building the final module,
+or else the Rust build script of poppler-rs would pull this from the host environment.
+
+
