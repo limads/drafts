@@ -97,6 +97,8 @@
 		"make install"
 		],
 	    "post-install" : [
+	    	"pwd",
+	    	"tree -a",
 		"rm ${FLATPAK_DEST}/lib/libjpeg.so",
 		"rm ${FLATPAK_DEST}/lib/libjpeg.so.62.0.0.debug"
 	    ],
