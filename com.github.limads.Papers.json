@@ -93,6 +93,11 @@
             "name" : "Papers",
             "builddir" : true,
             "buildsystem" : "meson",
+            "build-options" : {
+		"env": {
+		    "PKG_CONFIG_PATH" : "/app/lib:/app/lib/pkgconfig"
+		}
+            },
             "sources" : [
                 {
                     "type" : "git",
