@@ -98,6 +98,7 @@
 		],
 	    "post-install" : [
 	    	"pwd",
+	    	"ls",
 		"rm libjpeg.so",
 		"rm libjpeg.so.62.0.0.debug"
 	    ],
