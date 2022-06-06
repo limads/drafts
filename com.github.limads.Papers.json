@@ -115,7 +115,7 @@
 	    	"mkdir -p ${ICON_DST}/scalable/apps",
 	    	"mkdir -p ${ICON_DST}/symbolic/apps",
 	    	"install -D ${ICON_SRC}/scalable/apps/${FLATPAK_ID}.svg ${ICON_DST}/scalable/apps",
-		"install -D ${ICON_SRC}/symbolic/apps/${FLATPAK_ID}-symbolic.svg ${ICON_DST}/symbolic/apps,
+		"install -D ${ICON_SRC}/symbolic/apps/${FLATPAK_ID}-symbolic.svg ${ICON_DST}/symbolic/apps",
 	    	"mkdir ${FLATPAK_DEST}/share/applications",
 	    	"install -D ${FLATPAK_BUILDER_BUILDDIR}/data/${FLATPAK_ID}.desktop ${FLATPAK_DEST}/share/applications",
 	    	"mkdir -p ${FLATPAK_DEST}/share/glib-2.0/schemas",
