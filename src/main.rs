@@ -28,13 +28,8 @@ fn main() {
         .application_id(papers::APP_ID)
         .build();
 
-    // gio::resources_register_include!("compiled.gresource").unwrap();
-
     let bytes = glib::Bytes::from_static(include_bytes!(concat!(env!("OUT_DIR"), "/", "compiled.gresource")));
     let resource = gio::Resource::from_data(&bytes).unwrap();
-    // for child in resource.enumerate_children("/com/github/limads/papers", gio::ResourceLookupFlags::empty()).unwrap() {
-    //    println!("{:?}", child);
-    // }
     gio::resources_register(&resource);
 
     // let resource = gio::Resource::load("resources/compiled.gresource");
