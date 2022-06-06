@@ -266,17 +266,17 @@ Basic meson build:
     "buildsystem" : "meson",
     "build-options" : {
     "env": {
-        "PKG_CONFIG_PATH" : "/app/lib:/app/lib/pkgconfig"
+	"PKG_CONFIG_PATH" : "/app/lib:/app/lib/pkgconfig"
     }
     },
     "sources" : [
-        {
-            "type" : "git",
-            "url" : "file:///home/diego/Software/papers"
-        }
+	{
+	    "type" : "git",
+	    "url" : "file:///home/diego/Software/papers"
+	}
     ],
     "post-install" : [
-        "ls ../../.. -R | grep \":$\" | sed -e 's/:$//' -e 's/[^-][^\\/]*\\//──/g' -e 's/─/├/' -e '$s/├/└/'"
+	"install -D /run/build/Papers/data/icons/hicolor/symbolic/actions /app/extra/export/share/icons/hicolor/symbolic"
     ]
 }
 ```
@@ -307,32 +307,28 @@ This simple build works, BUT without icons:
         }
     ],
     "post-install" : [
-    	"mkdir ${FLATPAK_DEST}/share/icons",
-    	"mkdir ${FLATPAK_DEST}/share/icons/hicolor",
-    	"mkdir ${FLATPAK_DEST}/share/icons/hicolor/scalable",
-    	"mkdir ${FLATPAK_DEST}/share/icons/hicolor/symbolic",
-    	"mkdir ${FLATPAK_DEST}/share/icons/hicolor/scalable/apps",
-    	"mkdir ${FLATPAK_DEST}/share/icons/hicolor/symbolic/apps",
-    	"install -D /run/build/Papers/data/icons/hicolor/scalable/apps/${FLATPAK_ID}.svg /app/share/icons/hicolor/scalable/apps",
-        "install -D /run/build/Papers/data/icons/hicolor/symbolic/apps/${FLATPAK_ID}-symbolic.svg /app/share/icons/hicolor/symbolic/apps,
+        "export ICON_SRC=${FLATPAK_BUILDER_BUILDDIR}/data/icons/hicolor",
+        "export ICON_DST=${FLATPAK_DEST}/share/icons/hicolor",
+        "export FLATPAK_ICON_DST=${FLATPAK_DEST}/share/app-info/icons/flatpak",
+        "export CARGO_TARGET_PATH=${FLATPAK_BUILDER_BUILDDIR}/target/debug",
+    	"mkdir -p ${ICON_DST}/scalable/apps",
+    	"mkdir -p ${ICON_DST}/symbolic/apps",
+    	"install -D ${ICON_SRC}/scalable/apps/${FLATPAK_ID}.svg ${ICON_DST}/scalable/apps",
+        "install -D ${ICON_SRC}/symbolic/apps/${FLATPAK_ID}-symbolic.svg ${ICON_DST}/symbolic/apps,
     	"mkdir ${FLATPAK_DEST}/share/applications",
     	"install -D ${FLATPAK_BUILDER_BUILDDIR}/data/${FLATPAK_ID}.desktop ${FLATPAK_DEST}/share/applications",
-    	"mkdir ${FLATPAK_DEST}/share/glib-2.0",
-    	"mkdir ${FLATPAK_DEST}/share/glib-2.0/schemas",
+    	"mkdir -p ${FLATPAK_DEST}/share/glib-2.0/schemas",
     	"install -D ${FLATPAK_BUILDER_BUILDDIR}/data/${FLATPAK_ID}.gschema.xml ${FLATPAK_DEST}/share/glib-2.0/schemas",
+    	"mkdir -p ${FLATPAK_ICON_DST}/64x64",
+    	"mkdir -p ${FLATPAK_ICON_DST}/128x128",
+    	"install -D ${ICON_SRC}/64x64/apps/${FLATPAK_ID}.svg ${FLATPAK_ICON_DST}/64x64",
+    	"install -D ${ICON_SRC}/128x128/apps/${FLATPAK_ID}.svg ${FLATPAK_ICON_DST}/128x128",
+    	"mkdir -p ${FLATPAK_DEST}/share/app-info/xmls",
     	"mkdir ${FLATPAK_DEST}/share/appdata",
-    	"install -D ${FLATPAK_BUILDER_BUILDDIR}/data/${FLATPAK_ID}.appdata.xml ${FLATPAK_DEST}/share/appdata",
-    	"mkdir ${FLATPAK_DEST}/share/app-info",
-    	"mkdir ${FLATPAK_DEST}/share/app-info/icons",
-    	"mkdir ${FLATPAK_DEST}/share/app-info/icons/flatpak",
-    	"mkdir ${FLATPAK_DEST}/share/app-info/icons/flatpak/64x64",
-    	"mkdir ${FLATPAK_DEST}/share/app-info/icons/flatpak/128x128",
-    	"install -D /run/build/Papers/data/icons/hicolor/64x64/apps/${FLATPAK_ID}.svg ${FLATPAK_DEST}/share/app-info/icons/flatpak/64x64",
-    	"install -D /run/build/Papers/data/icons/hicolor/128x128/apps/${FLATPAK_ID}.svg ${FLATPAK_DEST}/share/app-info/icons/flatpak/128x128",
-    	"mkdir ${FLATPAK_DEST}/share/app-info/xmls",
-    	"gzip ${FLATPAK_BUILDER_BUILDDIR}/data/${FLATPAK_ID}.appdata.xml file.xml
-    	"install -D ${FLATPAK_BUILDER_BUILDDIR}/target/debug/papers ${FLATPAK_DEST}/bin",
-    	"install -D ${FLATPAK_BUILDER_BUILDDIR}/target/debug/helper ${FLATPAK_DEST}/bin"
+    	"gzip ${FLATPAK_BUILDER_BUILDDIR}/data/${FLATPAK_ID}.appdata.xml --keep",
+    	"install -D ${FLATPAK_BUILDER_BUILDDIR}/data/${FLATPAK_ID}.appdata.xml.gz ${FLATPAK_DEST}/share/app-info/xmls",
+    	"install -D ${CARGO_TARGET_PATH}/papers ${FLATPAK_DEST}/bin",
+    	"install -D ${CARGO_TARGET_PATH}/helper ${FLATPAK_DEST}/bin"
     ]
 }
 ```
