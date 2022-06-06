@@ -5,8 +5,8 @@ project('papers', 'rust',
                    ],
 )
 
-# i18n = import('i18n')
-# gnome = import('gnome')
+i18n = import('i18n')
+gnome = import('gnome')
 
 cargo_sources = files(
   'Cargo.toml',
