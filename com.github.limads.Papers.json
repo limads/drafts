@@ -99,7 +99,7 @@
 		}
             },
             "build-commands" : [
-            	"cargo build --manifest-path=${FLATPAK_BUILDER_BUILDDIR}/Cargo.toml --target-dir=$(pwd)"
+            	"cargo build --manifest-path=${FLATPAK_BUILDER_BUILDDIR}/Cargo.toml"
             ],
             "sources" : [
                 {
@@ -114,8 +114,8 @@
             	"mkdir ${FLATPAK_DEST}/share/icons/hicolor",
             	"mkdir ${FLATPAK_DEST}/share/icons/hicolor/scalable",
             	"mkdir ${FLATPAK_DEST}/share/icons/hicolor/symbolic",
-            	"cp ${FLATPAK_BUILDER_BUILDDIR}/_flatpak_build/debug/papers ${FLATPAK_BUILDER_BUILDDIR}/bin",
-            	"cp ${FLATPAK_BUILDER_BUILDDIR}/_flatpak_build/debug/helper ${FLATPAK_BUILDER_BUILDDIR}/bin",
+            	"cp ${FLATPAK_BUILDER_BUILDDIR}/target/debug/papers ${FLATPAK_DEST}/bin",
+            	"cp ${FLATPAK_BUILDER_BUILDDIR}/target/debug/helper ${FLATPAK_DEST}/bin",
             	"cp -r ${FLATPAK_BUILDER_BUILDDIR}/data/${FLATPAK_ID}.desktop ${FLATPAK_DEST}/share/applications",
     		"cp -r ${FLATPAK_BUILDER_BUILDDIR}/data/icons/hicolor/scalable/apps ${FLATPAK_DEST}/share/icons/hicolor/scalable/apps",
     		"cp -r ${FLATPAK_BUILDER_BUILDDIR}/data/icons/hicolor/symbolic/apps ${FLATPAK_DEST}/share/icons/hicolor/symbolic/apps",
