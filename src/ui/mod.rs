@@ -204,12 +204,9 @@ impl DocBtn {
 
     pub fn build(image : &str, title : &str, sub : &str) -> Self {
         let btn = Button::new();
-        // let pxb = Pixbuf::from_file(image).unwrap();
-        let img = Picture::for_filename(image);
+        //let img = Picture::for_filename(image);
+        let img = Picture::for_resource(Some(&format!("com/github/limads/papers/icons/scalable/actions/{}.svg", image)));
         img.set_can_shrink(false);
-        // let img = Picture::from_pixbuf(Some(&pxb));
-        // img.set_icon_size(IconSize::Large);
-        //img.set_pixel_size(2);
         let lbl_bx = Box::new(Orientation::Vertical, 12);
         let lbl = Label::new(Some(title));
         lbl.set_justify(Justification::Left);
@@ -288,12 +285,19 @@ impl StartScreen {
     pub fn build() -> Self {
         let doc_upper_bx = Box::new(Orientation::Horizontal, 0);
         let doc_lower_bx = Box::new(Orientation::Horizontal, 0);
-        let empty_btn = DocBtn::build("/home/diego/Software/papers/assets/pictures/empty.svg", "Empty", EMPTY_DESCRIPTION);
+        /*let empty_btn = DocBtn::build("/home/diego/Software/papers/assets/pictures/empty.svg", "Empty", EMPTY_DESCRIPTION);
         let minimal_btn = DocBtn::build("/home/diego/Software/papers/assets/pictures/minimal.svg", "Minimal", MINIMAL_DESCRIPTION);
         let article_btn = DocBtn::build("/home/diego/Software/papers/assets/pictures/article.svg", "Article", ARTICLE_DESCRIPTION);
         let report_btn = DocBtn::build("/home/diego/Software/papers/assets/pictures/report.svg", "Report", REPORT_DESCRIPTION);
         let book_btn = DocBtn::build("/home/diego/Software/papers/assets/pictures/book.svg", "Book", BOOK_DESCRIPTION);
-        let present_btn = DocBtn::build("/home/diego/Software/papers/assets/pictures/presentation.svg", "Presentation", PRESENTATION_DESCRIPTION);
+        let present_btn = DocBtn::build("/home/diego/Software/papers/assets/pictures/presentation.svg", "Presentation", PRESENTATION_DESCRIPTION);*/
+        let empty_btn = DocBtn::build("empty", "Empty", EMPTY_DESCRIPTION);
+        let minimal_btn = DocBtn::build("minimal", "Minimal", MINIMAL_DESCRIPTION);
+        let article_btn = DocBtn::build("article", "Article", ARTICLE_DESCRIPTION);
+        let report_btn = DocBtn::build("report", "Report", REPORT_DESCRIPTION);
+        let book_btn = DocBtn::build("book", "Book", BOOK_DESCRIPTION);
+        let present_btn = DocBtn::build("presentation", "Presentation", PRESENTATION_DESCRIPTION);
+
         // let report_btn = Button::builder().label("Report").build();
         // let presentation_btn = Button::builder().label("Presentation").build();
         // letter

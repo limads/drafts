@@ -5,6 +5,7 @@ use papers::React;
 use papers::typesetter::Typesetter;
 use papers::ui::*;
 use papers::analyzer::Analyzer;
+use gtk4::gio;
 
 // flatpak remote-add --if-not-exists gnome-nightly https://nightly.gnome.org/gnome-nightly.flatpakrepo
 // flatpak install gnome-nightly org.gnome.Sdk master
@@ -27,6 +28,17 @@ fn main() {
         .application_id(papers::APP_ID)
         .build();
 
+    // gio::resources_register_include!("compiled.gresource").unwrap();
+
+    let bytes = glib::Bytes::from_static(include_bytes!(concat!(env!("OUT_DIR"), "/", "compiled.gresource")));
+    let resource = gio::Resource::from_data(&bytes).unwrap();
+    // for child in resource.enumerate_children("/com/github/limads/papers", gio::ResourceLookupFlags::empty()).unwrap() {
+    //    println!("{:?}", child);
+    // }
+    gio::resources_register(&resource);
+
+    // let resource = gio::Resource::load("resources/compiled.gresource");
+
     // For non-flatpak builds, store at XDG_CACHE_HOME/my.add.id (usually ~/.local/share/my.add.id)
     // For flatpak build, store simply at XDG_CACHE_HOME, which will already point to the right location.
     // Perhaps check if there exists a dir my.app.id under XDG_CACHE_HOME. If there is, use it; or
@@ -46,7 +58,19 @@ fn main() {
         if let Some(theme) = IconTheme::for_display(&display) {
             // Useful for local builds
             // theme.add_search_path("/home/diego/Software/papers/assets/icons");
-            theme.add_search_path("/home/diego/Software/papers/data/icons");
+            // theme.add_search_path("/home/diego/Software/papers/data/icons");
+
+            // theme.add_resource_path("/com/github/limads/papers");
+
+            // This is the valid path according to docs.
+            theme.add_resource_path("/com/github/limads/papers/icons");
+            // theme.add_resource_path("/com/github/limads/papers/icons/scalable");
+
+            // theme.add_resource_path("/com/github/limads/papers/icons/symbolic");
+
+
+            // theme.add_resource_path("/com/github/limads/papers/icons/hicolor");
+
             // theme.add_search_path("/home/diego/Software/papers/data/icons/hicolor/symbolic");
             // theme.add_search_path("/home/diego/Software/papers/data/icons/hicolor/scalable");
             // println!("Theme search path={:?}", theme.search_path());
@@ -55,7 +79,11 @@ fn main() {
             // println!("Icon = {:?}", icon);
             // println!("Icon file = {:?}", icon.and_then(|icon| icon.file().and_then(|f| f.path() )));
             // Then Pixbuf::from_file_at_scale("assets/icons/break-point-symbolic.svg", 16, 16, true) with the desired path.
+        } else {
+            panic!("No icon theme");
         }
+    } else {
+        panic!("No default display");
     }
 
     application.connect_activate({
@@ -66,6 +94,11 @@ fn main() {
                 .default_width(1024)
                 .default_height(768)
                 .build();
+
+            // println!("{:?}", app.resource_base_path());
+            // let icon = gio::resources_lookup_data("/com/github/limads/papers/icons/symbolic/actions/equation-symbolic.svg", gio::ResourceLookupFlags::empty()).unwrap();
+            // println!("{:?}", String::from_utf8(icon.as_ref().to_owned()).unwrap());
+
             let papers_win = PapersWindow::from(window);
 
             papers_win.react(&papers_win.start_screen);

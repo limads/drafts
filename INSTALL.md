@@ -293,9 +293,9 @@ This simple build works, BUT without icons:
     "builddir" : true,
     "buildsystem" : "simple",
     "build-options" : {
-"env": {
-    "PKG_CONFIG_PATH" : "/app/lib:/app/lib/pkgconfig"
-}
+        "env": {
+            "PKG_CONFIG_PATH" : "/app/lib:/app/lib/pkgconfig"
+        }
     },
     "build-commands" : [
     	"cargo build --manifest-path=${FLATPAK_BUILDER_BUILDDIR}/Cargo.toml"
@@ -311,12 +311,35 @@ This simple build works, BUT without icons:
     	"mkdir ${FLATPAK_DEST}/share/icons/hicolor",
     	"mkdir ${FLATPAK_DEST}/share/icons/hicolor/scalable",
     	"mkdir ${FLATPAK_DEST}/share/icons/hicolor/symbolic",
+    	"mkdir ${FLATPAK_DEST}/share/icons/hicolor/scalable/apps",
+    	"mkdir ${FLATPAK_DEST}/share/icons/hicolor/symbolic/apps",
+    	"install -D /run/build/Papers/data/icons/hicolor/scalable/apps/${FLATPAK_ID}.svg /app/share/icons/hicolor/scalable/apps",
+        "install -D /run/build/Papers/data/icons/hicolor/symbolic/apps/${FLATPAK_ID}-symbolic.svg /app/share/icons/hicolor/symbolic/apps,
     	"mkdir ${FLATPAK_DEST}/share/applications",
-    	"mkdir ${FLATPAK_DEST}/share/metainfo",
-    	"cp ${FLATPAK_BUILDER_BUILDDIR}/target/debug/papers ${FLATPAK_DEST}/bin",
-    	"cp ${FLATPAK_BUILDER_BUILDDIR}/target/debug/helper ${FLATPAK_DEST}/bin"
+    	"install -D ${FLATPAK_BUILDER_BUILDDIR}/data/${FLATPAK_ID}.desktop ${FLATPAK_DEST}/share/applications",
+    	"mkdir ${FLATPAK_DEST}/share/glib-2.0",
+    	"mkdir ${FLATPAK_DEST}/share/glib-2.0/schemas",
+    	"install -D ${FLATPAK_BUILDER_BUILDDIR}/data/${FLATPAK_ID}.gschema.xml ${FLATPAK_DEST}/share/glib-2.0/schemas",
+    	"mkdir ${FLATPAK_DEST}/share/appdata",
+    	"install -D ${FLATPAK_BUILDER_BUILDDIR}/data/${FLATPAK_ID}.appdata.xml ${FLATPAK_DEST}/share/appdata",
+    	"mkdir ${FLATPAK_DEST}/share/app-info",
+    	"mkdir ${FLATPAK_DEST}/share/app-info/icons",
+    	"mkdir ${FLATPAK_DEST}/share/app-info/icons/flatpak",
+    	"mkdir ${FLATPAK_DEST}/share/app-info/icons/flatpak/64x64",
+    	"mkdir ${FLATPAK_DEST}/share/app-info/icons/flatpak/128x128",
+    	"install -D /run/build/Papers/data/icons/hicolor/64x64/apps/${FLATPAK_ID}.svg ${FLATPAK_DEST}/share/app-info/icons/flatpak/64x64",
+    	"install -D /run/build/Papers/data/icons/hicolor/128x128/apps/${FLATPAK_ID}.svg ${FLATPAK_DEST}/share/app-info/icons/flatpak/128x128",
+    	"mkdir ${FLATPAK_DEST}/share/app-info/xmls",
+    	"gzip ${FLATPAK_BUILDER_BUILDDIR}/data/${FLATPAK_ID}.appdata.xml file.xml
+    	"install -D ${FLATPAK_BUILDER_BUILDDIR}/target/debug/papers ${FLATPAK_DEST}/bin",
+    	"install -D ${FLATPAK_BUILDER_BUILDDIR}/target/debug/helper ${FLATPAK_DEST}/bin"
     ]
 }
 ```
 
+Saving icon /app/share/app-info/icons/flatpak/64x64/com.github.limads.Papers.png
+Saving icon /app/share/app-info/icons/flatpak/128x128/com.github.limads.Papers.png
 
+install -D /run/build/Papers/data/com.github.limads.Papers.gschema.xml /app/share/glib-2.0/schemas
+
+Localization command contained in meson: `gettext install --subdir=po --localedir=share/locale --pkgname=Papers`

@@ -19,6 +19,9 @@ serde = { version="1.0.130", features=["derive"] }
 poppler-rs = "0.19.0"
 # poppler-rs = { git = "https://github.com/limads/poppler-rs.git" }
 
+[build-dependencies]
+gtk4 = "0.3.0"
+
 [[bin]]
 name="papers"
 path="src/main.rs"

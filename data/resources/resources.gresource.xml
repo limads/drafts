@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gresources>
+  <gresource prefix="/com/github/limads/papers">
+    <file preprocess="xml-stripblanks" alias="icons/scalable/actions/break-point-symbolic.svg">../icons/hicolor/symbolic/actions/break-point-symbolic.svg</file>
+    <file preprocess="xml-stripblanks" alias="icons/scalable/actions/dialog-error-symbolic.svg">../icons/hicolor/symbolic/actions/dialog-error-symbolic.svg</file>
+    <file preprocess="xml-stripblanks" alias="icons/scalable/actions/equation-symbolic.svg">../icons/hicolor/symbolic/actions/equation-symbolic.svg</file>
+    <file preprocess="xml-stripblanks" alias="icons/scalable/actions/gnome-terminal-symbolic.svg">../icons/hicolor/symbolic/actions/gnome-terminal-symbolic.svg</file>
+    <file preprocess="xml-stripblanks" alias="icons/scalable/actions/image-x-generic-symbolic.svg">../icons/hicolor/symbolic/actions/image-x-generic-symbolic.svg</file>
+    <file preprocess="xml-stripblanks" alias="icons/scalable/actions/line-height-symbolic.svg">../icons/hicolor/symbolic/actions/line-height-symbolic.svg</file>
+    <file preprocess="xml-stripblanks" alias="icons/scalable/actions/margin-bottom-symbolic.svg">../icons/hicolor/symbolic/actions/margin-bottom-symbolic.svg</file>
+    <file preprocess="xml-stripblanks" alias="icons/scalable/actions/margin-left-symbolic.svg">../icons/hicolor/symbolic/actions/margin-left-symbolic.svg</file>
+    <file preprocess="xml-stripblanks" alias="icons/scalable/actions/margin-right-symbolic.svg">../icons/hicolor/symbolic/actions/margin-right-symbolic.svg</file>
+    <file preprocess="xml-stripblanks" alias="icons/scalable/actions/margin-top-symbolic.svg">../icons/hicolor/symbolic/actions/margin-top-symbolic.svg</file>
+    <file preprocess="xml-stripblanks" alias="icons/scalable/actions/queries-symbolic.svg">../icons/hicolor/symbolic/actions/queries-symbolic.svg</file>
+    <file preprocess="xml-stripblanks" alias="icons/scalable/actions/subscript-symbolic.svg">../icons/hicolor/symbolic/actions/subscript-symbolic.svg</file>
+    <file preprocess="xml-stripblanks" alias="icons/scalable/actions/superscript-symbolic.svg">../icons/hicolor/symbolic/actions/superscript-symbolic.svg</file>
+    <file preprocess="xml-stripblanks" alias="icons/scalable/actions/text-huge-symbolic.svg">../icons/hicolor/symbolic/actions/text-huge-symbolic.svg</file>
+    <file preprocess="xml-stripblanks" alias="icons/scalable/actions/text-indent-more-symbolic.svg">../icons/hicolor/symbolic/actions/text-indent-more-symbolic.svg</file>
+    <file preprocess="xml-stripblanks" alias="icons/scalable/actions/text-large-symbolic.svg">../icons/hicolor/symbolic/actions/text-large-symbolic.svg</file>
+    <file preprocess="xml-stripblanks" alias="icons/scalable/actions/text-normal-symbolic.svg">../icons/hicolor/symbolic/actions/text-normal-symbolic.svg</file>
+    <file preprocess="xml-stripblanks" alias="icons/scalable/actions/text-small-symbolic.svg">../icons/hicolor/symbolic/actions/text-small-symbolic.svg</file>
+    <file preprocess="xml-stripblanks" alias="icons/scalable/actions/two-columns-symbolic.svg">../icons/hicolor/symbolic/actions/two-columns-symbolic.svg</file>
+
+    <file preprocess="xml-stripblanks" alias="icons/scalable/actions/article.svg">../icons/hicolor/scalable/actions/article.svg</file>
+    <file preprocess="xml-stripblanks" alias="icons/scalable/actions/book.svg">../icons/hicolor/scalable/actions/book.svg</file>
+    <file preprocess="xml-stripblanks" alias="icons/scalable/actions/empty.svg">../icons/hicolor/scalable/actions/empty.svg</file>
+    <file preprocess="xml-stripblanks" alias="icons/scalable/actions/letter.svg">../icons/hicolor/scalable/actions/letter.svg</file>
+    <file preprocess="xml-stripblanks" alias="icons/scalable/actions/minimal.svg">../icons/hicolor/scalable/actions/minimal.svg</file>
+    <file preprocess="xml-stripblanks" alias="icons/scalable/actions/presentation.svg">../icons/hicolor/scalable/actions/presentation.svg</file>
+    <file preprocess="xml-stripblanks" alias="icons/scalable/actions/report.svg">../icons/hicolor/scalable/actions/report.svg</file>
+    <file alias="style.css">../style.css</file>
+
+  </gresource>
+</gresources>
+

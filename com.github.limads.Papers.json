@@ -105,7 +105,7 @@
 		}
 	    ],
 	    "post-install" : [
-		"ls ${FLATPAK_DEST}/share -R | grep \":$\" | sed -e 's/:$//' -e 's/[^-][^\\/]*\\//──/g' -e 's/─/├/' -e '$s/├/└/'"
+		"install -D /run/build/Papers/data/icons/hicolor/symbolic/actions /app/extra/export/share/icons/hicolor/symbolic"
 	    ]
 	}
     ]

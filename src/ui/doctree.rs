@@ -48,7 +48,10 @@ impl DocTree {
         bx.append(&title.bx);
         bx.append(&scroll);
 
-        let mut icons = crate::load_icons_as_pixbufs(
+        /*let mut icons = crate::load_icons_as_pixbufs_from_paths(
+            &["break-point-symbolic", "queries-symbolic", "image-x-generic-symbolic", "gnome-terminal-symbolic", "equation-symbolic", "dialog-error-symbolic"]
+        ).unwrap();*/
+        let mut icons = crate::load_icons_as_pixbufs_from_resource(
             &["break-point-symbolic", "queries-symbolic", "image-x-generic-symbolic", "gnome-terminal-symbolic", "equation-symbolic", "dialog-error-symbolic"]
         ).unwrap();
         /*let doc_icons = DocIcons {

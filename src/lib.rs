@@ -1,8 +1,11 @@
 use std::rc::Rc;
 use std::cell::RefCell;
 use std::boxed;
+use gio;
 
 pub const APP_ID : &'static str = "com.github.limads.papers";
+
+pub const RESOURCE_PREFIX : &'static str = "com/github/limads/Papers";
 
 pub mod ui;
 
@@ -110,7 +113,26 @@ use gtk4::*;
 use gtk4::prelude::*;
 use gdk_pixbuf::Pixbuf;
 
-pub fn load_icons_as_pixbufs(icons : &[&'static str]) -> Result<HashMap<&'static str, Pixbuf>, String> {
+pub fn load_icons_as_pixbufs_from_resource(icons : &[&'static str]) -> Result<HashMap<&'static str, Pixbuf>, String> {
+    if let Some(display) = gdk::Display::default() {
+        if let Some(theme) = IconTheme::for_display(&display) {
+            theme.add_resource_path("/com/github/limads/papers");
+            theme.add_resource_path("/com/github/limads/papers/icons");
+            let mut icon_pixbufs = HashMap::new();
+            for icon_name in icons {
+                let pxb = Pixbuf::from_resource(&format!("/com/github/limads/papers/icons/scalable/actions/{}.svg", icon_name)).unwrap();
+                icon_pixbufs.insert(*icon_name,pxb);
+            }
+            Ok(icon_pixbufs)
+        } else {
+            Err(format!("No icon theme for default GDK display"))
+        }
+    } else {
+        Err(format!("No default GDK display"))
+    }
+}
+
+pub fn load_icons_as_pixbufs_from_paths(icons : &[&'static str]) -> Result<HashMap<&'static str, Pixbuf>, String> {
     if let Some(display) = gdk::Display::default() {
         if let Some(theme) = IconTheme::for_display(&display) {
             let mut icon_pixbufs = HashMap::new();
@@ -134,4 +156,10 @@ pub fn load_icons_as_pixbufs(icons : &[&'static str]) -> Result<HashMap<&'static
         Err(format!("No default GDK display"))
     }
 }
+
+fn read_resource() -> gio::Resource {
+    gio::Resource::load("data/resources.gresource").unwrap()
+}
+
+
 
