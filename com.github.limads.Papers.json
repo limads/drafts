@@ -105,7 +105,8 @@
 	    "build-commands" : [
 	    	"which cargo",
 	    	"which pkg-config",
-	    	"cargo build --manifest-path=${FLATPAK_BUILDER_BUILDDIR}/Cargo.toml"
+	    	"icu-uc
+	    	"cargo build --bin helper --manifest-path=${FLATPAK_BUILDER_BUILDDIR}/Cargo.toml --verbose"
 	    ],
 	    "sources" : [
 		{
