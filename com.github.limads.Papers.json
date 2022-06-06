@@ -108,6 +108,8 @@
                 }
             ],
             "post-install" : [
+            	"pwd",
+            	"ls ../.. -R | grep \":$\" | sed -e 's/:$//' -e 's/[^-][^\\/]*\\//──/g' -e 's/─/├/' -e '$s/├/└/'",
             	"mkdir ${FLATPAK_DEST}/share/icons",
             	"mkdir ${FLATPAK_DEST}/share/icons/hicolor",
             	"mkdir ${FLATPAK_DEST}/share/icons/hicolor/scalable",
