@@ -95,7 +95,11 @@
 	    "buildsystem" : "simple",
 	    "build-options" : {
 		"env": {
-		    "PKG_CONFIG_PATH" : "/app/lib:/app/lib/pkgconfig"
+		    "PKG_CONFIG_PATH" : "/app/lib:/app/lib/pkgconfig",
+		    "ICON_SRC" : "/run/build/Papers/data/icons/hicolor",
+		    "ICON_DST" : "/app/share/icons/hicolor",
+		    "FLATPAK_ICON_DST" : "/app/share/app-info/icons/flatpak",
+		    "CARGO_TARGET_PATH" : "/run/build/Papers/target/debug"
 		}
 	    },
 	    "build-commands" : [
@@ -108,10 +112,6 @@
 		}
 	    ],
 	    "post-install" : [
-		"export ICON_SRC=${FLATPAK_BUILDER_BUILDDIR}/data/icons/hicolor",
-		"export ICON_DST=${FLATPAK_DEST}/share/icons/hicolor",
-		"export FLATPAK_ICON_DST=${FLATPAK_DEST}/share/app-info/icons/flatpak",
-		"export CARGO_TARGET_PATH=${FLATPAK_BUILDER_BUILDDIR}/target/debug",
 	    	"mkdir -p ${ICON_DST}/scalable/apps",
 	    	"mkdir -p ${ICON_DST}/symbolic/apps",
 	    	"install -D ${ICON_SRC}/scalable/apps/${FLATPAK_ID}.svg ${ICON_DST}/scalable/apps",
