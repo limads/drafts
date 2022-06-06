@@ -431,7 +431,7 @@ fn typeset_document_from_cli(ws : &mut Workspace, latex : &str, send : &glib::Se
 
     use std::process::{Command, Stdio};
 
-    let mut cmd = Command::new("/home/diego/Software/papers/target/debug/helper")
+    let mut cmd = Command::new("helper")
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .spawn()

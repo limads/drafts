@@ -103,10 +103,7 @@
 		}
 	    },
 	    "build-commands" : [
-	    	"which cargo",
-	    	"which pkg-config",
-	    	"pkg-config --libs --cflags icu-uc",
-	    	"cargo build --bin helper --manifest-path=${FLATPAK_BUILDER_BUILDDIR}/Cargo.toml --verbose"
+	    	"cargo build --manifest-path=${FLATPAK_BUILDER_BUILDDIR}/Cargo.toml --verbose"
 	    ],
 	    "sources" : [
 		{
