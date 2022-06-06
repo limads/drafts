@@ -5,6 +5,6 @@ Comment=LaTex editor
 Icon=com.github.limads.Papers
 Terminal=false
 Type=Application
-Categories=Productivity;GTK
+Categories=GTK
 StartupNotify=true
 MimeType=application/x-tex

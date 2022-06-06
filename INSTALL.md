@@ -280,4 +280,7 @@ or else the Rust build script of poppler-rs would pull this from the host enviro
     ]
 }
 
-
+"cp -r ${FLATPAK_BUILDER_BUILDDIR}/data/icons/hicolor/scalable/apps ${FLATPAK_DEST}/share/icons/hicolor/scalable/apps",
+"cp -r ${FLATPAK_BUILDER_BUILDDIR}/data/icons/hicolor/symbolic/apps ${FLATPAK_DEST}/share/icons/hicolor/symbolic/apps",
+"cp ${FLATPAK_BUILDER_BUILDDIR}/data/${FLATPAK_ID}.appdata.xml ${FLATPAK_DEST}/share/metainfo",
+"cp ${FLATPAK_BUILDER_BUILDDIR}/data/${FLATPAK_ID}.desktop ${FLATPAK_DEST}/share/applications"
