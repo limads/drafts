@@ -257,14 +257,17 @@ appstream-util validate-relax
 Note PKG_CONFIG_PATH needs to be explicitly set to /app/lib/pkgconfig when building the final module,
 or else the Rust build script of poppler-rs would pull this from the host environment.
 
+Basic meson build:
+
+```
 {
     "name" : "Papers",
     "builddir" : true,
     "buildsystem" : "meson",
     "build-options" : {
-"env": {
-    "PKG_CONFIG_PATH" : "/app/lib:/app/lib/pkgconfig"
-}
+    "env": {
+        "PKG_CONFIG_PATH" : "/app/lib:/app/lib/pkgconfig"
+    }
     },
     "sources" : [
         {
@@ -273,14 +276,47 @@ or else the Rust build script of poppler-rs would pull this from the host enviro
         }
     ],
     "post-install" : [
-    	"cp -r ${FLATPAK_BUILDER_BUILDDIR}/data/${FLATPAK_ID}.desktop ${FLATPAK_DEST}/share/applications",
-	"cp -r ${FLATPAK_BUILDER_BUILDDIR}/data/icons/hicolor/scalable/apps ${FLATPAK_DEST}/share/icons/hicolor/scalable/apps",
-	"cp -r ${FLATPAK_BUILDER_BUILDDIR}/data/icons/hicolor/symbolic/apps ${FLATPAK_DEST}/share/icons/hicolor/symbolic/apps",
-	"cp -r ${FLATPAK_BUILDER_BUILDDIR}/data/${FLATPAK_ID}.appdata.xml ${FLATPAK_DEST}/share/metainfo"
+        "ls ../../.. -R | grep \":$\" | sed -e 's/:$//' -e 's/[^-][^\\/]*\\//──/g' -e 's/─/├/' -e '$s/├/└/'"
     ]
 }
+```
 
 "cp -r ${FLATPAK_BUILDER_BUILDDIR}/data/icons/hicolor/scalable/apps ${FLATPAK_DEST}/share/icons/hicolor/scalable/apps",
 "cp -r ${FLATPAK_BUILDER_BUILDDIR}/data/icons/hicolor/symbolic/apps ${FLATPAK_DEST}/share/icons/hicolor/symbolic/apps",
 "cp ${FLATPAK_BUILDER_BUILDDIR}/data/${FLATPAK_ID}.appdata.xml ${FLATPAK_DEST}/share/metainfo",
 "cp ${FLATPAK_BUILDER_BUILDDIR}/data/${FLATPAK_ID}.desktop ${FLATPAK_DEST}/share/applications"
+
+This simple build works, BUT without icons:
+```
+{
+    "name" : "Papers",
+    "builddir" : true,
+    "buildsystem" : "simple",
+    "build-options" : {
+"env": {
+    "PKG_CONFIG_PATH" : "/app/lib:/app/lib/pkgconfig"
+}
+    },
+    "build-commands" : [
+    	"cargo build --manifest-path=${FLATPAK_BUILDER_BUILDDIR}/Cargo.toml"
+    ],
+    "sources" : [
+        {
+            "type" : "git",
+            "url" : "file:///home/diego/Software/papers"
+        }
+    ],
+    "post-install" : [
+    	"mkdir ${FLATPAK_DEST}/share/icons",
+    	"mkdir ${FLATPAK_DEST}/share/icons/hicolor",
+    	"mkdir ${FLATPAK_DEST}/share/icons/hicolor/scalable",
+    	"mkdir ${FLATPAK_DEST}/share/icons/hicolor/symbolic",
+    	"mkdir ${FLATPAK_DEST}/share/applications",
+    	"mkdir ${FLATPAK_DEST}/share/metainfo",
+    	"cp ${FLATPAK_BUILDER_BUILDDIR}/target/debug/papers ${FLATPAK_DEST}/bin",
+    	"cp ${FLATPAK_BUILDER_BUILDDIR}/target/debug/helper ${FLATPAK_DEST}/bin"
+    ]
+}
+```
+
+

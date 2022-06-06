@@ -90,33 +90,23 @@
         },
 
         {
-            "name" : "Papers",
-            "builddir" : true,
-            "buildsystem" : "simple",
-            "build-options" : {
-		"env": {
-		    "PKG_CONFIG_PATH" : "/app/lib:/app/lib/pkgconfig"
+	    "name" : "Papers",
+	    "builddir" : true,
+	    "buildsystem" : "meson",
+	    "build-options" : {
+	    "env": {
+		"PKG_CONFIG_PATH" : "/app/lib:/app/lib/pkgconfig"
+	    }
+	    },
+	    "sources" : [
+		{
+		    "type" : "git",
+		    "url" : "file:///home/diego/Software/papers"
 		}
-            },
-            "build-commands" : [
-            	"cargo build --manifest-path=${FLATPAK_BUILDER_BUILDDIR}/Cargo.toml"
-            ],
-            "sources" : [
-                {
-                    "type" : "git",
-                    "url" : "file:///home/diego/Software/papers"
-                }
-            ],
-            "post-install" : [
-            	"mkdir ${FLATPAK_DEST}/share/icons",
-            	"mkdir ${FLATPAK_DEST}/share/icons/hicolor",
-            	"mkdir ${FLATPAK_DEST}/share/icons/hicolor/scalable",
-            	"mkdir ${FLATPAK_DEST}/share/icons/hicolor/symbolic",
-            	"mkdir ${FLATPAK_DEST}/share/applications",
-            	"mkdir ${FLATPAK_DEST}/share/metainfo",
-            	"cp ${FLATPAK_BUILDER_BUILDDIR}/target/debug/papers ${FLATPAK_DEST}/bin",
-            	"cp ${FLATPAK_BUILDER_BUILDDIR}/target/debug/helper ${FLATPAK_DEST}/bin"
-            ]
-        }
+	    ],
+	    "post-install" : [
+		"ls ${FLATPAK_DEST}/share -R | grep \":$\" | sed -e 's/:$//' -e 's/[^-][^\\/]*\\//──/g' -e 's/─/├/' -e '$s/├/└/'"
+	    ]
+	}
     ]
 }
