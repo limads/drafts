@@ -104,6 +104,7 @@
 	    },
 	    "build-commands" : [
 	    	"which cargo",
+	    	"which pkg-config",
 	    	"cargo build --manifest-path=${FLATPAK_BUILDER_BUILDDIR}/Cargo.toml"
 	    ],
 	    "sources" : [
