@@ -431,11 +431,32 @@ fn typeset_document_from_cli(ws : &mut Workspace, latex : &str, send : &glib::Se
 
     use std::process::{Command, Stdio};
 
-    let mut cmd = Command::new("helper")
+    /*
+    TODO start helper with the environment variable
+    $TECTONIC_CACHE_DIR=$XDG_DATA_DIR/tectonic after tectonic>0.9
+    */
+
+    let mut res_cmd = Command::new("helper")
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
-        .spawn()
-        .unwrap();
+        .spawn();
+
+    if res_cmd.is_err() {
+        if let Ok(exe_path) = std::env::current_exe() {
+            res_cmd = Command::new(&format!("{}/helper", exe))
+                .stdin(Stdio::piped())
+                .stdout(Stdio::piped())
+                .spawn();
+            if let res_cmd.is_err() {
+                send.send(TypesetterAction::Error(format!("Missing typesetter helper")));
+                return;
+            }
+        } else {
+            send.send(TypesetterAction::Error(format!("Missing typesetter helper")));
+            return;
+        }
+    }
+    let mut cmd = res_cmd.unwrap();
     let mut stdin = cmd.stdin.as_mut().unwrap().write_all(latex.as_bytes()).unwrap();
     match cmd.wait_with_output() {
         Ok(out) => {
