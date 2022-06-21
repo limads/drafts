@@ -8,9 +8,11 @@ pub struct PapersEditor {
     pub scroll : ScrolledWindow,
     pub overlay : libadwaita::ToastOverlay,
     pub paned : Paned,
+    pub sub_paned : Paned,
     pub ignore_file_save_action : gio::SimpleAction,
     pub buf_change_handler : Rc<RefCell<Option<SignalHandlerId>>>,
-    pub curr_toast : Rc<RefCell<Option<libadwaita::Toast>>>
+    pub curr_toast : Rc<RefCell<Option<libadwaita::Toast>>>,
+    pub viewer : PdfViewer
 }
 
 /*
@@ -28,7 +30,12 @@ impl PapersEditor {
         let view = View::new();
         view.set_hexpand(true);
         configure_view(&view);
+
+        // The width request guarantees the text is not wrapped while the
+        // center paned is moved (it is simply hidden for very extreme positions).
+        // The align center guarantees the margins are aligned.
         view.set_width_request(800);
+
         view.set_halign(Align::Center);
         view.set_hexpand(true);
         view.set_margin_top(98);
@@ -44,12 +51,23 @@ impl PapersEditor {
         scroll.set_child(Some(&view));
 
         let overlay = libadwaita::ToastOverlay::builder().opacity(1.0).visible(true).build();
-        overlay.set_child(Some(&scroll));
-        let paned = Paned::new(Orientation::Horizontal);
+
+        let sub_paned = Paned::new(Orientation::Horizontal);
+        let viewer = PdfViewer::new();
+        sub_paned.set_start_child(&scroll);
+        sub_paned.set_end_child(&viewer.scroll);
+        sub_paned.connect_visible_notify(|sub_paned| {
+            let w = sub_paned.parent().unwrap().allocation().width;
+            println!("{}", w);
+            sub_paned.set_position(w);
+        });
+        overlay.set_child(Some(&sub_paned));
+
         let ignore_file_save_action = gio::SimpleAction::new("ignore_file_save", None);
         let curr_toast : Rc<RefCell<Option<libadwaita::Toast>>> = Rc::new(RefCell::new(None));
 
-        Self { scroll, view, overlay, paned, ignore_file_save_action, buf_change_handler : Rc::new(RefCell::new(None)), curr_toast }
+        let paned = Paned::new(Orientation::Horizontal);
+        Self { scroll, view, overlay, paned, sub_paned, ignore_file_save_action, buf_change_handler : Rc::new(RefCell::new(None)), curr_toast, viewer }
     }
 }
 
@@ -270,7 +288,12 @@ impl React<Titlebar> for PapersEditor {
                 paned.set_position(0);
             }
         });
-
+        titlebar.hide_pdf_btn.connect_clicked({
+            let sub_paned = self.sub_paned.clone();
+            move |btn| {
+                sub_paned.set_position(sub_paned.allocation().width);
+            }
+        });
         let view = &self.view;
         let popover = &titlebar.fmt_popover.popover;
 

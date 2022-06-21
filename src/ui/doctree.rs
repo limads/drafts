@@ -2,7 +2,7 @@ use gtk4::*;
 use gtk4::prelude::*;
 use super::*;
 use crate::analyzer::Analyzer;
-use crate::tex::{Difference, Token, Command, Object, ObjectIndex};
+use crate::tex::{Difference, Token, Command, CommandArg, Object, ObjectIndex};
 use gio::prelude::*;
 use crate::tex::Subsection;
 use crate::tex::Section;
@@ -208,7 +208,7 @@ impl React<Analyzer> for DocTree {
                         // Pass Some(iter) to insert relative to this parent
 
                         match Token::from_str(&txt) {
-                            Ok(Token::Command(Command { arg : Some(name), .. }, _)) => {
+                            Ok(Token::Command(Command { arg : Some(CommandArg::Text(name)), .. }, _)) => {
                                 if !name.is_empty() {
                                     let iter = store.insert(None, pos as i32);
                                     store.set(&iter, &[(0, &section_icon), (1, &name)]);
@@ -219,7 +219,7 @@ impl React<Analyzer> for DocTree {
                     },
                     Difference::Edited(pos, txt) => {
                         match Token::from_str(&txt) {
-                            Ok(Token::Command(Command { arg : Some(name), .. }, _)) => {
+                            Ok(Token::Command(Command { arg : Some(CommandArg::Text(name)), .. }, _)) => {
                                 if let Some(iter) = model.iter(&TreePath::from_indices(&[pos as i32])) {
                                     store.set(&iter, &[(0, &section_icon), (1, &name)]);
                                 }

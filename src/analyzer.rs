@@ -2,13 +2,26 @@ use gtk4::*;
 use gtk4::prelude::*;
 use crate::ui::*;
 use crate::tex::*;
-use crate::React;
+use stateful::React;
 use std::ops::Range;
 use std::boxed;
 use crate::Callbacks;
+use std::sync::mpsc;
+use std::fs::File;
+use crate::manager::FileManager;
+use archiver::SingleArchiverImpl;
+use std::io::Read;
+use std::path::Path;
 
 pub enum AnalyzerAction {
+
     TextChanged(String),
+
+    TextInit(String),
+
+    ChangeBaseDir(Option<String>),
+
+    BibChanged(String),
 
     // Item selected from the left sidebar. Calculate char position from byte offset at current
     // document model. Then calculate line from char offset. Propagate line to editor, so the
@@ -35,8 +48,16 @@ pub struct Analyzer {
 
     on_doc_error : Callbacks<TexError>,
 
+    on_ref_file_changed : Callbacks<String>,
+
     on_line_selection : Callbacks<usize>
 
+}
+
+#[derive(Debug, Clone)]
+pub struct BibFile {
+    filename : Option<String>,
+    base_dir : Option<String>
 }
 
 impl Analyzer {
@@ -51,6 +72,7 @@ impl Analyzer {
         let on_doc_cleared : Callbacks<()> = Default::default();
         let on_refs_cleared : Callbacks<()> = Default::default();
         let on_refs_validated : Callbacks<()> = Default::default();
+        let on_ref_file_changed : Callbacks<String> = Default::default();
         // TODO keep an thread watching an external bib file (if any). The user can simply use
         // the embedded bibliography instead.
 
@@ -66,32 +88,113 @@ impl Analyzer {
             let on_doc_error = on_doc_error.clone();
             let on_refs_cleared = on_refs_cleared.clone();
             let on_refs_validated = on_refs_validated.clone();
+            let on_ref_file_changed = on_ref_file_changed.clone();
+
+            let mut bib_file : Option<BibFile> = None;
+            let (bib_send, bib_recv) = mpsc::channel::<Option<BibFile>>();
+            std::thread::spawn({
+                let send = send.clone();
+                move || {
+                    loop {
+                        match bib_recv.recv() {
+                            Ok(Some(bib)) => {
+                                println!("received {:?}", bib);
+                                if let (Some(fname), Some(base_path)) = (bib.filename, bib.base_dir) {
+                                    let path = format!("{}/{}.bib", base_path, fname);
+                                    if Path::new(&path).exists() {
+                                        if let Ok(mut f) = File::open(&path) {
+                                            let mut content = String::new();
+                                            if let Ok(_) = f.read_to_string(&mut content) {
+                                                println!("Bib file read");
+                                                send.send(AnalyzerAction::BibChanged(content));
+                                            } else {
+                                                println!("could not read file");
+                                            }
+                                        } else {
+                                            println!("could not open file");
+                                        }
+                                    } else {
+                                        println!("path {} does not exist", path);
+                                    }
+                                } else {
+                                    println!("No filename or base path available");
+                                }
+                            },
+                            Ok(None) => { },
+                            Err(_) => {
+                                return;
+                            }
+                        }
+                    }
+                }
+            });
+
             move |action| {
                 match action {
-                    AnalyzerAction::TextChanged(new_txt) => {
-                        println!("Text changed");
+                    AnalyzerAction::ChangeBaseDir(opt_path) => {
+                        if let Some(path) = opt_path {
+                            if let Some(parent) = Path::new(&path).parent() {
+                                let parent_path = parent.to_str().unwrap().to_string();
+                                if let Some(bib_file) = bib_file.as_mut() {
+                                    bib_file.base_dir = Some(parent_path);
+                                } else {
+                                    bib_file = Some(BibFile { filename : None, base_dir : Some(parent_path) });
+                                }
+                            } else {
+                                log::warn!("File without valid parent path");
+                            }
+                        }
+                        bib_send.send(bib_file.clone());
+                    },
+
+                    // TextChanged is not triggered when text is
+                    // first added to sourceview because signal is blocked.
+                    // Must know text changes exactly when text is loaded.
+                    AnalyzerAction::TextInit(new_txt) | AnalyzerAction::TextChanged(new_txt) => {
+                        println!("Text init/changed");
                         match Lexer::scan(&new_txt[..]).map(|tks| tks.to_owned() ) {
                             Ok(new_info) => {
 
-                                //for diff in tk_info.compare_tokens(&new_info, Comparison::Sections) {
+                                // for diff in tk_info.compare_tokens(&new_info, Comparison::Sections) {
                                 //    on_section_changed.borrow().iter().for_each(|f| f(diff.clone() ) );
-                                //}
+                                // }
 
-                                if new_info.references().is_empty() {
-                                    on_refs_cleared.borrow().iter().for_each(|f| f(()) );
+                                // Update inline references
+                                /*if new_info.references().is_empty() {
+                                    on_refs_cleared.call(());
                                     println!("References cleared");
                                 } else {
-
                                     // Old tkinfo had empty references, but new one is not empty.
                                     if tk_info.references().is_empty() {
-                                        on_refs_validated.borrow().iter().for_each(|f| f(()) );
+                                        on_refs_validated.call(());
                                         println!("References validated");
                                     }
-
                                     for diff in tk_info.compare_tokens(&new_info, Comparison::References) {
                                         // println!("{:?}", diff);
-                                        on_reference_changed.borrow().iter().for_each(|f| f(diff.clone() ) );
+                                        on_reference_changed.call(diff.clone());
                                         println!("References changed");
+                                    }
+                                }*/
+
+                                // Update external file references
+                                // Tectonic always require that \bibliographystyle{plain} (or other desired style)
+                                // is always present at the document for references to be processed correctly.
+                                for tk in new_info.tokens() {
+                                    match tk {
+                                        Token::Command(Command { cmd : "bibliography", arg : Some(CommandArg::Text(f)), .. }, _) => {
+                                            println!("Bib cmd found");
+                                            if let Some(bib_file) = bib_file.as_mut() {
+                                                bib_file.filename = Some(f.to_string());
+                                                bib_send.send(Some(bib_file.clone()));
+                                            } else {
+                                                bib_file = Some(BibFile {
+                                                    filename : Some(f.to_string()),
+                                                    base_dir : None
+                                                });
+                                                bib_send.send(bib_file.clone());
+                                            }
+                                        },
+                                        _ => { }
                                     }
                                 }
 
@@ -103,7 +206,7 @@ impl Analyzer {
                                         // If the token sequence remains the same, there is no update to
                                         // be processed.
                                         if doc != new_doc || last_err.is_some() {
-                                            on_doc_changed.borrow().iter().for_each(|f| f(new_doc.clone()) );
+                                            on_doc_changed.call(new_doc.clone());
                                         }
 
                                         last_err = None;
@@ -114,8 +217,8 @@ impl Analyzer {
                                         last_err = Some(e.clone());
                                         println!("{}", e);
                                         doc = Document::default();
-                                        on_doc_cleared.borrow().iter().for_each(|f| f(()) );
-                                        on_doc_error.borrow().iter().for_each(|f| f(e.clone()) );
+                                        on_doc_cleared.call(());
+                                        on_doc_error.call(e.clone());
                                     }
                                 }
                             },
@@ -123,8 +226,25 @@ impl Analyzer {
                                 last_err = Some(e.clone());
                                 tk_info = TokenInfo::default();
                                 doc = Document::default();
-                                on_doc_cleared.borrow().iter().for_each(|f| f(()) );
-                                on_doc_error.borrow().iter().for_each(|f| f(e.clone()) );
+                                on_doc_cleared.call(());
+                                on_doc_error.call(e.clone());
+                                println!("{}", e);
+                            }
+                        }
+                    },
+                    AnalyzerAction::BibChanged(txt) => {
+                        // println!("Bib changed");
+                        match BibParser::parse(&txt[..]) {
+                            Ok(refs) =>  {
+                                on_refs_cleared.call(());
+                                let n = refs.as_ref().len();
+                                // println!("{} refs available", n);
+                                for (ix, r) in refs.as_ref().iter().enumerate() {
+                                    // println!("{}", r.to_string());
+                                    on_reference_changed.call(Difference::Added(ix, r.to_string()));
+                                }
+                            },
+                            Err(e) => {
                                 println!("{}", e);
                             }
                         }
@@ -136,7 +256,7 @@ impl Analyzer {
                             let lines_before = tk_info.txt[..tk_info.pos[tk_ix].start].chars().filter(|c| *c == '\n').count();
 
                             // Add one because we want one past the last line, add +1 because lines count from 1, not zero.
-                            on_line_selection.borrow().iter().for_each(|f| f(lines_before) );
+                            on_line_selection.call(lines_before);
                             // println!("Token {} at line {}", tk_ix, lines_before);
                         } else {
                             println!("No token at document index {:?}", sel_ixs);
@@ -146,63 +266,74 @@ impl Analyzer {
                 Continue(true)
             }
         });
-        Self { send, on_reference_changed, on_section_changed, on_doc_changed, on_line_selection, on_doc_cleared, on_doc_error, on_refs_cleared, on_refs_validated }
+        Self {
+            send,
+            on_reference_changed,
+            on_section_changed,
+            on_doc_changed,
+            on_line_selection,
+            on_doc_cleared,
+            on_doc_error,
+            on_refs_cleared,
+            on_ref_file_changed,
+            on_refs_validated
+        }
     }
 
     pub fn connect_section_changed<F>(&self, f : F)
     where
         F : Fn(Difference) + 'static
     {
-        self.on_section_changed.borrow_mut().push(boxed::Box::new(f));
+        self.on_section_changed.bind(f);
     }
 
     pub fn connect_reference_changed<F>(&self, f : F)
     where
         F : Fn(Difference) + 'static
     {
-        self.on_reference_changed.borrow_mut().push(boxed::Box::new(f));
+        self.on_reference_changed.bind(f);
     }
 
     pub fn connect_doc_changed<F>(&self, f : F)
     where
         F : Fn(Document) + 'static
     {
-        self.on_doc_changed.borrow_mut().push(boxed::Box::new(f));
+        self.on_doc_changed.bind(f);
     }
 
     pub fn connect_doc_cleared<F>(&self, f : F)
     where
         F : Fn(()) + 'static
     {
-        self.on_doc_cleared.borrow_mut().push(boxed::Box::new(f));
+        self.on_doc_cleared.bind(f);
     }
 
     pub fn connect_references_cleared<F>(&self, f : F)
     where
         F : Fn(()) + 'static
     {
-        self.on_refs_cleared.borrow_mut().push(boxed::Box::new(f));
+        self.on_refs_cleared.bind(f);
     }
 
     pub fn connect_references_validated<F>(&self, f : F)
     where
         F : Fn(()) + 'static
     {
-        self.on_refs_validated.borrow_mut().push(boxed::Box::new(f));
+        self.on_refs_validated.bind(f);
     }
 
     pub fn connect_doc_error<F>(&self, f : F)
     where
         F : Fn(TexError) + 'static
     {
-        self.on_doc_error.borrow_mut().push(boxed::Box::new(f));
+        self.on_doc_error.bind(f);
     }
 
     pub fn connect_line_selection<F>(&self, f : F)
     where
         F : Fn(usize) + 'static
     {
-        self.on_line_selection.borrow_mut().push(boxed::Box::new(f));
+        self.on_line_selection.bind(f);
     }
 
 }
@@ -213,6 +344,33 @@ let h = Hunspell::new(affpath, dictpath);  path to the .aff file; path to the .d
 h.check(word)
 h.suggest(word)
 */
+
+impl React<FileManager> for Analyzer {
+
+    fn react(&self, manager : &FileManager) {
+        let send = self.send.clone();
+        manager.connect_save({
+            move |path| {
+                send.send(AnalyzerAction::ChangeBaseDir(Some(path.into())));
+            }
+        });
+        manager.connect_opened({
+            let send = self.send.clone();
+            move |(path, content)| {
+                send.send(AnalyzerAction::ChangeBaseDir(Some(path.into())));
+                send.send(AnalyzerAction::TextInit(content));
+            }
+        });
+        manager.connect_new({
+            let send = self.send.clone();
+            move |_| {
+                send.send(AnalyzerAction::ChangeBaseDir(None));
+                send.send(AnalyzerAction::TextInit(String::new()));
+            }
+        });
+    }
+
+}
 
 impl React<DocTree> for Analyzer  {
 

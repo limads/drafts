@@ -19,6 +19,11 @@ use std::fmt;
 use tectonic::driver;
 use tectonic::config;
 use tectonic::status;
+use stateful::{Callbacks, ValuedCallbacks};
+use stateful::React;
+use std::path::{Path, PathBuf};
+use crate::manager::FileManager;
+use archiver::SingleArchiverImpl;
 
 #[derive(Debug, Clone)]
 pub enum TypesetterTarget {
@@ -34,12 +39,24 @@ pub enum TypesetterTarget {
 
 }
 
+impl Default for TypesetterTarget {
+
+    fn default() -> Self {
+        Self::PDFContent(Vec::new())
+    }
+
+}
+
 pub enum TypesetterAction {
 
     // Carries content to be typeset.
     Request(String),
 
     Done(TypesetterTarget),
+
+    // Sets a new basedir (to search for images, references, etc) as the
+    // current file dir.
+    ChangeBaseDir(Option<PathBuf>),
 
     Error(String)
 
@@ -282,6 +299,8 @@ pub fn typeset_document<T: AsRef<str>>(latex: T) -> tectonic::Result<Vec<u8>> {
     }
 }*/
 
+const URI_BUNDLE : &'static str = "https://relay.fullyjustified.net/default_bundle.tar";
+
 /*
 Here is an issue: If we call gtk::init(), any calls to Session::run
 Will generate the error: CFF: Parsing CFF DICT failed. (error=-1) for some
@@ -290,7 +309,7 @@ gtk::init() is not called. Perhaps glib and tectonic rely on static variables wi
 the same name. Perhaps gtk mess with tectonic launching external CLI tools.
 For whatever reason, tectonic and GTK cannot live in the same process.
 */
-pub fn typeset_document(latex : &str, /*ws : &mut Workspace*/ ) -> Result<Vec<u8>, String> {
+pub fn typeset_document(latex : &str, base_path : &Path, out_path : &Path) -> Result<Vec<u8>, String> {
 
     let mut status = PapersStatusBackend{ errors : String::new(), notes : String::new(), warnings : String::new() };
     // let mut status = tectonic::status::plain::PlainStatusBackend::new(tectonic::status::ChatterLevel::Normal);
@@ -303,7 +322,7 @@ pub fn typeset_document(latex : &str, /*ws : &mut Workspace*/ ) -> Result<Vec<u8
     let only_cached_bundle = false;
     //let mut default_bundle = config.default_bundle(only_cached_bundle, &mut status)
     //    .map_err(|e| format!("Error opening default bundle: {:#}", e) )?;
-    let uri_bundle = config.make_cached_url_provider("https://relay.fullyjustified.net/default_bundle.tar", only_cached_bundle, None, &mut status)
+    let uri_bundle = config.make_cached_url_provider(URI_BUNDLE, only_cached_bundle, None, &mut status)
         .map_err(|e| format!("Error opening URI bundle: {:#}", e) )?;
 
     // Pass a custom bundle path with (path is passed as a CLI option):
@@ -326,11 +345,14 @@ pub fn typeset_document(latex : &str, /*ws : &mut Workspace*/ ) -> Result<Vec<u8
         ..Default::default()
     };*/
 
+    println!("Using {:?} as base path", base_path.to_str().unwrap());
+
     let mut files = {
         let mut sb = driver::ProcessingSessionBuilder::default();
         // let mut sb = driver::ProcessingSessionBuilder::new_with_security(SecuritySettings::new(SecurityStance::DisableInsecures));
         sb
             .bundle(uri_bundle)
+            .filesystem_root(base_path)
             // .bundle(default_bundle)
             // .bundle(local_bundle)
 
@@ -339,15 +361,15 @@ pub fn typeset_document(latex : &str, /*ws : &mut Workspace*/ ) -> Result<Vec<u8
             // Overrides primary_input_path and stdin options.
             .primary_input_buffer(latex.as_bytes())
             //.primary_input_path(ws.file.path())
-            //.primary_input_path("/home/diego/Downloads/test.tex")
+            // .primary_input_path("/home/diego/Downloads/test.tex")
             //.primary_input_buffer(b"\\documentclass[a4,11pt]{article} \\usepackage{inputenc} \\begin{document}Text\\end{document}")
 
             // Required, or else SessionBuilder panics. This defines the output pdf name
             // by looking at the file stem.
             .tex_input_name("texput.tex")
 
-            //.output_dir(&ws.outdir)
-            .output_dir("/home/diego/Downloads")
+            .output_dir(out_path)
+            //.output_dir("/home/diego/Downloads")
 
             // A file called latex.fmt will be created if it does not exist yet.
             .format_name("latex")
@@ -366,7 +388,9 @@ pub fn typeset_document(latex : &str, /*ws : &mut Workspace*/ ) -> Result<Vec<u8
             //.print_stdout(true)
             .output_format(driver::OutputFormat::Pdf);
             //.do_not_write_output_files();
+
         let mut sess = sb.create(&mut status).map_err(|e| format!("Error creating session builder: {:#}", e) )?;
+        // println!("{:?}", sess);
         match sess.run(&mut status) {
             Ok(_) => { },
             Err(e) => {
@@ -406,7 +430,7 @@ pub fn typeset_document(latex : &str, /*ws : &mut Workspace*/ ) -> Result<Vec<u8
     }*/
 }
 
-fn typeset_document_from_cli(ws : &mut Workspace, latex : &str, send : &glib::Sender<TypesetterAction>) {
+fn typeset_document_from_cli(ws : &mut Workspace, latex : &str, base_path : Option<&Path>, send : &glib::Sender<TypesetterAction>) {
     /*ws.file.seek(std::io::SeekFrom::Start(0));
     ws.file.write_all(latex.as_bytes()).unwrap();
     let out = Command::new("tectonic")
@@ -436,18 +460,25 @@ fn typeset_document_from_cli(ws : &mut Workspace, latex : &str, send : &glib::Se
     $TECTONIC_CACHE_DIR=$XDG_DATA_DIR/tectonic after tectonic>0.9
     */
 
+    let bp = base_path.unwrap_or(ws.outdir.path());
+    let args = ["-p", bp.to_str().unwrap(), "-o", ws.outdir.path().to_str().unwrap()];
+
+    println!("Using {:?} as base path", bp.to_str().unwrap());
+
     let mut res_cmd = Command::new("helper")
+        .args(&args)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .spawn();
 
     if res_cmd.is_err() {
         if let Ok(exe_path) = std::env::current_exe() {
-            res_cmd = Command::new(&format!("{}/helper", exe))
+            res_cmd = Command::new(&format!("{}/helper", exe_path.to_str().unwrap()))
+                .args(&args)
                 .stdin(Stdio::piped())
                 .stdout(Stdio::piped())
                 .spawn();
-            if let res_cmd.is_err() {
+            if res_cmd.is_err() {
                 send.send(TypesetterAction::Error(format!("Missing typesetter helper")));
                 return;
             }
@@ -475,10 +506,11 @@ fn typeset_document_from_cli(ws : &mut Workspace, latex : &str, send : &glib::Se
     }
 }
 
-fn typeset_document_from_lib(ws : &mut Workspace, latex : &str, send : &glib::Sender<TypesetterAction>) {
+fn typeset_document_from_lib(ws : &mut Workspace, latex : &str, base_path : Option<&Path>, send : &glib::Sender<TypesetterAction>) {
 
     println!("Processing: {}", latex);
-    match typeset_document(&latex[..]) {
+    let bp = base_path.unwrap_or(ws.outdir.path());
+    match typeset_document(&latex[..], bp.as_ref(), ws.outdir.path()) {
         Ok(pdf_bytes) => {
             let out_path = format!("{}/out.pdf", &ws.outdir.path().display());
             match File::create(&out_path) {
@@ -508,13 +540,21 @@ On a first run, tectonic will download a **lot** of packages into
 ~/.cache/Tectonic
 */
 
+pub struct TypesettingRequest {
+
+    content : String,
+
+    base_path : Option<PathBuf>
+
+}
+
 impl Typesetter {
 
     pub fn new() -> Self {
         let (send, recv) = glib::MainContext::channel::<TypesetterAction>(glib::PRIORITY_DEFAULT);
         let on_done : Callbacks<TypesetterTarget> = Default::default();
         let on_error : Callbacks<String> = Default::default();
-        let (content_send, content_recv) = mpsc::channel::<String>();
+        let (content_send, content_recv) = mpsc::channel::<TypesettingRequest>();
 
         thread::spawn({
             let send = send.clone();
@@ -523,9 +563,9 @@ impl Typesetter {
                 println!("Outdir: {}", ws.outdir.path().display());
                 loop {
                     match content_recv.recv() {
-                        Ok(content) => {
+                        Ok(TypesettingRequest { content, base_path }) => {
                             // typeset_document_from_lib(&mut ws, &content, &send);
-                            typeset_document_from_cli(&mut ws, &content, &send)
+                            typeset_document_from_cli(&mut ws, &content, base_path.as_ref().map(|p| p.as_path() ), &send)
                         },
                         _ => { }
                     }
@@ -533,6 +573,7 @@ impl Typesetter {
             }
         });
 
+        let mut base_path : Option<PathBuf> = None;
         recv.attach(None, {
             let send = send.clone();
             let on_done = on_done.clone();
@@ -540,13 +581,25 @@ impl Typesetter {
             move |action| {
                 match action {
                     TypesetterAction::Request(txt) => {
-                        content_send.send(txt);
+                        println!("Base path: {:?}", base_path.clone());
+                        content_send.send(TypesettingRequest { content : txt, base_path : base_path.clone() });
                     },
                     TypesetterAction::Done(target) => {
-                        on_done.borrow().iter().for_each(|f| f(target.clone()) );
+                        on_done.call(target.clone());
                     },
                     TypesetterAction::Error(e) => {
-                        on_error.borrow().iter().for_each(|f| f(e.clone()) );
+                        on_error.call(e.clone());
+                    },
+                    TypesetterAction::ChangeBaseDir(opt_path) => {
+                        if let Some(path) = opt_path {
+                            if let Some(parent) = Path::new(&path).parent() {
+                                base_path = Some(parent.to_owned());
+                            } else {
+                                log::warn!("File without valid parent path");
+                            }
+                        } else {
+                            base_path = None;
+                        }
                     }
                 }
                 Continue(true)
@@ -560,21 +613,22 @@ impl Typesetter {
     where
         F : Fn(TypesetterTarget) + 'static
     {
-        self.on_done.borrow_mut().push(boxed::Box::new(f));
+        self.on_done.bind(f);
     }
 
     pub fn connect_error<F>(&self, f : F)
     where
         F : Fn(String) + 'static
     {
-        self.on_error.borrow_mut().push(boxed::Box::new(f));
+        self.on_error.bind(f);
     }
 
 }
 
-impl React<(Titlebar, PapersEditor)> for Typesetter {
+impl React<PapersWindow> for Typesetter {
 
-    fn react(&self, (titlebar, editor) : &(Titlebar, PapersEditor)) {
+    fn react(&self, win : &PapersWindow) {
+        let (titlebar, editor) = (&win.titlebar, &win.editor);
         let send = self.send.clone();
         titlebar.pdf_btn.connect_clicked({
             let view = editor.view.clone();
@@ -603,3 +657,30 @@ impl React<(Titlebar, PapersEditor)> for Typesetter {
         });
     }
 }
+
+impl React<FileManager> for Typesetter {
+
+    fn react(&self, manager : &FileManager) {
+        let send = self.send.clone();
+        manager.connect_save({
+            move |path| {
+                send.send(TypesetterAction::ChangeBaseDir(Some(path.into())));
+            }
+        });
+        manager.connect_opened({
+            let send = self.send.clone();
+            move |(path, _)| {
+                send.send(TypesetterAction::ChangeBaseDir(Some(path.into())));
+            }
+        });
+        manager.connect_new({
+            let send = self.send.clone();
+            move |_| {
+                send.send(TypesetterAction::ChangeBaseDir(None));
+            }
+        });
+    }
+
+}
+
+

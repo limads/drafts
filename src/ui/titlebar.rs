@@ -2,26 +2,8 @@ use super::*;
 use crate::analyzer::Analyzer;
 use crate::tex::{Difference, BibEntry};
 use crate::tex::Token;
+use archiver::FileActions;
 
-#[derive(Debug, Clone)]
-pub struct FileActions {
-    pub new : gio::SimpleAction,
-    pub open : gio::SimpleAction,
-    pub save : gio::SimpleAction,
-    pub save_as : gio::SimpleAction
-}
-
-impl FileActions {
-
-    pub fn new() -> Self {
-        let new = gio::SimpleAction::new("new_file", None);
-        let open = gio::SimpleAction::new("open_file", None);
-        let save = gio::SimpleAction::new("save_file", None);
-        let save_as = gio::SimpleAction::new("save_as_file", None);
-        Self { new, open, save, save_as }
-    }
-
-}
 
 #[derive(Debug, Clone)]
 pub struct MainMenu {
@@ -65,7 +47,12 @@ pub struct Titlebar {
     pub fmt_popover : FormatPopover,
     pub bib_popover : BibPopover,
     pub symbol_btn : MenuButton,
-    pub paper_popover : PaperPopover
+    pub paper_popover : PaperPopover,
+    pub zoom_in_btn : Button,
+    pub zoom_out_btn : Button,
+    pub zoom_action : gio::SimpleAction,
+    pub hide_pdf_btn : Button,
+    pub export_pdf_btn : Button
 }
 
 #[derive(Debug, Clone)]
@@ -761,6 +748,10 @@ impl PaperPopover {
 
 }
 
+const DEFAULT_ZOOM_SCALE : f64 = 1.5;
+
+const ZOOM_SCALE_INCREMENT : f64 = 0.5;
+
 impl Titlebar {
 
     pub fn build() -> Self {
@@ -768,7 +759,11 @@ impl Titlebar {
         let menu_button = MenuButton::builder().icon_name("open-menu-symbolic").build();
 
         let pdf_btn = Button::builder().icon_name("evince-symbolic").build();
+        let hide_pdf_btn = Button::builder().icon_name("user-trash-symbolic").build();
+        let export_pdf_btn = Button::builder().icon_name("folder-download-symbolic").build();
         let sidebar_toggle = ToggleButton::builder().icon_name("view-sidebar-symbolic").build();
+        hide_pdf_btn.set_sensitive(false);
+        export_pdf_btn.set_sensitive(false);
 
         // \noindent - inline command that applies to current paragarph
         // \setlength{\parindent}{20pt} - At document config.
@@ -842,10 +837,6 @@ impl Titlebar {
 
         // TODO make this another option at a SpinButton.
         // let web_btn = ToggleButton::builder().icon_name("globe-symbolic").build();
-
-        header.pack_end(&menu_button);
-        header.pack_end(&pdf_btn);
-        // header.pack_end(&web_btn);
 
         let sidebar_hide_action = gio::SimpleAction::new_stateful("sidebar_hide", None, &(0).to_variant());
         let main_menu = MainMenu::build();
@@ -921,6 +912,17 @@ impl Titlebar {
         org_btn.set_icon_name("format-unordered-list-symbolic");
         org_btn.set_popover(Some(&org_popover));
 
+        let zoom_bx = Box::new(Orientation::Horizontal, 0);
+        let zoom_in_btn = Button::new();
+        let zoom_out_btn = Button::new();
+        zoom_in_btn.set_sensitive(false);
+        zoom_out_btn.set_sensitive(false);
+        zoom_in_btn.set_icon_name("zoom-in-symbolic");
+        zoom_out_btn.set_icon_name("zoom-out-symbolic");
+        zoom_bx.style_context().add_class("linked");
+        zoom_bx.append(&zoom_in_btn);
+        zoom_bx.append(&zoom_out_btn);
+
         header.pack_start(&sidebar_toggle);
         header.pack_start(&org_btn);
         header.pack_start(&page_btn);
@@ -928,6 +930,76 @@ impl Titlebar {
         header.pack_start(&symbol_btn);
         header.pack_start(&add_btn);
         header.pack_start(&bib_btn);
+
+        header.pack_end(&menu_button);
+        header.pack_end(&pdf_btn);
+        header.pack_end(&export_pdf_btn);
+        header.pack_end(&hide_pdf_btn);
+        header.pack_end(&zoom_bx);
+
+        hide_pdf_btn.connect_clicked({
+            let zoom_in_btn = zoom_in_btn.clone();
+            let zoom_out_btn = zoom_out_btn.clone();
+            let export_pdf_btn = export_pdf_btn.clone();
+            move |_| {
+                export_pdf_btn.set_sensitive(false);
+                zoom_in_btn.set_sensitive(false);
+                zoom_out_btn.set_sensitive(false);
+            }
+        });
+
+        // let zoom = Rc::new(RefCell::new(DEFAULT_SCALE));
+        let zoom_action = gio::SimpleAction::new_stateful("zoom_change", None, &(DEFAULT_ZOOM_SCALE).to_variant());
+        let das : Rc<RefCell<Vec<DrawingArea>>> = Rc::new(RefCell::new(Vec::new()));
+        zoom_in_btn.connect_clicked({
+            // let zoom = zoom.clone();
+            // let das = das.clone();
+            let zoom_out_btn = zoom_out_btn.clone();
+            let zoom_action = zoom_action.clone();
+            // let bx = bx.clone();
+            move |btn| {
+                let mut z : f64 = zoom_action.state().unwrap().get::<f64>().unwrap();
+                if z <= 5.0 {
+                    z += ZOOM_SCALE_INCREMENT;
+                    if z == 5.0 {
+                        btn.set_sensitive(false);
+                    }
+                    if z > 1.0 {
+                        zoom_out_btn.set_sensitive(true);
+                    }
+                } else {
+                    btn.set_sensitive(false);
+                }
+                zoom_action.set_state(&z.to_variant());
+                zoom_action.activate(None);
+            }
+        });
+        zoom_out_btn.connect_clicked({
+            // let zoom = zoom.clone();
+            // let das = das.clone();
+            let zoom_in_btn = zoom_in_btn.clone();
+            let zoom_action = zoom_action.clone();
+            // let bx = bx.clone();
+            move |btn| {
+                let mut z : f64 = zoom_action.state().unwrap().get::<f64>().unwrap();
+                if z > 1.0 {
+                    z -= ZOOM_SCALE_INCREMENT;
+                    if z == 1.0 {
+                        btn.set_sensitive(false);
+                    }
+                    if z > 1.0 {
+                        btn.set_sensitive(true);
+                    }
+                    if z < 5.0 {
+                        zoom_in_btn.set_sensitive(true);
+                    }
+                } else {
+                    btn.set_sensitive(false);
+                }
+                zoom_action.set_state(&z.to_variant());
+                zoom_action.activate(None);
+            }
+        });
 
         Self {
             symbol_btn,
@@ -945,7 +1017,12 @@ impl Titlebar {
             indexing_actions : IndexingActions::build(),
             meta_actions : MetaActions::build(),
             fmt_popover,
-            paper_popover
+            paper_popover,
+            zoom_in_btn,
+            zoom_out_btn,
+            zoom_action,
+            hide_pdf_btn,
+            export_pdf_btn
         }
     }
 }

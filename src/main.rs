@@ -1,11 +1,13 @@
 use gtk4::*;
 use gtk4::prelude::*;
 use papers::manager::*;
-use papers::React;
 use papers::typesetter::Typesetter;
 use papers::ui::*;
 use papers::analyzer::Analyzer;
 use gtk4::gio;
+use stateful::React;
+use stateful::PersistentState;
+use papers::state::PapersState;
 
 // flatpak remote-add --if-not-exists gnome-nightly https://nightly.gnome.org/gnome-nightly.flatpakrepo
 // flatpak install gnome-nightly org.gnome.Sdk master
@@ -28,6 +30,9 @@ fn main() {
         .application_id(papers::APP_ID)
         .build();
 
+    systemd_journal_logger::init();
+    log::set_max_level(log::LevelFilter::Info);
+
     let bytes = glib::Bytes::from_static(include_bytes!(concat!(env!("OUT_DIR"), "/", "compiled.gresource")));
     let resource = gio::Resource::from_data(&bytes).unwrap();
     gio::resources_register(&resource);
@@ -48,6 +53,14 @@ fn main() {
             panic!()
         }
     }
+
+    let user_state = if let Some(mut path) = archiver::get_datadir(papers::APP_ID) {
+        path.push(papers::SETTINGS_FILE);
+        PapersState::recover(&path.to_str().unwrap()).unwrap_or_default()
+    } else {
+        log::warn!("Unable to get datadir for state recovery");
+        PapersState::default()
+    };
 
     if let Some(display) = gdk::Display::default() {
         if let Some(theme) = IconTheme::for_display(&display) {
@@ -82,6 +95,7 @@ fn main() {
     }
 
     application.connect_activate({
+        let user_state = user_state.clone();
         move |app| {
             let window = ApplicationWindow::builder()
                 .application(app)
@@ -95,8 +109,11 @@ fn main() {
             // println!("{:?}", String::from_utf8(icon.as_ref().to_owned()).unwrap());
 
             let papers_win = PapersWindow::from(window);
+            let s = { user_state.borrow().window.width };
+            papers_win.editor.sub_paned.set_position(s);
 
             papers_win.react(&papers_win.start_screen);
+            user_state.react(&papers_win);
 
             let manager = FileManager::new();
             manager.react(&papers_win.titlebar.main_menu.open_dialog);
@@ -109,16 +126,19 @@ fn main() {
             papers_win.titlebar.main_menu.open_dialog.react(&manager);
 
             let typesetter = Typesetter::new();
-            typesetter.react(&(papers_win.titlebar.clone(), papers_win.editor.clone()));
+            typesetter.react(&papers_win);
+            typesetter.react(&manager);
+
             papers_win.titlebar.react(&typesetter);
             papers_win.editor.react(&typesetter);
-
+            papers_win.editor.viewer.react(&papers_win.titlebar);
             papers_win.editor.react(&manager);
             papers_win.react(&manager);
 
             let analyzer = Analyzer::new();
             analyzer.react(&papers_win.editor);
             analyzer.react(&papers_win.doc_tree);
+            analyzer.react(&manager);
 
             papers_win.titlebar.bib_popover.react(&analyzer);
             papers_win.doc_tree.react(&analyzer);
@@ -133,6 +153,13 @@ fn main() {
     // application.connect_window_removed()
 
     application.run();
+
+    if let Some(mut path) = archiver::get_datadir(papers::APP_ID) {
+        path.push(papers::SETTINGS_FILE);
+        user_state.persist(&path.to_str().unwrap());
+    } else {
+        log::warn!("Unable to get datadir for state persistence");
+    }
 }
 
 

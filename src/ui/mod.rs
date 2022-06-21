@@ -1,6 +1,6 @@
 use gtk4::*;
 use gtk4::prelude::*;
-use super::React;
+use stateful::React;
 use sourceview5::*;
 use sourceview5::prelude::ViewExt;
 use sourceview5::prelude::BufferExt;
@@ -14,6 +14,8 @@ use gio::prelude::*;
 use glib::{types::Type, value::{Value, ToValue}};
 use gdk_pixbuf::Pixbuf;
 use std::path::Path;
+use archiver::SingleArchiverImpl;
+use archiver::{OpenDialog, SaveDialog};
 
 mod doctree;
 
@@ -540,6 +542,7 @@ impl PapersWindow {
         window.add_action(&titlebar.main_menu.actions.save_as);
 
         window.add_action(&titlebar.sidebar_hide_action);
+        window.add_action(&titlebar.zoom_action);
         window.add_action(&editor.ignore_file_save_action);
 
         let stack = Stack::new();
@@ -554,7 +557,7 @@ impl PapersWindow {
 
         let symbol_dialog = Dialog::new();
         symbol_dialog.set_title(Some("Symbols"));
-        configure_dialog(&symbol_dialog);
+        archiver::configure_dialog(&symbol_dialog);
         symbol_dialog.set_transient_for(Some(&window));
 
         let symbol_popover = SymbolPopover::build(&editor);
@@ -580,55 +583,10 @@ impl PapersWindow {
 
 }
 
-pub fn connect_manager_with_window(
-    manager : &FileManager,
-    window : &ApplicationWindow,
-    actions : &FileActions,
-    extension : &'static str
-) {
-    let win = window.clone();
-    manager.connect_window_close(move |_| {
-        win.destroy();
-    });
-    manager.connect_opened({
-        let action_save = actions.save.clone();
-        let action_save_as = actions.save_as.clone();
-        let window = window.clone();
-        move |(path, _)| {
-            action_save.set_enabled(true);
-            action_save_as.set_enabled(true);
-            window.set_title(Some(&path));
-        }
-    });
-    manager.connect_open_request({
-        let open_action = actions.open.clone();
-        move |_| {
-            open_action.activate(None);
-        }
-    });
-    manager.connect_save({
-        let window = window.clone();
-        move |path| {
-            window.set_title(Some(&path));
-        }
-    });
-    manager.connect_file_changed({
-        let window = window.clone();
-        move |opt_path| {
-            if let Some(path) = opt_path {
-                window.set_title(Some(&format!("{}*", path)));
-            } else {
-                window.set_title(Some(&format!("Untitled.{}*", extension)));
-            }
-        }
-    });
-}
-
-
 impl React<FileManager> for PapersWindow {
 
     fn react(&self, manager : &FileManager) {
-        connect_manager_with_window(manager, &self.window, &self.titlebar.main_menu.actions, "tex");
+        archiver::connect_manager_with_app_window_and_actions(manager, &self.window, &self.titlebar.main_menu.actions, "tex");
         manager.connect_new({
             let window = self.window.clone();
             let action_save = self.titlebar.main_menu.actions.save.clone();
@@ -656,38 +614,6 @@ impl React<FileManager> for PapersWindow {
 
 }
 
-#[derive(Debug, Clone)]
-pub struct SaveDialog {
-    pub dialog : FileChooserDialog
-}
-
-impl SaveDialog {
-
-    pub fn build() -> Self {
-        let dialog = FileChooserDialog::new(
-            Some("Save file"),
-            None::<&Window>,
-            FileChooserAction::Save,
-            &[("Cancel", ResponseType::None), ("Save", ResponseType::Accept)]
-        );
-        dialog.connect_response(move |dialog, resp| {
-            match resp {
-                ResponseType::Close | ResponseType::Reject | ResponseType::Accept | ResponseType::Yes |
-                ResponseType::No | ResponseType::None | ResponseType::DeleteEvent => {
-                    dialog.close();
-                },
-                _ => { }
-            }
-        });
-        configure_dialog(&dialog);
-        let filter = FileFilter::new();
-        filter.add_pattern("*.tex");
-        dialog.set_filter(&filter);
-        Self { dialog }
-    }
-
-}
-
 impl React<MainMenu> for SaveDialog {
 
     fn react(&self, menu : &MainMenu) {
@@ -697,74 +623,6 @@ impl React<MainMenu> for SaveDialog {
         });
     }
 
-}
-
-impl React<FileManager> for SaveDialog {
-
-    fn react(&self, manager : &FileManager) {
-        let dialog = self.dialog.clone();
-        manager.connect_save_unknown_path(move |path| {
-            // let _ = dialog.set_file(&gio::File::for_path(path));
-            dialog.show();
-        });
-        // let dialog = self.dialog.clone();
-        /*scripts.connect_path_changed(move |opt_file| {
-            if let Some(path) = opt_file.and_then(|f| f.path.clone() ) {
-                let _ = dialog.set_file(&gio::File::for_path(&path));
-            }
-        });*/
-    }
-
-}
-
-#[derive(Debug, Clone)]
-pub struct OpenDialog {
-    pub dialog : FileChooserDialog
-}
-
-impl OpenDialog {
-
-    pub fn build(pattern : &str) -> Self {
-        let dialog = FileChooserDialog::new(
-            Some("Open file"),
-            None::<&Window>,
-            FileChooserAction::Open,
-            &[("Cancel", ResponseType::None), ("Open", ResponseType::Accept)]
-        );
-        dialog.connect_response(move |dialog, resp| {
-            match resp {
-                ResponseType::Reject | ResponseType::Accept | ResponseType::Yes | ResponseType::No |
-                ResponseType::None | ResponseType::DeleteEvent => {
-                    dialog.close();
-                },
-                _ => { }
-            }
-        });
-        configure_dialog(&dialog);
-        let filter = FileFilter::new();
-        filter.add_pattern(pattern);
-        dialog.set_filter(&filter);
-        Self { dialog }
-    }
-
-}
-
-impl React<FileManager> for OpenDialog {
-
-    fn react(&self, manager : &FileManager) {
-        let dialog = self.dialog.clone();
-        manager.connect_show_open(move |_| {
-            dialog.show();
-        });
-    }
-
-}
-
-pub fn configure_dialog(dialog : &impl GtkWindowExt) {
-    dialog.set_modal(true);
-    dialog.set_deletable(true);
-    dialog.set_destroy_with_parent(true);
-    dialog.set_hide_on_close(true);
 }
 
 #[derive(Debug, Clone)]
@@ -911,27 +769,30 @@ const LEGAL : (f64, f64) = (215.9, 355.6);
 
 // const PX_PER_MM : f64 = 3.0;
 
-const DEFAULT_SCALE : f64 = 1.5;
-
-const SCALE_INCREMENT : f64 = 0.5;
-
 impl React<Typesetter> for PapersWindow {
 
     fn react(&self, typesetter : &Typesetter) {
         let win = self.window.clone();
+        let editor = self.editor.clone();
+        let titlebar = self.titlebar.clone();
         typesetter.connect_done(move |target| {
             match target {
                 TypesetterTarget::File(path) => {
 
                     // #[cfg(feature="poppler-rs")]
                     // {
-                    show_with_poppler(&win, &path[..]);
+                    show_with_poppler(&editor.viewer, &titlebar.zoom_action, &win, &path[..]);
                     println!("Showing with poppler");
-                    return;
                     // }
 
                     // println!("Not showing with poppler");
                     // show_with_evince(&path);
+
+                    editor.sub_paned.set_position(editor.sub_paned.allocation().width / 2);
+                    titlebar.zoom_in_btn.set_sensitive(true);
+                    titlebar.zoom_out_btn.set_sensitive(true);
+                    titlebar.export_pdf_btn.set_sensitive(true);
+                    titlebar.hide_pdf_btn.set_sensitive(true);
                 },
                 _ => {
 
@@ -952,141 +813,184 @@ fn show_with_evince(path : &str) {
         .unwrap();
 }
 
-// #[cfg(feature="poppler")]
-fn show_with_poppler(win : &ApplicationWindow, path : &str) {
+#[derive(Debug, Clone)]
+pub struct PdfViewer {
+    scroll : ScrolledWindow,
+    pages_bx : Box,
+    das : Rc<RefCell<Vec<DrawingArea>>>,
+    doc : Rc<RefCell<Option<poppler::Document>>>
+}
 
-    let doc = poppler::Document::from_file(&format!("file://{}", path), None).unwrap();
-
-    let dialog = Dialog::new();
-    dialog.set_default_width(1024);
-    dialog.set_default_height(768);
-    dialog.set_transient_for(Some(win));
-
-    let scroll = ScrolledWindow::new();
-    let bx = Box::new(Orientation::Vertical, 12);
-    scroll.set_child(Some(&bx));
-    dialog.set_child(Some(&scroll));
-    set_margins(&bx, 32, 32);
-
-    let header = HeaderBar::new();
-    let zoom_bx = Box::new(Orientation::Horizontal, 0);
-    let zoom_in_btn = Button::new();
-    let zoom_out_btn = Button::new();
-    zoom_out_btn.set_sensitive(false);
-    zoom_in_btn.set_icon_name("zoom-in-symbolic");
-    zoom_out_btn.set_icon_name("zoom-out-symbolic");
-    zoom_bx.style_context().add_class("linked");
-    zoom_bx.append(&zoom_in_btn);
-    zoom_bx.append(&zoom_out_btn);
-    header.pack_start(&zoom_bx);
-    dialog.set_titlebar(Some(&header));
-    dialog.set_title(Some(&Path::new(&path).file_name().unwrap().to_str().unwrap()));
-
-    let mut zoom = Rc::new(RefCell::new(DEFAULT_SCALE));
-    let mut das : Rc<RefCell<Vec<DrawingArea>>> = Rc::new(RefCell::new(Vec::new()));
-    zoom_in_btn.connect_clicked({
-        let zoom = zoom.clone();
-        let das = das.clone();
-        let zoom_out_btn = zoom_out_btn.clone();
-        let bx = bx.clone();
-        move |btn| {
-            let mut z = zoom.borrow_mut();
-            if *z <= 5.0 {
-                *z += SCALE_INCREMENT;
-                if *z == 5.0 {
-                    btn.set_sensitive(false);
-                }
-                if *z > 1.0 {
-                    zoom_out_btn.set_sensitive(true);
-                }
-            } else {
-                btn.set_sensitive(false);
+impl React<Titlebar> for PdfViewer {
+    fn react(&self, titlebar : &Titlebar) {
+        titlebar.zoom_action.connect_activate({
+            let das = self.das.clone();
+            move |_,_| {
+                das.borrow().iter().for_each(|da| da.queue_draw() );
             }
-            das.borrow().iter().for_each(|da| da.queue_draw() );
-        }
-    });
-    zoom_out_btn.connect_clicked({
-        let zoom = zoom.clone();
-        let das = das.clone();
-        let zoom_in_btn = zoom_in_btn.clone();
-        let bx = bx.clone();
-        move |btn| {
-            let mut z = zoom.borrow_mut();
-            if *z > 1.0 {
-                *z -= DEFAULT_SCALE;
-                if *z == 1.0 {
-                    btn.set_sensitive(false);
-                }
-                if *z > 1.0 {
-                    btn.set_sensitive(true);
-                }
-                if *z < 5.0 {
-                    zoom_in_btn.set_sensitive(true);
-                }
-            } else {
-                btn.set_sensitive(false);
-            }
-            das.borrow().iter().for_each(|da| da.queue_draw() );
-        }
-    });
-
-    for page_ix in 0..doc.n_pages() {
-
-        let da = DrawingArea::new();
-
-        let zoom = zoom.clone();
-        let page = doc.page(page_ix).unwrap();
-        da.set_vexpand(false);
-        da.set_hexpand(false);
-        da.set_halign(Align::Center);
-        da.set_valign(Align::Center);
-        //da.set_width_request((A4.0 * PX_PER_MM) as i32);
-        //da.set_height_request((A4.1 * PX_PER_MM) as i32);
-
-        da.set_draw_func(move |da, ctx, _, _| {
-            ctx.save();
-
-            let z = *zoom.borrow();
-            let (w, h) = page.size();
-            da.set_width_request((w * z) as i32);
-            da.set_height_request((h * z) as i32);
-
-            let (w, h) = (da.allocation().width as f64, da.allocation().height as f64);
-
-            // Draw white background of page
-            ctx.set_source_rgb(1., 1., 1.);
-            ctx.rectangle(1., 1., w, h);
-
-            // Draw page borders
-            let color = 0.5843;
-            ctx.set_line_width(0.5);
-            let grad = cairo::LinearGradient::new(0.0, 0.0, w, h);
-            grad.add_color_stop_rgba(0.0, color, color, color, 0.5);
-            grad.add_color_stop_rgba(0.5, color, color, color, 1.0);
-            ctx.move_to(1., 1.);
-            ctx.line_to(w - 1., 1.);
-            ctx.line_to(w - 1., h);
-            ctx.line_to(1., h - 1.);
-            ctx.line_to(1., 1.);
-
-            // Linear gradient derefs into pattern.
-            ctx.set_source(&*grad);
-
-            ctx.stroke();
-
-            // Poppler always render with the same dpi from the physical page resolution. We must
-            // apply a scale to the context if we want the content to be scaled.
-            ctx.scale(z, z);
-
-            // TODO remove the transmute when GTK/cairo version match.
-            page.render(unsafe { std::mem::transmute::<_, _>(ctx) });
-
-            ctx.restore();
         });
-        bx.append(&da);
-        das.borrow_mut().push(da);
+        titlebar.hide_pdf_btn.connect_clicked({
+            let viewer = self.clone();
+            move |_| {
+                viewer.clear_pages();
+            }
+        });
     }
-    dialog.show();
+}
+
+// Equivalent to 0xdc
+// const PAGE_BORDER_COLOR : f64 = 0.859375;
+
+// Equivalent to 0xcf
+const PAGE_BORDER_COLOR : f64 = 0.80859375;
+
+const PAGE_BORDER_WIDTH : f64 = 0.5;
+
+impl PdfViewer {
+
+    pub fn clear_pages(&self) {
+        while let Some(child) = self.pages_bx.last_child() {
+            self.pages_bx.remove(&child);
+        }
+        self.doc.replace(None);
+    }
+
+    pub fn new() -> Self {
+        let scroll = ScrolledWindow::new();
+        let pages_bx = Box::new(Orientation::Vertical, 12);
+        scroll.set_child(Some(&pages_bx));
+        let das = Rc::new(RefCell::new(Vec::new()));
+        Self { scroll, das, pages_bx, doc : Rc::new(RefCell::new(None)) }
+    }
+
+    pub fn update(&self, doc : &poppler::Document, zoom_action : &gio::SimpleAction) {
+
+        {
+            self.das.borrow_mut().clear();
+        }
+
+        self.clear_pages();
+        for page_ix in 0..doc.n_pages() {
+            let da = DrawingArea::new();
+            // let zoom = zoom.clone();
+            let page = doc.page(page_ix).unwrap();
+            let zoom_action = zoom_action.clone();
+            da.set_vexpand(false);
+            da.set_hexpand(false);
+            da.set_halign(Align::Center);
+            da.set_valign(Align::Center);
+            da.set_margin_top(16);
+            da.set_margin_start(16);
+            da.set_margin_end(16);
+            if page_ix == doc.n_pages()-1 {
+                da.set_margin_bottom(16);
+            }
+
+            //da.set_width_request((A4.0 * PX_PER_MM) as i32);
+            //da.set_height_request((A4.1 * PX_PER_MM) as i32);
+
+            da.set_draw_func(move |da, ctx, _, _| {
+                ctx.save();
+
+                let z = zoom_action.state().unwrap().get::<f64>().unwrap();
+                let (w, h) = page.size();
+                da.set_width_request((w * z) as i32);
+                da.set_height_request((h * z) as i32);
+
+                let (w, h) = (da.allocation().width as f64, da.allocation().height as f64);
+
+                // Draw white background of page
+                ctx.set_source_rgb(1., 1., 1.);
+                ctx.rectangle(1., 1., w, h);
+                ctx.fill();
+
+                // Draw page borders
+
+                ctx.set_source_rgb(PAGE_BORDER_COLOR, PAGE_BORDER_COLOR, PAGE_BORDER_COLOR);
+
+                ctx.set_line_width(PAGE_BORDER_WIDTH);
+                // let color = 0.5843;
+                // let grad = cairo::LinearGradient::new(0.0, 0.0, w, h);
+                // grad.add_color_stop_rgba(0.0, color, color, color, 0.5);
+                // grad.add_color_stop_rgba(0.5, color, color, color, 1.0);
+                // Linear gradient derefs into pattern.
+                // ctx.set_source(&*grad);
+
+                // Keep 1px away from page limits
+                ctx.move_to(1., 1.);
+                ctx.line_to(w - 1., 1.);
+                ctx.line_to(w - 1., h);
+                ctx.line_to(1., h - 1.);
+                ctx.line_to(1., 1.);
+
+                ctx.stroke();
+
+                // Poppler always render with the same dpi from the physical page resolution. We must
+                // apply a scale to the context if we want the content to be scaled.
+                ctx.scale(z, z);
+
+                // TODO remove the transmute when GTK/cairo version match.
+                page.render(unsafe { std::mem::transmute::<_, _>(ctx) });
+
+                ctx.restore();
+            });
+
+            let motion = EventControllerMotion::new();
+            motion.connect_enter(|motion, x, y| {
+                // let cursor_ty = gdk::CursorType::Text;
+                // cursor.set_curor(Some(&gdk::Cursor::for_display(gdk::Display::default(), cursor_ty)));
+            });
+            motion.connect_leave(|motion| {
+                // let cursor_ty = gdk::CursorType::Arrow;
+                // cursor.set_curor(Some(&gdk::Cursor::for_display(gdk::Display::default(), cursor_ty)));
+            });
+            motion.connect_motion({
+                let page = doc.page(page_ix).unwrap();
+                move |motion, x, y| {
+                    if page.text_for_area(&mut poppler::Rectangle::new()).is_some() {
+                        // Text cursor
+                    } else {
+                        // Arrow cursor
+                    }
+                }
+            });
+            da.add_controller(&motion);
+            let drag = GestureDrag::new();
+            drag.connect_drag_begin({
+                let page = doc.page(page_ix).unwrap();
+                move |drag, x, y| {
+
+                }
+            });
+            drag.connect_drag_end({
+                let page = doc.page(page_ix).unwrap();
+                move |drag, x, y| {
+
+                }
+            });
+            self.pages_bx.append(&da);
+            self.das.borrow_mut().push(da);
+        }
+        self.doc.replace(Some(doc.clone()));
+    }
+
+}
+
+// #[cfg(feature="poppler")]
+fn show_with_poppler(viewer : &PdfViewer, zoom_action : &gio::SimpleAction, win : &ApplicationWindow, path : &str) {
+    let doc = poppler::Document::from_file(&format!("file://{}", path), None).unwrap();
+    viewer.update(&doc, zoom_action);
+    // let dialog = Dialog::new();
+    // dialog.set_default_width(1024);
+    // dialog.set_default_height(768);
+    // dialog.set_transient_for(Some(win));
+    // let header = HeaderBar::new();
+    // header.pack_start(&viewer.zoom_bx);
+    // dialog.set_titlebar(Some(&header));
+    // dialog.set_title(Some(&Path::new(&path).file_name().unwrap().to_str().unwrap()));
+    // dialog.set_child(Some(&viewer.scroll));
+    // set_margins(&bx, 32, 32);
+    // dialog.show();
 }
 
 pub fn title_label(txt : &str) -> Label {
@@ -1132,4 +1036,32 @@ pub fn parse_int_or_float(txt : &str) -> Option<f64> {
     }
 }
 
+impl React<FileManager> for OpenDialog {
+
+    fn react(&self, manager : &FileManager) {
+        let dialog = self.dialog.clone();
+        manager.connect_show_open(move |_| {
+            dialog.show();
+        });
+    }
+
+}
+
+impl React<FileManager> for SaveDialog {
+
+    fn react(&self, manager : &FileManager) {
+        let dialog = self.dialog.clone();
+        manager.connect_save_unknown_path(move |path| {
+            // let _ = dialog.set_file(&gio::File::for_path(path));
+            dialog.show();
+        });
+        // let dialog = self.dialog.clone();
+        /*scripts.connect_path_changed(move |opt_file| {
+            if let Some(path) = opt_file.and_then(|f| f.path.clone() ) {
+                let _ = dialog.set_file(&gio::File::for_path(&path));
+            }
+        });*/
+    }
+
+}
 

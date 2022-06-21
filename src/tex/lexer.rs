@@ -25,11 +25,57 @@ use nom::error::ErrorKind;
 use nom::error::Error;
 use either::Either;
 
+// Reference: http://latexref.xyz/LaTeX-command-syntax.html
+
+// Formally, a command is a control sequence.
+
+/*
+Latex parsing is tricky. It is not strictly a Markup language, although it feels like
+one sometimes. But Some commands are stateful, applying to the
+whole document or to sections, before another stateful command is
+called with a similar effect. This greately increases its complexity
+because the text can affected in many ways: by stateful commands(like \setmainfont{Arial}),
+by being used as arguments to the command (like \small{this is the text}), or by being enclosed
+in a block as if like a markup language, (like \begin{quote}mytext\end{quote}).
+
+Since command arguments can be nested sets of commands, we have conflicting
+requirements: the lexing stage must be represented as a vector of tokens,
+therefore we cannot have a nesting structure (such as trees of tokens). The
+simplifying solution is to just consider the arguments always as text, ignoring
+any further syntatical information inside the command argument.
+*/
+
 /*
 TODO parsing tables is not working.
 Parse different lines with \\ and &
 */
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CommandArg<'a> {
+    Text(&'a str),
+    Enclosing(Vec<Token<'a>>)
+}
+
+impl<'a> fmt::Display for CommandArg<'a> {
+
+    fn fmt(&self, f : &mut fmt::Formatter) -> fmt::Result {
+        let ans = match self {
+            Self::Text(txt) => txt.to_string(),
+            Self::Enclosing(tks) => {
+                let mut txt = String::new();
+                for t in tks.iter() {
+                    txt += &t.to_string();
+                }
+                txt
+            }
+        };
+        write!(f, "{}", ans)
+    }
+
+}
+
+// Commands are hard because their arguments can be anything: text or other nested commands
+// (e.g. newcommand or renewcommand).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Command<'a> {
 
@@ -37,14 +83,20 @@ pub struct Command<'a> {
 
     // Everything inside brackts like \documentclass[a4,14pt]{article} would contain a4, 14pt
     // If command has empty bracket with no options, Some(Vec::new()), contains some empty vector.
-    // If command has no bracket, contains None.
+    // If command has no bracket, contains None. Those are optional (bracketed) arguments to
+    // commands.
     pub opts : Option<Vec<&'a str>>,
 
-    // Everything inside curly braces like \documentclass[a4,14pt]{article} would contain article
-    pub arg : Option<&'a str>,
+    // Everything inside curly braces like \documentclass[a4,14pt]{article} would contain article.
+    // Commands can contain arbitrary text (e.g. \small{mytext}) or even other commands. There is
+    // a difference between None variant (e.g. a command without arguments such as \smalltext) and
+    // a Some(CommandArg::Enclosing(vec![])) (e.g. a command with opening and closing braces with
+    // no inner tokens as arguments such as \command{}).
+    // (e.g. \small{\caption{mytext}}).
+    pub arg : Option<CommandArg<'a>>,
 
-    // Extra curly brace arguments
-    pub extra_arg : Option<&'a str>
+    // Extra curly brace arguments after the main argument sequence (e.g. \setlengtht{\parindent}{val} )
+    pub extra_arg : Option<CommandArg<'a>>
 }
 
 pub enum BaseCommand {
@@ -56,6 +108,30 @@ pub enum BaseCommand {
     Begin(String),
 
     End
+
+}
+
+impl<'a> fmt::Display for Token<'a> {
+
+    fn fmt(&self, f : &mut fmt::Formatter) -> fmt::Result {
+        let ans = match self {
+            Token::Command(cmd, _) => cmd.to_string(),
+            Token::Text(txt, _) => txt.to_string(),
+            Token::Math(txt, quote, _) => format!("{}{}{}", quote, txt, quote),
+            Token::Comment(txt, _) => txt.to_string(),
+            Token::LineBreak(txt, _) => txt.to_string(),
+            Token::Escape(txt, _) => txt.to_string(),
+            Token::Group(tks, _) => {
+                let mut s = String::new();
+                for t in tks.iter() {
+                    s += &t.to_string()[..];
+                }
+                s
+            },
+            Token::Reference(entry, _) => entry.to_string()
+        };
+        write!(f, "{}", ans)
+    }
 
 }
 
@@ -78,7 +154,7 @@ impl<'a> fmt::Display for Command<'a> {
         } else {
             String::from("")
         };
-        let arg = if let Some(arg) = self.arg {
+        let arg = if let Some(arg) = &self.arg {
             format!("{{{}}}", arg)
         } else {
             String::from("")
@@ -93,6 +169,24 @@ pub enum MathQuote {
     Double
 }
 
+impl fmt::Display for MathQuote {
+
+    fn fmt(&self, f : &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            MathQuote::Single => {
+                write!(f, "$")
+            },
+            MathQuote::Double => {
+                write!(f, "$$")
+            }
+        }
+    }
+
+}
+
+// TODO parse page breaks as \\
+// More generally, parse escaped characters as start w/ \
+
 // Borrowed tokenized text representation.
 // Last field contains the lenght in bytes taken by the token.
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -101,6 +195,12 @@ pub enum Token<'a> {
     Command(Command<'a>, usize),
 
     Text(&'a str, usize),
+
+    Escape(&'a str, usize),
+
+    LineBreak(&'a str, usize),
+
+    Group(Vec<Token<'a>>, usize),
 
     Math(&'a str, MathQuote, usize),
 
@@ -118,7 +218,10 @@ impl<'a> Token<'a> {
             Self::Text(_, _) => TokenKind::Text,
             Self::Math(_, _, _) => TokenKind::Math,
             Self::Comment(_, _) => TokenKind::Comment,
-            Self::Reference(_, _) => TokenKind::Reference
+            Self::Reference(_, _) => TokenKind::Reference,
+            Self::Group(_, _) => TokenKind::Group,
+            Self::Escape(_, _) => TokenKind::Escape,
+            Self::LineBreak(_, _) => TokenKind::LineBreak,
         }
     }
 
@@ -139,7 +242,10 @@ pub enum TokenKind {
     Text,
     Math,
     Comment,
-    Reference
+    Reference,
+    Group,
+    Escape,
+    LineBreak
 }
 
 // Filter tokens of this type for comparison. Identity is determined by their relative order.
@@ -168,6 +274,15 @@ pub enum Difference {
     Edited(usize, String)
 }
 
+impl Default for Difference {
+
+    fn default() -> Self {
+        Self::Added(0, String::new())
+    }
+
+}
+
+// TODO rename to Environment
 #[derive(Debug, Clone)]
 pub struct Block<'a> {
 
@@ -441,20 +556,43 @@ fn cmd_options(s : &str) -> IResult<&str, Vec<&str>> {
     delimited(tag("["), separated_list0(tag(","), take_till(|c| c == ']' || c == ',')), tag("]"))(s)
 }
 
-fn cmd_arg(s : &str) -> IResult<&str, &str> {
-    delimited(tag("{"), take_till(|c| c == '}'), tag("}"))(s)
+// TODO parse
+// \begin{tabular}{p{0.14\textwidth} p{0.14\textwidth} p{0.14\textwidth} p{0.14\textwidth} p{0.14\textwidth} p{0.14\textwidth}}
+
+// TODO parse
+// \definecolor{light-gray}{gray}{0.95}
+
+fn cmd_arg(s : &str) -> IResult<&str, CommandArg> {
+    let (res, tokens) = delimited(tag("{"), many0(eval_next_token), tag("}"))(s)?;
+    if tokens.len() == 1 {
+        match tokens[0] {
+            Token::Text(txt, _) => {
+                Ok((res, CommandArg::Text(txt)))
+            },
+            _ => {
+                Ok((res, CommandArg::Enclosing(tokens)))
+            }
+        }
+    } else {
+        Ok((res, CommandArg::Enclosing(tokens)))
+    }
 }
 
 fn comment(s : &str) -> IResult<&str, &str> {
     tuple((char('%'), take_till(|c| c == '\n')))(s).map(|(rem, res)| (rem, res.1) )
 }
 
-fn valid_cmd_or_arg<'a>(s : &'a str) -> Result<(), nom::Err<Error<&'a str>>> {
+/*fn valid_cmd_or_arg<'a>(s : &'a str) -> Result<(), nom::Err<Error<&'a str>>> {
     if s.contains("{") || s.contains("}") || s.contains("\\") || s.contains("\n") {
         Err(nom::Err::Failure(Error::new(s, ErrorKind::Fail)))
     } else {
         Ok(())
     }
+}*/
+
+pub fn group<'a>(s : &'a str) -> IResult<&'a str, Vec<Token<'a>>> {
+    // TODO include braces
+    delimited(tag("{"), many0(eval_next_token), tag("}"))(s)
 }
 
 pub fn command(s : &str) -> IResult<&str, Command> {
@@ -464,21 +602,21 @@ pub fn command(s : &str) -> IResult<&str, Command> {
     //}
     let (rem, opts) = opt(cmd_options)(rem)?;
 
-    if let Some(opts) = &opts {
-        for opt in opts {
-            valid_cmd_or_arg(opt)?;
-        }
-    }
+    //if let Some(opts) = &opts {
+        // for opt in opts {
+        // valid_cmd_or_arg(opt)?;
+        // }
+    // }
 
     let (rem, arg) = opt(cmd_arg)(rem)?;
-    if let Some(arg) = arg {
-        valid_cmd_or_arg(&arg)?;
-    }
+    // if let Some(arg) = arg {
+    //    valid_cmd_or_arg(&arg)?;
+    // }
 
     let (rem, extra_arg) = opt(cmd_arg)(rem)?;
-    if let Some(arg) = extra_arg {
-        valid_cmd_or_arg(&arg)?;
-    }
+    //if let Some(arg) = extra_arg {
+        // valid_cmd_or_arg(&arg)?;
+    //}
 
     // This means the command argument and/or options were not parsed
     // correctly.
@@ -489,26 +627,63 @@ pub fn command(s : &str) -> IResult<&str, Command> {
     Ok((rem, Command { cmd : cmd.1, arg, extra_arg, opts }))
 }
 
+fn text_or_empty(s : &str) -> IResult<&str, &str> {
+    match opt(text)(s) {
+        Ok((res, Some(t))) => Ok((res, t)),
+        Ok((res, None)) => Ok((res, "")),
+        Err(e) => Err(e)
+    }
+}
+
+fn line_break(s : &str) -> IResult<&str, &str> {
+    tag("\\\\")(s)
+}
+
+fn escape(s : &str) -> IResult<&str, &str> {
+    alt(
+        (tag("\\&"), tag("\\%"), tag("\\$"), tag("\\#"), tag("\\_"), tag("\\{"), tag("\\}"))
+    )(s)
+}
+
 fn text(s : &str) -> IResult<&str, &str> {
 
     // TODO parse up to these characters or end AND cannot start with any of
     // them either: (e.g. s.chars().next().starts_with(..))
 
-    is_not("\\%$@")(s)
+    /*
+    One opening curly brace or one opening and another closing curly brace should
+    parse as text. But an isolated closing curly brace should not be parsed as text.
+    */
+
+    // is_not("\\%$@}")(s)
+
+    // TODO reeplace delimited by other combinator that includes the braces.
+    //alt((
+    is_not("\\%$@{}")(s)
+    // ))(s)
 }
 
 fn eval_next_token(txt : &str) -> IResult<&str, Token> {
-    match command(txt) {
-        Ok((rem, cmd)) => Ok((rem, Token::Command(cmd, txt.len() - rem.len()))),
-        Err(_) => match math(txt) {
-            Ok((rem, (math, quote))) => Ok((rem, Token::Math(math, quote, txt.len() - rem.len()))),
-            Err(_) => match comment(txt) {
-                Ok((rem, comment)) => Ok((rem, Token::Comment(comment, txt.len() - rem.len()))),
-                Err(_) => match bib_entry(txt) {
-                    Ok((rem, entry)) => Ok((rem, Token::Reference(entry, txt.len() - rem.len()))),
-                    Err(_) => match text(txt) {
-                        Ok((rem, text)) => { Ok((rem, Token::Text(text, txt.len() - rem.len()))) },
-                        Err(e) => Err(e)
+    match escape(txt) {
+        Ok((rem, esc)) => Ok((rem, Token::Escape(esc, txt.len() - rem.len()))),
+        Err(_) => match line_break(txt) {
+            Ok((rem, b)) => Ok((rem, Token::LineBreak(b, txt.len() - rem.len()))),
+            Err(_) => match command(txt) {
+                Ok((rem, cmd)) => Ok((rem, Token::Command(cmd, txt.len() - rem.len()))),
+                Err(_) => match math(txt) {
+                    Ok((rem, (math, quote))) => Ok((rem, Token::Math(math, quote, txt.len() - rem.len()))),
+                    Err(_) => match comment(txt) {
+                        Ok((rem, comment)) => Ok((rem, Token::Comment(comment, txt.len() - rem.len()))),
+                        Err(_) => match bib_entry(txt) {
+                            Ok((rem, entry)) => Ok((rem, Token::Reference(entry, txt.len() - rem.len()))),
+                            Err(_) => match group(txt) {
+                                Ok((rem, group)) => Ok((rem, Token::Group(group, txt.len() - rem.len()))),
+                                Err(_) => match text(txt) {
+                                    Ok((rem, text)) => Ok((rem, Token::Text(text, txt.len() - rem.len()))),
+                                    Err(e) => Err(e)
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -597,6 +772,29 @@ impl FromStr for Entry {
 
 }
 
+impl fmt::Display for Entry {
+
+    fn fmt(&self, f : &mut fmt::Formatter) -> fmt::Result {
+        let ans = match self {
+            Self::Book => "book",
+            Self::Booklet => "booklet",
+            Self::Article => "article",
+            Self::Conference => "conference",
+            Self::Inbook => "inbook",
+            Self::Incollection => "incollection",
+            Self::Inproceedings => "inproceedings",
+            Self::Manual => "manual",
+            Self::MasterThesis => "masterthesis",
+            Self::Misc => "misc",
+            Self::PhdThesis => "phdthesis",
+            Self::Proceedings => "proceedings",
+            Self::TechReport => "techreport",
+            Self::Unpublished => "unpublished"
+        };
+        write!(f, "{}", ans)
+    }
+}
+
 /*
 -- Valid fields
 address
@@ -633,6 +831,21 @@ pub struct BibEntry<'a> {
     key : &'a str,
 
     fields : Vec<(&'a str, &'a str)>
+
+}
+
+impl<'a> fmt::Display for BibEntry<'a> {
+
+    fn fmt(&self, f : &mut fmt::Formatter) -> fmt::Result {
+        let mut ans = format!("@{}{{{},\n", self.entry, self.key);
+        let n = self.fields.len();
+        for f in self.fields.iter().take(n-1) {
+            ans += &format!("\t{} = {},\n", f.0, f.1);
+        }
+        ans += &format!("\t{} = {}", self.fields[n-1].0, self.fields[n-1].1);
+        ans += "\n}";
+        write!(f, "{}", ans)
+    }
 
 }
 
@@ -746,13 +959,14 @@ fn entry(s : &str) -> IResult<&str, Entry> {
     ))(s).map(|(rem, s)| (rem, Entry::from_str(s).unwrap()) )
 }
 
-fn bib_entry(s : &str) -> IResult<&str, BibEntry> {
+pub fn bib_entry(s : &str) -> IResult<&str, BibEntry> {
     let (rem, entry) = delimited(char('@'), entry, tag("{"))(s)?;
     let (rem, key) = is_not(",")(rem)?;
     let (rem, _) = take(1usize)(rem)?;
     // println!("{}", rem);
     let (rem, fields) = separated_list1(tag(","), bib_field)(rem)?;
     let (rem, _) = is_not("}")(rem)?;
+    let (rem, _) = tag("}")(rem)?;
     Ok((rem, BibEntry {
         entry,
         key : key.trim(),
@@ -760,7 +974,7 @@ fn bib_entry(s : &str) -> IResult<&str, BibEntry> {
     }))
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct TexError {
     pub msg : String,
     pub line : usize
@@ -876,6 +1090,9 @@ impl<'a> TexTokens<'a> {
                 Token::Math(_, _, len) => token_pos(&mut self.offset, *len),
                 Token::Comment(_, len) => token_pos(&mut self.offset, *len),
                 Token::Reference(_, len) => token_pos(&mut self.offset, *len),
+                Token::Group(_, len) => token_pos(&mut self.offset, *len),
+                Token::Escape(_, len) => token_pos(&mut self.offset, *len),
+                Token::LineBreak(_, len) => token_pos(&mut self.offset, *len),
             }
         })
     }

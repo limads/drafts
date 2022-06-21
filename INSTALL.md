@@ -339,3 +339,7 @@ Saving icon /app/share/app-info/icons/flatpak/128x128/com.github.limads.Papers.p
 install -D /run/build/Papers/data/com.github.limads.Papers.gschema.xml /app/share/glib-2.0/schemas
 
 Localization command contained in meson: `gettext install --subdir=po --localedir=share/locale --pkgname=Papers`
+
+flatpak run org.freedesktop.appstream-glib validate
+
+

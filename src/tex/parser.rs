@@ -1,6 +1,7 @@
 use std::cmp::{Eq, PartialEq};
 use super::*;
 use either::Either;
+use std::convert::AsRef;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ObjectIndex {
@@ -273,7 +274,7 @@ fn next_item<'a>(
         },
         Either::Right(Block { start_cmd : Command { arg, .. }, .. }) => {
             match arg {
-                Some("tabular") => {
+                Some(CommandArg::Text("tabular")) => {
                     push_to_innermost(
                         items,
                         parent_section,
@@ -285,7 +286,7 @@ fn next_item<'a>(
                     );
                     count.table += 1;
                 },
-                Some("lstlisting") => {
+                Some(CommandArg::Text("lstlisting")) => {
                     push_to_innermost(
                         items,
                         parent_section,
@@ -306,7 +307,7 @@ fn next_item<'a>(
 
 fn is_doc_block<'a>(bl_token : &Either<Token<'a>, Block<'a>>) -> bool {
     match bl_token {
-        Either::Right(Block { start_cmd : Command { arg : Some("document"), .. }, .. }) => {
+        Either::Right(Block { start_cmd : Command { arg : Some(CommandArg::Text("document")), .. }, .. }) => {
             true
         },
         _ => {
@@ -583,7 +584,7 @@ fn test_bibtex_parser() {
 #[test]
 fn templates_are_parseable() {
 
-    use crate::ui::*;
+    /*use crate::ui::*;
 
     let templates = [
         ARTICLE_TEMPLATE,
@@ -595,7 +596,7 @@ fn templates_are_parseable() {
 
     for templ in templates {
         println!("{:#?}", Parser::parse(txt).unwrap());
-    }
+    }*/
 }
 
 #[test]
@@ -645,3 +646,94 @@ fn test_latex_parser() {
     // println!("{:?}", bib_field("author = {Guestrin, E. D. and Eizenman, M.}"));
 }
 
+#[derive(Debug, Clone)]
+pub struct References<'a>(Vec<BibEntry<'a>>);
+
+impl<'a> AsRef<[BibEntry<'a>]> for References<'a> {
+
+    fn as_ref(&self) -> &[BibEntry<'a>] {
+        &self.0[..]
+    }
+
+}
+
+/*impl<'a> IntoIterator for References<'a> {
+
+    type Item = BibEntry<'a>;
+
+    fn next(&mut self) -> &Self::Item {
+
+    }
+
+}*/
+
+use nom::character::complete::multispace0;
+use nom::character::complete::multispace1;
+use nom::multi::many0;
+use nom::combinator::opt;
+use nom::sequence::tuple;
+use nom::multi::many1;
+use nom::multi::separated_list1;
+use nom::multi::separated_list0;
+
+pub struct BibParser {
+
+}
+
+fn space_delimited_bib(txt : &str) -> nom::IResult<&str, BibEntry> {
+    let (res, ans) = tuple((many0(multispace1), super::bib_entry, many0(multispace1)))(txt)?;
+    Ok((res, ans.1))
+}
+
+impl BibParser {
+
+    pub fn parse(txt : &str) -> Result<References, String> {
+        // println!("To parse = {}", txt);
+        let (res, out) = many0(space_delimited_bib)(txt).map_err(|e| e.to_string() )?;
+        println!("{}", res);
+        Ok(References(out))
+
+        /*let (rem, _) = (many0(multispace1))(txt).map_err(|e| e.to_string() )?;
+        let (_, ans) = separated_list0(super::bib_entry, many1(multispace1))(rem).map_err(|e| e.to_string() )?;
+        Ok(ans)*/
+    }
+
+}
+
+#[test]
+fn bib_parser() {
+
+    let content = r#"
+
+        @article{Guestrin2006Jun,
+	        author = {Guestrin, E. D. and Eizenman, M.},
+	        title = {{General theory of remote gaze estimation using the pupil center and corneal reflections}},
+	        journal = {IEEE Trans. Biomed. Eng.},
+	        volume = {53},
+	        number = {6},
+	        pages = {1124--1133},
+	        year = {2006},
+	        month = {Jun},
+	        publisher = {IEEE},
+	        doi = {10.1109/TBME.2005.863952}
+        }
+
+        @article{Aslin1975May,
+	        author = {Aslin, Richard N. and Salapatek, Philip},
+	        title = {{Saccadic localization of visual targets by the very young human infant}},
+	        journal = {Percept. Psychophys.},
+	        volume = {17},
+	        number = {3},
+	        pages = {293--302},
+	        year = {1975},
+	        month = {May},
+	        issn = {1532-5962},
+	        publisher = {Springer-Verlag},
+	        doi = {10.3758/BF03203214}
+        }
+
+        "#;
+
+    println!("{:?}", BibParser::parse(content));
+
+}

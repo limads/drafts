@@ -2,12 +2,17 @@ use std::rc::Rc;
 use std::cell::RefCell;
 use std::boxed;
 use gio;
+use stateful::{Callbacks, ValuedCallbacks};
 
 pub const APP_ID : &'static str = "com.github.limads.papers";
 
 pub const RESOURCE_PREFIX : &'static str = "com/github/limads/Papers";
 
+pub const SETTINGS_FILE : &'static str = "user.json";
+
 pub mod ui;
+
+pub mod dirwatcher;
 
 pub mod manager;
 
@@ -17,11 +22,13 @@ pub mod tex;
 
 pub mod analyzer;
 
-pub type Callbacks<T> = Rc<RefCell<Vec<boxed::Box<dyn Fn(T) + 'static>>>>;
+pub mod state;
 
-pub type ValuedCallbacks<A, R> = Rc<RefCell<Vec<boxed::Box<dyn Fn(A)->R + 'static>>>>;
+// pub type Callbacks<T> = Rc<RefCell<Vec<boxed::Box<dyn Fn(T) + 'static>>>>;
 
-pub fn call<T>(callbacks : &Callbacks<T>, arg : T)
+// pub type ValuedCallbacks<A, R> = Rc<RefCell<Vec<boxed::Box<dyn Fn(A)->R + 'static>>>>;
+
+/*pub fn call<T>(callbacks : &Callbacks<T>, arg : T)
 where
     T : Clone
 {
@@ -33,13 +40,13 @@ where
             println!("{}",e );
         }
     }
-}
+}*/
 
-pub trait React<S> {
+/*pub trait React<S> {
 
     fn react(&self, source : &S);
 
-}
+}*/
 
 /*
 \documentclass{...}
