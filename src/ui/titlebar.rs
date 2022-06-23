@@ -3,7 +3,8 @@ use crate::analyzer::Analyzer;
 use crate::tex::{Difference, BibEntry};
 use crate::tex::Token;
 use archiver::FileActions;
-
+use std::borrow::Cow;
+use std::sync::{Arc, atomic::{AtomicBool, Ordering}};
 
 #[derive(Debug, Clone)]
 pub struct MainMenu {
@@ -1031,10 +1032,14 @@ impl React<Typesetter> for Titlebar {
 
     fn react(&self, typesetter : &Typesetter) {
         let btn = self.pdf_btn.clone();
+        let sidebar_toggle = self.sidebar_toggle.clone();
         typesetter.connect_done({
             move |_| {
                 btn.set_icon_name("evince-symbolic");
                 btn.set_sensitive(true);
+                if sidebar_toggle.is_active() {
+                    sidebar_toggle.set_active(false);
+                }
             }
         });
         typesetter.connect_error({
@@ -1058,6 +1063,24 @@ pub struct ReferenceRow {
 fn trim_braces(s : &str) -> &str {
     s.trim_start_matches("{").trim_end_matches("}")
         .trim_start_matches("{").trim_end_matches("}")
+}
+
+fn replace_groups(s : &str) -> Cow<str> {
+
+    use nom::bytes::complete::is_not;
+    use nom::branch::alt;
+    use nom::multi::many0;
+
+    let mut repls = Cow::from(s);
+    if let Ok((_, list)) = many0(alt((is_not("{"), crate::tex::group_str)))(s) {
+        for seg in list {
+            if seg.starts_with("{") {
+                println!("{}", seg);
+                repls = Cow::from(repls.replace(seg, "?"));
+            }
+        }
+    }
+    repls
 }
 
 impl ReferenceRow {
@@ -1102,17 +1125,42 @@ impl ReferenceRow {
                 should_break = false;
             }
         }
-        let mut authors = trim_braces(entry.author().unwrap_or("(No authors)").trim());
+        let mut title = replace_groups(&title);
+        let authors = replace_groups(&trim_braces(entry.author().unwrap_or("(No authors)").trim()));
+        let fst_name = regex::Regex::new(r#",.*"#).unwrap();
 
-        let mut broken_authors = String::new();
+        let mut sep_authors = authors.split(" and ").collect::<Vec<_>>();
+        for mut author in sep_authors.iter_mut() {
+            if let Some(m) = fst_name.find(*author) {
+                *author = &author[..m.start()]
+            }
+        }
+        let authors_str = match sep_authors.len() {
+            0..=1 => {
+                Cow::from(sep_authors[0].trim())
+            },
+            2 => {
+                Cow::from(format!("{} & {}", sep_authors[0].trim(), sep_authors[1].trim()))
+            },
+            3 => {
+                Cow::from(format!("{}, {} & {}", sep_authors[0].trim(), sep_authors[1].trim(), sep_authors[2].trim()))
+            },
+            _ => {
+                Cow::from(format!("{} et al.", sep_authors[0].trim()))
+            }
+        };
+
+        /*let mut broken_authors = String::new();
         if authors.chars().count() > 60 {
             broken_authors = authors.chars().take(60).collect();
             broken_authors += "(...)";
-        }
+        }*/
+
         let year = trim_braces(entry.year().unwrap_or("No date").trim());
+
         // println!("authors = {}; title = {}; key = {}", authors, title, key);
         self.key_label.set_markup(&key);
-        self.authors_label.set_text(&format!("{} ({})", authors, year));
+        self.authors_label.set_text(&format!("{} ({})", authors_str, year));
         self.title_label.set_text(&title);
     }
 
@@ -1157,6 +1205,14 @@ impl ReferenceRow {
 
 }
 
+/*impl React<FileManager> for BibPopover {
+
+    fn react(&self, manager : &FileManager) {
+
+    }
+
+}*/
+
 impl React<Analyzer> for BibPopover {
 
     fn react(&self, analyzer : &Analyzer) {
@@ -1195,7 +1251,7 @@ impl React<Analyzer> for BibPopover {
             let list = self.list.clone();
             move |_| {
                 clear_list(&list);
-                create_init_row(&list);
+                // create_init_row(&list);
             }
         });
         analyzer.connect_references_validated({
@@ -1204,18 +1260,32 @@ impl React<Analyzer> for BibPopover {
                 clear_list(&list);
             }
         });
+
+        let last_is_err = Arc::new(AtomicBool::new(false));
         analyzer.connect_doc_error({
             let list = self.list.clone();
+            let last_is_err = last_is_err.clone();
             move |err| {
                 clear_list(&list);
                 create_unique_row(&list, &format!("Parsing error: {}", err), "dialog-error-symbolic");
+                last_is_err.store(true, Ordering::Relaxed);
+            }
+        });
+        analyzer.connect_doc_changed({
+            let list = self.list.clone();
+            move |_| {
+                if last_is_err.load(Ordering::Relaxed) {
+                    clear_list(&list);
+                    create_init_row(&list);
+                    last_is_err.store(false, Ordering::Relaxed);
+                }
             }
         });
     }
 
 }
 
-fn clear_list(list : &ListBox) {
+pub(super) fn clear_list(list : &ListBox) {
     // let mut ix = 0;
     while let Some(r) = list.row_at_index(0) {
         list.remove(&r);
@@ -1223,8 +1293,8 @@ fn clear_list(list : &ListBox) {
     }
 }
 
-fn create_init_row(list : &ListBox) {
-    create_unique_row(&list, "Insert a bibliography section to search its references here", "user-bookmarks-symbolic");
+pub(super) fn create_init_row(list : &ListBox) {
+    create_unique_row(&list, "Insert a bibliography section and save the file locally \nto search its references here", "user-bookmarks-symbolic");
 }
 
 fn create_unique_row(list : &ListBox, label : &str, icon : &str) {

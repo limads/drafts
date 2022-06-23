@@ -130,6 +130,8 @@ fn main() {
             typesetter.react(&manager);
 
             papers_win.titlebar.react(&typesetter);
+            // papers_win.titlebar.bib_popover.react(&manager);
+
             papers_win.editor.react(&typesetter);
             papers_win.editor.viewer.react(&papers_win.titlebar);
             papers_win.editor.react(&manager);

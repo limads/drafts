@@ -587,14 +587,24 @@ impl React<FileManager> for PapersWindow {
 
     fn react(&self, manager : &FileManager) {
         archiver::connect_manager_with_app_window_and_actions(manager, &self.window, &self.titlebar.main_menu.actions, "tex");
+
+        // We should trigger a document re-analysis whenever the file is saved.
+        // manager.connect_save(move |_| {
+        // });
+
         manager.connect_new({
             let window = self.window.clone();
             let action_save = self.titlebar.main_menu.actions.save.clone();
             let action_save_as = self.titlebar.main_menu.actions.save_as.clone();
+            let bib_list = self.titlebar.bib_popover.list.clone();
             move |_| {
                 window.set_title(Some("Papers"));
                 action_save.set_enabled(false);
                 action_save_as.set_enabled(false);
+
+                // New files are never linked to references before they are saved.
+                titlebar::clear_list(&bib_list);
+                titlebar::create_init_row(&bib_list);
             }
         });
         manager.connect_opened({
@@ -609,7 +619,6 @@ impl React<FileManager> for PapersWindow {
                 stack.set_visible_child_name("start");
             }
         });
-
     }
 
 }

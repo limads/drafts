@@ -29,19 +29,24 @@ impl PapersEditor {
     pub fn build() -> Self {
         let view = View::new();
         view.set_hexpand(true);
+
+        // HAlign center : Guarantees the text is centered when we are
+        // in distraction-free mode, and the scrollbar is always visible.
+        // Halign fill: Avoids hiding the scrollbar when the pdf viewer and
+        // overview are both present.
+        view.set_halign(Align::Center);
+
         configure_view(&view);
 
         // The width request guarantees the text is not wrapped while the
         // center paned is moved (it is simply hidden for very extreme positions).
         // The align center guarantees the margins are aligned.
-        view.set_width_request(800);
 
-        view.set_halign(Align::Center);
-        view.set_hexpand(true);
+        let scroll = ScrolledWindow::new();
+
         view.set_margin_top(98);
         view.set_margin_bottom(98);
 
-        let scroll = ScrolledWindow::new();
         let provider = CssProvider::new();
         provider.load_from_data("* { background-color : #ffffff; } ".as_bytes());
 
@@ -50,17 +55,21 @@ impl PapersEditor {
         scroll.style_context().add_provider(&provider, 800);
         scroll.set_child(Some(&view));
 
+        // Guarantees a good portion of the text is always visible.
+        view.set_width_request(820);
+        scroll.set_width_request(820);
+
         let overlay = libadwaita::ToastOverlay::builder().opacity(1.0).visible(true).build();
 
         let sub_paned = Paned::new(Orientation::Horizontal);
         let viewer = PdfViewer::new();
         sub_paned.set_start_child(&scroll);
         sub_paned.set_end_child(&viewer.scroll);
-        sub_paned.connect_visible_notify(|sub_paned| {
+        /*sub_paned.connect_visible_notify(|sub_paned| {
             let w = sub_paned.parent().unwrap().allocation().width;
             println!("{}", w);
             sub_paned.set_position(w);
-        });
+        });*/
         overlay.set_child(Some(&sub_paned));
 
         let ignore_file_save_action = gio::SimpleAction::new("ignore_file_save", None);

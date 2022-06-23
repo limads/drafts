@@ -675,6 +675,7 @@ use nom::sequence::tuple;
 use nom::multi::many1;
 use nom::multi::separated_list1;
 use nom::multi::separated_list0;
+use nom::sequence::delimited;
 
 pub struct BibParser {
 
@@ -689,7 +690,11 @@ impl BibParser {
 
     pub fn parse(txt : &str) -> Result<References, String> {
         // println!("To parse = {}", txt);
-        let (res, out) = many0(space_delimited_bib)(txt).map_err(|e| e.to_string() )?;
+        let (res, out) = delimited(
+            multispace0,
+            separated_list0(multispace1, super::bib_entry),
+            multispace0
+        )(txt).map_err(|e| e.to_string() )?;
         println!("{}", res);
         Ok(References(out))
 
@@ -700,10 +705,11 @@ impl BibParser {
 
 }
 
+// cargo test --lib -- bib_parser --nocapture
 #[test]
 fn bib_parser() {
 
-    let content = r#"
+    /*let content = r#"
 
         @article{Guestrin2006Jun,
 	        author = {Guestrin, E. D. and Eizenman, M.},
@@ -732,8 +738,71 @@ fn bib_parser() {
 	        doi = {10.3758/BF03203214}
         }
 
-        "#;
+        "#;*/
 
-    println!("{:?}", BibParser::parse(content));
+    let content = r#"
+        @article{Kooiker2016Sep,
+	    author = {Kooiker, Marlou J. G. and Pel, Johan J. M. and Verbunt, H{\ifmmode\acute{e}\else\'{e}\fi}l{\ifmmode\grave{e}\else\`{e}\fi}ne J. M. and de Wit, Gerard C. and van Genderen, Maria M. and van der Steen, Johannes},
+	    title = {{Quantification of visual function assessment using remote eye tracking in children: validity and applicability}},
+	    journal = {Acta Ophthalmol.},
+	    volume = {94},
+	    number = {6},
+	    pages = {599--608},
+	    year = {2016},
+	    month = {Sep},
+	    issn = {1755-375X},
+	    publisher = {John Wiley {\&} Sons, Ltd},
+	    doi = {10.1111/aos.13038}
+    }
 
+    @article{Chang2021Dec,
+	        author = {Chang, Melinda Y. and Borchert, Mark S.},
+	        title = {{Validity and reliability of eye tracking for visual acuity assessment in children with cortical visual impairment}},
+	        journal = {Journal of American Association for Pediatric Ophthalmology and Strabismus},
+	        volume = {25},
+	        number = {6},
+	        pages = {334.e1--334.e5},
+	        year = {2021},
+	        month = {Dec},
+	        issn = {1091-8531},
+	        publisher = {Mosby},
+	        doi = {10.1016/j.jaapos.2021.07.008}
+        }
+
+        @article{Johnson1990Apr,
+	        author = {Johnson, Mark H.},
+	        title = {{Cortical Maturation and the Development of Visual Attention in Early Infancy}},
+	        journal = {J. Cognit. Neurosci.},
+	        volume = {2},
+	        number = {2},
+	        pages = {81--95},
+	        year = {1990},
+	        month = apr,
+	        issn = {0898-929X},
+	        publisher = {MIT Press},
+	        doi = {10.1162/jocn.1990.2.2.81}
+        }
+
+        @article{Valenza1994Jul,
+	        author = {Valenza, Eloisa and Simion, Francesca and Umilt{\ifmmode\grave{a}\else\`{a}\fi}, Carlo},
+	        title = {{Inhibition of return in newborn infants}},
+	        journal = {Infant Behavior and Development},
+	        volume = {17},
+	        number = {3},
+	        pages = {293--302},
+	        year = {1994},
+	        month = {Jul},
+	        issn = {0163-6383},
+	        publisher = {JAI},
+	        doi = {10.1016/0163-6383(94)90009-4}
+        }
+
+    "#;
+
+    use std::io::Read;
+    use std::fs::File;
+    //let mut content = String::new();
+    //File::open("/home/diego/Downloads/references.bib").unwrap().read_to_string(&mut content).unwrap();
+    println!("{:#?}", BibParser::parse(&content));
 }
+

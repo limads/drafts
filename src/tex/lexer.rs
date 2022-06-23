@@ -122,10 +122,11 @@ impl<'a> fmt::Display for Token<'a> {
             Token::LineBreak(txt, _) => txt.to_string(),
             Token::Escape(txt, _) => txt.to_string(),
             Token::Group(tks, _) => {
-                let mut s = String::new();
+                let mut s = String::from("{");
                 for t in tks.iter() {
                     s += &t.to_string()[..];
                 }
+                s += "}";
                 s
             },
             Token::Reference(entry, _) => entry.to_string()
@@ -659,7 +660,10 @@ fn text(s : &str) -> IResult<&str, &str> {
 
     // TODO reeplace delimited by other combinator that includes the braces.
     //alt((
-    is_not("\\%$@{}")(s)
+
+    // The @ seems to be parseable latex text. But we should add to the end of text
+    // it if we want to parse bib entries embedded in the text.
+    is_not("\\%${}")(s)
     // ))(s)
 }
 
@@ -887,7 +891,7 @@ fn bib_cmd() {
     println!("{:?}", command(r"\check{s}"));
     println!("{:?}", many0(command)(r"\ifmmode\check{s}"));
     println!("{:?}", many0(command)(r"\ifmmode\check{s}\else\v{s}\fi"));
-    println!("{:?}", bib_command(r"{\ifmmode\check{s}\else\v{s}\fi}"));
+    // println!("{:?}", bib_command(r"{\ifmmode\check{s}\else\v{s}\fi}"));
 }
 
 #[test]
@@ -918,25 +922,42 @@ fn bib_with_cmd() {
     ))(s)
 }*/
 
-fn bib_command(s : &str) -> IResult<&str, &str> {
-    let rem = delimited(tag("{"), many0(command), tag("}"))(s)?.0;
+fn command_str(s : &str) -> IResult<&str, &str> {
+    let (rem, _) = command(s)?;
     Ok((rem, &s[..(s.len() - rem.len())]))
 }
 
+pub fn group_str(s : &str) -> IResult<&str, &str> {
+    let (rem, _) = group(s)?;
+    Ok((rem, &s[..(s.len() - rem.len())]))
+}
+
+/*fn bib_command(s : &str) -> IResult<&str, &str> {
+    // let rem = delimited(tag("{"), many0(command), tag("}"))(s)?.0;
+    let rem = delimited(tag("{"), many0(alt((command_str, group_str))), tag("}"))(s)?.0;
+    Ok((rem, &s[..(s.len() - rem.len())]))
+}*/
+
+fn group_or_cmd_or_txt_str(txt : &str) -> IResult<&str, &str> {
+    let (rem, _) = many1(alt((group_str, command_str, text)))(txt)?;
+    Ok((rem, &txt[..(txt.len() - rem.len())]))
+}
+
 fn bib_field_value(s : &str) -> IResult<&str, &str> {
-    let rem = alt((
-        delimited(tag("{{"), many0(alt((bib_command, is_not("}")))), tag("}}")),
-        delimited(tag("{"), many0(alt((bib_command, is_not("}")))), tag("}")),
-        delimited(tag("\""), many0(alt((bib_command, is_not("\"")))), tag("\"")),
-    ))(s)?.0;
+    let (rem, _) = alt((
+        delimited(tag("{{"), group_or_cmd_or_txt_str, tag("}}")),
+        delimited(tag("{"), group_or_cmd_or_txt_str, tag("}")),
+        delimited(tag("\""), group_or_cmd_or_txt_str, tag("\"")),
+        is_not(",")
+    ))(s)?;
     Ok((rem, &s[..(s.len() - rem.len())]))
 }
 
 fn bib_field(s : &str) -> IResult<&str, (&str, &str)> {
     tuple((
-        opt(space0),
+        space0,
         separated_pair(is_not("="), tuple((space0, char('='), space0)), bib_field_value),
-        opt(space0)
+        space0
     ))(s).map(|(rem, s)| (rem, (s.1.0.trim(), s.1.1.trim())) )
 }
 
@@ -961,9 +982,10 @@ fn entry(s : &str) -> IResult<&str, Entry> {
 
 pub fn bib_entry(s : &str) -> IResult<&str, BibEntry> {
     let (rem, entry) = delimited(char('@'), entry, tag("{"))(s)?;
+
     let (rem, key) = is_not(",")(rem)?;
     let (rem, _) = take(1usize)(rem)?;
-    // println!("{}", rem);
+
     let (rem, fields) = separated_list1(tag(","), bib_field)(rem)?;
     let (rem, _) = is_not("}")(rem)?;
     let (rem, _) = tag("}")(rem)?;

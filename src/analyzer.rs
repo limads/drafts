@@ -12,6 +12,9 @@ use crate::manager::FileManager;
 use archiver::SingleArchiverImpl;
 use std::io::Read;
 use std::path::Path;
+use std::thread;
+use std::rc::Rc;
+use std::cell::RefCell;
 
 pub enum AnalyzerAction {
 
@@ -22,6 +25,8 @@ pub enum AnalyzerAction {
     ChangeBaseDir(Option<String>),
 
     BibChanged(String),
+
+    BibError(String),
 
     // Item selected from the left sidebar. Calculate char position from byte offset at current
     // document model. Then calculate line from char offset. Propagate line to editor, so the
@@ -114,7 +119,7 @@ impl Analyzer {
                                             println!("could not open file");
                                         }
                                     } else {
-                                        println!("path {} does not exist", path);
+                                        send.send(AnalyzerAction::BibError(format!("Path {} does not exist", path)));
                                     }
                                 } else {
                                     println!("No filename or base path available");
@@ -245,9 +250,12 @@ impl Analyzer {
                                 }
                             },
                             Err(e) => {
-                                println!("{}", e);
+                                on_doc_error.call(TexError { msg : format!("Bibtex error: {}", e), line : 0 });
                             }
                         }
+                    },
+                    AnalyzerAction::BibError(e) => {
+                        on_doc_error.call(TexError { msg : e, line : 0 });
                     },
                     AnalyzerAction::ItemSelected(sel_ixs) => {
                         if let Some(tk_ix) = doc.token_index_at(&sel_ixs[..]) {
@@ -348,24 +356,61 @@ h.suggest(word)
 impl React<FileManager> for Analyzer {
 
     fn react(&self, manager : &FileManager) {
+
+        let is_new = Rc::new(RefCell::new(true));
+
         let send = self.send.clone();
         manager.connect_save({
             move |path| {
                 send.send(AnalyzerAction::ChangeBaseDir(Some(path.into())));
             }
         });
+
+        manager.connect_save({
+            let send = self.send.clone();
+            let is_new = is_new.clone();
+            move|path| {
+
+                let mut is_new = is_new.borrow_mut();
+                // Trigger a document analysis whenever doc is saved, because
+                // we might have gone from unknown path -> known path and now
+                // we might be able to parse the bibtex file.
+                if *is_new {
+                    let send = send.clone();
+                    thread::spawn(move || {
+                        match File::open(&path) {
+                            Ok(mut f) => {
+                                let mut content = String::new();
+                                match f.read_to_string(&mut content) {
+                                    Ok(_) => {
+                                        send.send(AnalyzerAction::TextChanged(content));
+                                    },
+                                    _ => { }
+                                }
+                            },
+                            Err(_) => { }
+                        }
+                    });
+                    *is_new = false;
+                }
+            }
+        });
         manager.connect_opened({
             let send = self.send.clone();
+            let is_new = is_new.clone();
             move |(path, content)| {
                 send.send(AnalyzerAction::ChangeBaseDir(Some(path.into())));
                 send.send(AnalyzerAction::TextInit(content));
+                *(is_new.borrow_mut()) = false;
             }
         });
         manager.connect_new({
             let send = self.send.clone();
+            let is_new = is_new.clone();
             move |_| {
                 send.send(AnalyzerAction::ChangeBaseDir(None));
                 send.send(AnalyzerAction::TextInit(String::new()));
+                *(is_new.borrow_mut()) = true;
             }
         });
     }
