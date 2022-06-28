@@ -36,7 +36,8 @@ pub struct PapersWindow {
     pub editor : PapersEditor,
     pub doc_tree : DocTree,
     pub stack : Stack,
-    pub start_screen : StartScreen
+    pub start_screen : StartScreen,
+    pub export_pdf_dialog : SaveDialog
 }
 
 // \usepackage[utf8]{ulem}
@@ -116,6 +117,14 @@ const PRESENTATION_TEMPLATE : &'static str = r#"\documentclass{beamer}
 \end{document}
 "#;
 
+fn start_document(view : &View, stack : &Stack, titlebar : &Titlebar, template : &str) {
+    view.buffer().set_text(ARTICLE_TEMPLATE);
+    stack.set_visible_child_name("editor");
+    titlebar.main_menu.actions.save.set_enabled(true);
+    titlebar.main_menu.actions.save_as.set_enabled(true);
+    titlebar.pdf_btn.set_sensitive(true);
+}
+
 impl React<StartScreen> for PapersWindow {
 
     fn react(&self, start_screen : &StartScreen) {
@@ -133,13 +142,9 @@ impl React<StartScreen> for PapersWindow {
         });
         start_screen.article_btn.connect_clicked({
             let (view, stack)  = (self.editor.view.clone(), self.stack.clone());
-            let action_save = self.titlebar.main_menu.actions.save.clone();
-            let action_save_as = self.titlebar.main_menu.actions.save_as.clone();
+            let titlebar = self.titlebar.clone();
             move |_| {
-                view.buffer().set_text(ARTICLE_TEMPLATE);
-                stack.set_visible_child_name("editor");
-                action_save.set_enabled(true);
-                action_save_as.set_enabled(true);
+                start_document(&view, &stack, &titlebar, ARTICLE_TEMPLATE);
             }
         });
         /*start_screen.report_btn.connect_clicked({
@@ -511,13 +516,83 @@ impl PapersWindow {
         let titlebar = Titlebar::build();
         window.set_titlebar(Some(&titlebar.header));
         window.set_decorated(true);
-
         let doc_tree = DocTree::build();
         let editor = PapersEditor::build();
         let start_screen = StartScreen::build();
 
+        let export_pdf_dialog = archiver::SaveDialog::build("*.pdf");
+        export_pdf_dialog.dialog.set_transient_for(Some(&window));
+
+        titlebar.export_pdf_btn.connect_clicked({
+            let export_pdf_dialog = export_pdf_dialog.clone();
+            move|btn| {
+                export_pdf_dialog.dialog.show();
+            }
+        });
+        export_pdf_dialog.dialog.connect_response({
+            let doc = editor.pdf_viewer.doc.clone();
+            move |dialog, resp| {
+                match resp {
+                    ResponseType::Accept => {
+                        if let Some(path) = dialog.file().and_then(|f| f.path() ) {
+                            if let Some(doc) = &*doc.borrow() {
+                                if let Err(e) = doc.save(&format!("file://{}", path.to_str().unwrap())) {
+                                    println!("Document save error: {}", e);
+                                }
+                            } else {
+                                println!("No current document to export");
+                            }
+                        } else {
+                            println!("No path available");
+                        }
+                    },
+                    _ => { }
+                }
+            }
+        });
+
         titlebar.main_menu.save_dialog.dialog.set_transient_for(Some(&window));
         titlebar.main_menu.open_dialog.dialog.set_transient_for(Some(&window));
+
+        // Keeps pdf paned hidden due to window changes. Maybe move to impl React<MainWindow> for Editor?
+        window.connect_default_width_notify({
+            let paned = editor.sub_paned.clone();
+            let pdf_btn = titlebar.pdf_btn.clone();
+            move |win| {
+                // println!("width changed");
+                if !pdf_btn.is_active() || !pdf_btn.is_sensitive() {
+                    paned.set_position(i32::MAX);
+                }
+            }
+        });
+        window.connect_default_height_notify({
+            let paned = editor.sub_paned.clone();
+            let pdf_btn = titlebar.pdf_btn.clone();
+            move |win| {
+                // println!("height changed");
+                if !pdf_btn.is_active() || !pdf_btn.is_sensitive() {
+                    paned.set_position(i32::MAX);
+                }
+            }
+        });
+
+        window.connect_maximized_notify({
+            let paned = editor.sub_paned.clone();
+            let pdf_btn = titlebar.pdf_btn.clone();
+            move |win| {
+                // println!("Maximized changed");
+                if !pdf_btn.is_active() || !pdf_btn.is_sensitive() {
+                    // let w = win.allocation().width;
+                    // println!("{}", w);
+                    paned.set_position(i32::MAX);
+                }
+            }
+        });
+        window.connect_fullscreened_notify({
+            move |win| {
+                println!("Fullscreened changed");
+            }
+        });
 
         // titlebar.main_menu.open_dialog.react(&titlebar.main_menu);
         titlebar.main_menu.save_dialog.react(&titlebar.main_menu);
@@ -578,7 +653,7 @@ impl PapersWindow {
             window.add_action(&action);
         }
 
-        Self { window, titlebar, editor, doc_tree, stack, start_screen }
+        Self { window, titlebar, editor, doc_tree, stack, start_screen, export_pdf_dialog }
     }
 
 }
@@ -597,10 +672,15 @@ impl React<FileManager> for PapersWindow {
             let action_save = self.titlebar.main_menu.actions.save.clone();
             let action_save_as = self.titlebar.main_menu.actions.save_as.clone();
             let bib_list = self.titlebar.bib_popover.list.clone();
+            let paned = self.editor.sub_paned.clone();
+            let titlebar = self.titlebar.clone();
             move |_| {
                 window.set_title(Some("Papers"));
                 action_save.set_enabled(false);
                 action_save_as.set_enabled(false);
+                paned.set_position(paned.allocation().width);
+                // paned.set_sensitive(false);
+                titlebar.set_typeset_mode(false);
 
                 // New files are never linked to references before they are saved.
                 titlebar::clear_list(&bib_list);
@@ -609,14 +689,22 @@ impl React<FileManager> for PapersWindow {
         });
         manager.connect_opened({
             let stack = self.stack.clone();
+            let paned = self.editor.sub_paned.clone();
+            let titlebar = self.titlebar.clone();
             move |(path, _)| {
                 stack.set_visible_child_name("editor");
+                paned.set_position(paned.allocation().width);
+                // paned.set_sensitive(false);
+                titlebar.set_typeset_mode(false);
+                titlebar.pdf_btn.set_sensitive(true);
             }
         });
         manager.connect_new({
             let stack = self.stack.clone();
+            let titlebar = self.titlebar.clone();
             move |_| {
                 stack.set_visible_child_name("start");
+                titlebar.pdf_btn.set_sensitive(false);
             }
         });
     }
@@ -737,23 +825,37 @@ fn set_position_as_ratio(win : &ApplicationWindow, paned : &Paned, ratio : f32) 
     paned.set_position((dim * ratio) as i32);
 }
 
+fn update_paned_from_allocation(win : &ApplicationWindow, paned : &Paned, ratio : &Rc<RefCell<f32>>) {
+    let alloc = win.allocation();
+    set_position_as_ratio(&win, &paned, *ratio.borrow());
+}
+
 fn preserve_ratio_on_resize(win : &ApplicationWindow, paned : &Paned, ratio : &Rc<RefCell<f32>>) {
     win.connect_default_width_notify({
         let paned = paned.clone();
         let ratio = ratio.clone();
-        println!("Size changed");
         move |win| {
-            let alloc = win.allocation();
-            set_position_as_ratio(&win,&paned, *ratio.borrow());
+            update_paned_from_allocation(&win, &paned, &ratio);
         }
     });
     win.connect_default_height_notify({
         let paned = paned.clone();
         let ratio = ratio.clone();
-        println!("Size changed");
         move |win| {
-            let alloc = win.allocation();
-            set_position_as_ratio(&win, &paned, *ratio.borrow());
+            update_paned_from_allocation(&win, &paned, &ratio);
+        }
+    });
+    win.connect_maximized_notify({
+        let paned = paned.clone();
+        let ratio = ratio.clone();
+        move |win| {
+            update_paned_from_allocation(&win, &paned, &ratio);
+        }
+    });
+    win.connect_resizable_notify({
+
+        move |win| {
+            println!("Resizable");
         }
     });
     let ratio = ratio.clone();
@@ -790,7 +892,7 @@ impl React<Typesetter> for PapersWindow {
 
                     // #[cfg(feature="poppler-rs")]
                     // {
-                    show_with_poppler(&editor.viewer, &titlebar.zoom_action, &win, &path[..]);
+                    show_with_poppler(&editor.pdf_viewer, &titlebar.zoom_action, &win, &path[..]);
                     println!("Showing with poppler");
                     // }
 
@@ -798,10 +900,15 @@ impl React<Typesetter> for PapersWindow {
                     // show_with_evince(&path);
 
                     editor.sub_paned.set_position(editor.sub_paned.allocation().width / 2);
-                    titlebar.zoom_in_btn.set_sensitive(true);
-                    titlebar.zoom_out_btn.set_sensitive(true);
-                    titlebar.export_pdf_btn.set_sensitive(true);
-                    titlebar.hide_pdf_btn.set_sensitive(true);
+                    // editor.sub_paned.set_sensitive(true);
+                    titlebar.set_typeset_mode(true);
+
+                    // If sidebar is open, use minimum zoom at PDF to minimize occlusion of content.
+                    if titlebar.sidebar_toggle.is_active() {
+                        while titlebar.zoom_out_btn.is_sensitive() {
+                            titlebar.zoom_out_btn.emit_clicked();
+                        }
+                    }
                 },
                 _ => {
 
@@ -838,10 +945,12 @@ impl React<Titlebar> for PdfViewer {
                 das.borrow().iter().for_each(|da| da.queue_draw() );
             }
         });
-        titlebar.hide_pdf_btn.connect_clicked({
+        titlebar.pdf_btn.connect_toggled({
             let viewer = self.clone();
-            move |_| {
-                viewer.clear_pages();
+            move |btn| {
+                if !btn.is_active() {
+                    viewer.clear_pages();
+                }
             }
         });
     }
@@ -851,9 +960,9 @@ impl React<Titlebar> for PdfViewer {
 // const PAGE_BORDER_COLOR : f64 = 0.859375;
 
 // Equivalent to 0xcf
-const PAGE_BORDER_COLOR : f64 = 0.80859375;
+pub const PAGE_BORDER_COLOR : f64 = 0.80859375;
 
-const PAGE_BORDER_WIDTH : f64 = 0.5;
+pub const PAGE_BORDER_WIDTH : f64 = 0.5;
 
 impl PdfViewer {
 
@@ -882,101 +991,7 @@ impl PdfViewer {
         for page_ix in 0..doc.n_pages() {
             let da = DrawingArea::new();
             // let zoom = zoom.clone();
-            let page = doc.page(page_ix).unwrap();
-            let zoom_action = zoom_action.clone();
-            da.set_vexpand(false);
-            da.set_hexpand(false);
-            da.set_halign(Align::Center);
-            da.set_valign(Align::Center);
-            da.set_margin_top(16);
-            da.set_margin_start(16);
-            da.set_margin_end(16);
-            if page_ix == doc.n_pages()-1 {
-                da.set_margin_bottom(16);
-            }
-
-            //da.set_width_request((A4.0 * PX_PER_MM) as i32);
-            //da.set_height_request((A4.1 * PX_PER_MM) as i32);
-
-            da.set_draw_func(move |da, ctx, _, _| {
-                ctx.save();
-
-                let z = zoom_action.state().unwrap().get::<f64>().unwrap();
-                let (w, h) = page.size();
-                da.set_width_request((w * z) as i32);
-                da.set_height_request((h * z) as i32);
-
-                let (w, h) = (da.allocation().width as f64, da.allocation().height as f64);
-
-                // Draw white background of page
-                ctx.set_source_rgb(1., 1., 1.);
-                ctx.rectangle(1., 1., w, h);
-                ctx.fill();
-
-                // Draw page borders
-
-                ctx.set_source_rgb(PAGE_BORDER_COLOR, PAGE_BORDER_COLOR, PAGE_BORDER_COLOR);
-
-                ctx.set_line_width(PAGE_BORDER_WIDTH);
-                // let color = 0.5843;
-                // let grad = cairo::LinearGradient::new(0.0, 0.0, w, h);
-                // grad.add_color_stop_rgba(0.0, color, color, color, 0.5);
-                // grad.add_color_stop_rgba(0.5, color, color, color, 1.0);
-                // Linear gradient derefs into pattern.
-                // ctx.set_source(&*grad);
-
-                // Keep 1px away from page limits
-                ctx.move_to(1., 1.);
-                ctx.line_to(w - 1., 1.);
-                ctx.line_to(w - 1., h);
-                ctx.line_to(1., h - 1.);
-                ctx.line_to(1., 1.);
-
-                ctx.stroke();
-
-                // Poppler always render with the same dpi from the physical page resolution. We must
-                // apply a scale to the context if we want the content to be scaled.
-                ctx.scale(z, z);
-
-                // TODO remove the transmute when GTK/cairo version match.
-                page.render(unsafe { std::mem::transmute::<_, _>(ctx) });
-
-                ctx.restore();
-            });
-
-            let motion = EventControllerMotion::new();
-            motion.connect_enter(|motion, x, y| {
-                // let cursor_ty = gdk::CursorType::Text;
-                // cursor.set_curor(Some(&gdk::Cursor::for_display(gdk::Display::default(), cursor_ty)));
-            });
-            motion.connect_leave(|motion| {
-                // let cursor_ty = gdk::CursorType::Arrow;
-                // cursor.set_curor(Some(&gdk::Cursor::for_display(gdk::Display::default(), cursor_ty)));
-            });
-            motion.connect_motion({
-                let page = doc.page(page_ix).unwrap();
-                move |motion, x, y| {
-                    if page.text_for_area(&mut poppler::Rectangle::new()).is_some() {
-                        // Text cursor
-                    } else {
-                        // Arrow cursor
-                    }
-                }
-            });
-            da.add_controller(&motion);
-            let drag = GestureDrag::new();
-            drag.connect_drag_begin({
-                let page = doc.page(page_ix).unwrap();
-                move |drag, x, y| {
-
-                }
-            });
-            drag.connect_drag_end({
-                let page = doc.page(page_ix).unwrap();
-                move |drag, x, y| {
-
-                }
-            });
+            crate::draw_page_at_area(doc, page_ix, &da, zoom_action);
             self.pages_bx.append(&da);
             self.das.borrow_mut().push(da);
         }

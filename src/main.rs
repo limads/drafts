@@ -115,6 +115,8 @@ fn main() {
             papers_win.react(&papers_win.start_screen);
             user_state.react(&papers_win);
 
+            // papers::ui::setup_position_as_ratio(&papers_win.window, &papers_win.editor.sub_paned, 0.5);
+
             let manager = FileManager::new();
             manager.react(&papers_win.titlebar.main_menu.open_dialog);
             manager.react(&papers_win.titlebar.main_menu.save_dialog);
@@ -133,7 +135,7 @@ fn main() {
             // papers_win.titlebar.bib_popover.react(&manager);
 
             papers_win.editor.react(&typesetter);
-            papers_win.editor.viewer.react(&papers_win.titlebar);
+            papers_win.editor.pdf_viewer.react(&papers_win.titlebar);
             papers_win.editor.react(&manager);
             papers_win.react(&manager);
 

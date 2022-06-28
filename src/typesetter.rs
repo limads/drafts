@@ -430,7 +430,52 @@ pub fn typeset_document(latex : &str, base_path : &Path, out_path : &Path) -> Re
     }*/
 }
 
-fn typeset_document_from_cli(ws : &mut Workspace, latex : &str, base_path : Option<&Path>, send : &glib::Sender<TypesetterAction>) {
+pub fn spawn_helper(ws : &mut Workspace, latex : &str, base_path : Option<&Path>) -> Result<Vec<u8>, String> {
+
+    use std::process::{Command, Stdio};
+
+    let bp = base_path.unwrap_or(ws.outdir.path());
+    let args = ["-p", bp.to_str().unwrap(), "-o", ws.outdir.path().to_str().unwrap()];
+
+    println!("Using {:?} as base path", bp.to_str().unwrap());
+
+    let mut res_cmd = Command::new("helper")
+        .args(&args)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .spawn();
+
+    if res_cmd.is_err() {
+        if let Ok(exe_path) = std::env::current_exe() {
+            res_cmd = Command::new(&format!("{}/helper", exe_path.to_str().unwrap()))
+                .args(&args)
+                .stdin(Stdio::piped())
+                .stdout(Stdio::piped())
+                .spawn();
+            if res_cmd.is_err() {
+                return Err(format!("Missing typesetter helper"));
+            }
+        } else {
+            return Err(format!("Missing typesetter helper"));
+        }
+    }
+    let mut cmd = res_cmd.unwrap();
+    let mut stdin = cmd.stdin.as_mut().unwrap().write_all(latex.as_bytes()).unwrap();
+    match cmd.wait_with_output() {
+        Ok(out) => {
+            if out.status.success() {
+                Ok(out.stdout)
+            } else {
+                Err(format!("{}",String::from_utf8(out.stderr).unwrap()))
+            }
+        },
+        Err(e) => {
+            Err(format!("{}",e))
+        }
+    }
+}
+
+pub fn typeset_document_from_cli(ws : &mut Workspace, latex : &str, base_path : Option<&Path>, send : &glib::Sender<TypesetterAction>) {
     /*ws.file.seek(std::io::SeekFrom::Start(0));
     ws.file.write_all(latex.as_bytes()).unwrap();
     let out = Command::new("tectonic")
@@ -453,55 +498,20 @@ fn typeset_document_from_cli(ws : &mut Workspace, latex : &str, base_path : Opti
     }*/
     // unimplemented!()
 
-    use std::process::{Command, Stdio};
-
     /*
     TODO start helper with the environment variable
     $TECTONIC_CACHE_DIR=$XDG_DATA_DIR/tectonic after tectonic>0.9
     */
 
-    let bp = base_path.unwrap_or(ws.outdir.path());
-    let args = ["-p", bp.to_str().unwrap(), "-o", ws.outdir.path().to_str().unwrap()];
-
-    println!("Using {:?} as base path", bp.to_str().unwrap());
-
-    let mut res_cmd = Command::new("helper")
-        .args(&args)
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .spawn();
-
-    if res_cmd.is_err() {
-        if let Ok(exe_path) = std::env::current_exe() {
-            res_cmd = Command::new(&format!("{}/helper", exe_path.to_str().unwrap()))
-                .args(&args)
-                .stdin(Stdio::piped())
-                .stdout(Stdio::piped())
-                .spawn();
-            if res_cmd.is_err() {
-                send.send(TypesetterAction::Error(format!("Missing typesetter helper")));
-                return;
-            }
-        } else {
-            send.send(TypesetterAction::Error(format!("Missing typesetter helper")));
-            return;
-        }
-    }
-    let mut cmd = res_cmd.unwrap();
-    let mut stdin = cmd.stdin.as_mut().unwrap().write_all(latex.as_bytes()).unwrap();
-    match cmd.wait_with_output() {
-        Ok(out) => {
-            if out.status.success() {
-                let out_path = format!("{}/out.pdf", &ws.outdir.path().display());
-                let mut f = File::create(&out_path).unwrap();
-                f.write_all(&out.stdout).unwrap();
-                send.send(TypesetterAction::Done(TypesetterTarget::File(out_path)));
-            } else {
-                send.send(TypesetterAction::Error(format!("{}",String::from_utf8(out.stderr).unwrap())));
-            }
+    match spawn_helper(ws, latex, base_path) {
+        Ok(pdf_content) => {
+            let out_path = format!("{}/out.pdf", &ws.outdir.path().display());
+            let mut f = File::create(&out_path).unwrap();
+            f.write_all(&pdf_content).unwrap();
+            send.send(TypesetterAction::Done(TypesetterTarget::File(out_path)));
         },
         Err(e) => {
-            send.send(TypesetterAction::Error(format!("{}",e)));
+            send.send(TypesetterAction::Error(format!("{}", e)));
         }
     }
 }
@@ -630,26 +640,29 @@ impl React<PapersWindow> for Typesetter {
     fn react(&self, win : &PapersWindow) {
         let (titlebar, editor) = (&win.titlebar, &win.editor);
         let send = self.send.clone();
-        titlebar.pdf_btn.connect_clicked({
+        titlebar.pdf_btn.connect_toggled({
             let view = editor.view.clone();
             // let window = window.clone();
             // let ws = ws.clone();
             move |btn| {
-                let buffer = view.buffer();
-                let txt = buffer.text(
-                    &buffer.start_iter(),
-                    &buffer.end_iter(),
-                    true
-                ).to_string();
 
-                if txt.is_empty() {
-                    send.send(TypesetterAction::Error(String::from("Cannot typeset empty document")));
-                    return;
+                if btn.is_active() {
+                    let buffer = view.buffer();
+                    let txt = buffer.text(
+                        &buffer.start_iter(),
+                        &buffer.end_iter(),
+                        true
+                    ).to_string();
+
+                    if txt.is_empty() {
+                        send.send(TypesetterAction::Error(String::from("Cannot typeset empty document")));
+                        return;
+                    }
+
+                    send.send(TypesetterAction::Request(txt)).unwrap();
+                    btn.set_icon_name("timer-symbolic");
+                    btn.set_sensitive(false);
                 }
-
-                send.send(TypesetterAction::Request(txt)).unwrap();
-                btn.set_icon_name("timer-symbolic");
-                btn.set_sensitive(false);
 
                 // let mut ws = ws.borrow_mut();
                 // thread::sleep(Duration::from_secs(200));

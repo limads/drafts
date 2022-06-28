@@ -25,7 +25,7 @@ impl MainMenu {
         let popover = PopoverMenu::from_model(Some(&menu));
         let actions = FileActions::new();
         let open_dialog = OpenDialog::build("*.tex");
-        let save_dialog = SaveDialog::build();
+        let save_dialog = SaveDialog::build("*.tex");
         Self { popover, actions, open_dialog, save_dialog }
     }
 
@@ -36,7 +36,7 @@ pub struct Titlebar {
     pub header : HeaderBar,
     pub menu_button : MenuButton,
     pub main_menu : MainMenu,
-    pub pdf_btn : Button,
+    pub pdf_btn : ToggleButton,
     pub sidebar_toggle : ToggleButton,
     pub sidebar_hide_action : gio::SimpleAction,
     pub sectioning_actions : SectioningActions,
@@ -52,7 +52,7 @@ pub struct Titlebar {
     pub zoom_in_btn : Button,
     pub zoom_out_btn : Button,
     pub zoom_action : gio::SimpleAction,
-    pub hide_pdf_btn : Button,
+    // pub hide_pdf_btn : Button,
     pub export_pdf_btn : Button
 }
 
@@ -749,22 +749,34 @@ impl PaperPopover {
 
 }
 
-const DEFAULT_ZOOM_SCALE : f64 = 1.5;
+pub const DEFAULT_ZOOM_SCALE : f64 = 1.5;
 
-const ZOOM_SCALE_INCREMENT : f64 = 0.5;
+pub const ZOOM_SCALE_INCREMENT : f64 = 0.5;
 
 impl Titlebar {
+
+    pub fn set_typeset_mode(&self, active : bool) {
+        self.zoom_in_btn.set_sensitive(active);
+        self.zoom_out_btn.set_sensitive(active);
+        self.export_pdf_btn.set_sensitive(active);
+        if !active {
+            if self.pdf_btn.is_active() {
+                self.pdf_btn.set_active(false);
+            }
+        }
+    }
 
     pub fn build() -> Self {
         let header = HeaderBar::new();
         let menu_button = MenuButton::builder().icon_name("open-menu-symbolic").build();
 
-        let pdf_btn = Button::builder().icon_name("evince-symbolic").build();
-        let hide_pdf_btn = Button::builder().icon_name("user-trash-symbolic").build();
+        let pdf_btn = ToggleButton::builder().icon_name("evince-symbolic").build();
+        // let hide_pdf_btn = Button::builder().icon_name("user-trash-symbolic").build();
         let export_pdf_btn = Button::builder().icon_name("folder-download-symbolic").build();
         let sidebar_toggle = ToggleButton::builder().icon_name("view-sidebar-symbolic").build();
-        hide_pdf_btn.set_sensitive(false);
+        // hide_pdf_btn.set_sensitive(false);
         export_pdf_btn.set_sensitive(false);
+        pdf_btn.set_sensitive(false);
 
         // \noindent - inline command that applies to current paragarph
         // \setlength{\parindent}{20pt} - At document config.
@@ -839,7 +851,7 @@ impl Titlebar {
         // TODO make this another option at a SpinButton.
         // let web_btn = ToggleButton::builder().icon_name("globe-symbolic").build();
 
-        let sidebar_hide_action = gio::SimpleAction::new_stateful("sidebar_hide", None, &(0).to_variant());
+        let sidebar_hide_action = gio::SimpleAction::new_stateful("sidebar_hide", None, &(0i32).to_variant());
         let main_menu = MainMenu::build();
         menu_button.set_popover(Some(&main_menu.popover));
 
@@ -920,9 +932,25 @@ impl Titlebar {
         zoom_out_btn.set_sensitive(false);
         zoom_in_btn.set_icon_name("zoom-in-symbolic");
         zoom_out_btn.set_icon_name("zoom-out-symbolic");
-        zoom_bx.style_context().add_class("linked");
+
+        // zoom_bx.style_context().add_class("linked");
+
         zoom_bx.append(&zoom_in_btn);
         zoom_bx.append(&zoom_out_btn);
+
+        // Set zoom to minimum whenever the user toggles the sidebar but the
+        // typeset PDF is still open, to minimize occlusion of content.
+        sidebar_toggle.connect_toggled({
+            let zoom_out_btn = zoom_out_btn.clone();
+            let pdf_btn = pdf_btn.clone();
+            move |toggle| {
+                if toggle.is_active() && pdf_btn.is_active() {
+                    while zoom_out_btn.is_sensitive() {
+                        zoom_out_btn.emit_clicked();
+                    }
+                }
+            }
+        });
 
         header.pack_start(&sidebar_toggle);
         header.pack_start(&org_btn);
@@ -933,19 +961,23 @@ impl Titlebar {
         header.pack_start(&bib_btn);
 
         header.pack_end(&menu_button);
-        header.pack_end(&pdf_btn);
-        header.pack_end(&export_pdf_btn);
-        header.pack_end(&hide_pdf_btn);
-        header.pack_end(&zoom_bx);
 
-        hide_pdf_btn.connect_clicked({
+        header.pack_end(&export_pdf_btn);
+        // header.pack_end(&hide_pdf_btn);
+        header.pack_end(&zoom_bx);
+        header.pack_end(&pdf_btn);
+
+        pdf_btn.connect_toggled({
             let zoom_in_btn = zoom_in_btn.clone();
             let zoom_out_btn = zoom_out_btn.clone();
             let export_pdf_btn = export_pdf_btn.clone();
-            move |_| {
-                export_pdf_btn.set_sensitive(false);
-                zoom_in_btn.set_sensitive(false);
-                zoom_out_btn.set_sensitive(false);
+            move |pdf_btn| {
+                // hide_pdf_btn.set_sensitive(false);
+                if !pdf_btn.is_active() {
+                    export_pdf_btn.set_sensitive(false);
+                    zoom_in_btn.set_sensitive(false);
+                    zoom_out_btn.set_sensitive(false);
+                }
             }
         });
 
@@ -1022,7 +1054,7 @@ impl Titlebar {
             zoom_in_btn,
             zoom_out_btn,
             zoom_action,
-            hide_pdf_btn,
+            // hide_pdf_btn,
             export_pdf_btn
         }
     }
@@ -1037,16 +1069,21 @@ impl React<Typesetter> for Titlebar {
             move |_| {
                 btn.set_icon_name("evince-symbolic");
                 btn.set_sensitive(true);
-                if sidebar_toggle.is_active() {
-                    sidebar_toggle.set_active(false);
-                }
+
+                // Auto-hide overview on document typesettting done.
+                // if sidebar_toggle.is_active() {
+                //    sidebar_toggle.set_active(false);
+                // }
             }
         });
         typesetter.connect_error({
             let btn = self.pdf_btn.clone();
+            let titlebar = self.clone();
             move |_| {
                 btn.set_icon_name("evince-symbolic");
                 btn.set_sensitive(true);
+                // btn.set_active(false);
+                titlebar.set_typeset_mode(false);
             }
         });
     }

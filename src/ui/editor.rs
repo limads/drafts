@@ -7,12 +7,18 @@ pub struct PapersEditor {
     pub view : View,
     pub scroll : ScrolledWindow,
     pub overlay : libadwaita::ToastOverlay,
+
+    // Holds overlay with overview + sub_paned
     pub paned : Paned,
+
+    // Holds Sourceview scroll + PDF viewer scroll
     pub sub_paned : Paned,
+
     pub ignore_file_save_action : gio::SimpleAction,
     pub buf_change_handler : Rc<RefCell<Option<SignalHandlerId>>>,
     pub curr_toast : Rc<RefCell<Option<libadwaita::Toast>>>,
-    pub viewer : PdfViewer
+
+    pub pdf_viewer : PdfViewer
 }
 
 /*
@@ -23,6 +29,10 @@ TODO configure set_enable_undo AND max_undo_levels
 // set_top_margin
 // set_left_margin
 // set_bottom_margin
+
+const TEXT_WIDTH : i32 = 820;
+
+const TEXT_VERTICAL_PADDING : i32 = 98;
 
 impl PapersEditor {
 
@@ -44,8 +54,8 @@ impl PapersEditor {
 
         let scroll = ScrolledWindow::new();
 
-        view.set_margin_top(98);
-        view.set_margin_bottom(98);
+        view.set_margin_top(TEXT_VERTICAL_PADDING);
+        view.set_margin_bottom(TEXT_VERTICAL_PADDING);
 
         let provider = CssProvider::new();
         provider.load_from_data("* { background-color : #ffffff; } ".as_bytes());
@@ -56,60 +66,54 @@ impl PapersEditor {
         scroll.set_child(Some(&view));
 
         // Guarantees a good portion of the text is always visible.
-        view.set_width_request(820);
-        scroll.set_width_request(820);
+        view.set_width_request(TEXT_WIDTH);
+
+        // Setting this here prevents the viewer scroll from having a horizontal
+        // scroll bar, always favoring the center content instead of the sidebar
+        // and typesetter content. BUT the scroll will be hidden under the expanded
+        // side widget, and the text won't wrap.
+        // scroll.set_width_request(TEXT_WIDTH);
 
         let overlay = libadwaita::ToastOverlay::builder().opacity(1.0).visible(true).build();
 
         let sub_paned = Paned::new(Orientation::Horizontal);
-        let viewer = PdfViewer::new();
+        sub_paned.set_shrink_start_child(false);
+        sub_paned.set_resize_start_child(false);
+        // sub_paned.set_sensitive(false);
+        let pdf_viewer = PdfViewer::new();
         sub_paned.set_start_child(&scroll);
-        sub_paned.set_end_child(&viewer.scroll);
+        sub_paned.set_end_child(&pdf_viewer.scroll);
+
         /*sub_paned.connect_visible_notify(|sub_paned| {
             let w = sub_paned.parent().unwrap().allocation().width;
             println!("{}", w);
             sub_paned.set_position(w);
         });*/
+
+        sub_paned.connect_accept_position(move |paned| {
+            println!("Paned position accept");
+            false
+        });
+
         overlay.set_child(Some(&sub_paned));
 
         let ignore_file_save_action = gio::SimpleAction::new("ignore_file_save", None);
         let curr_toast : Rc<RefCell<Option<libadwaita::Toast>>> = Rc::new(RefCell::new(None));
 
         let paned = Paned::new(Orientation::Horizontal);
-        Self { scroll, view, overlay, paned, sub_paned, ignore_file_save_action, buf_change_handler : Rc::new(RefCell::new(None)), curr_toast, viewer }
-    }
-}
 
-pub fn connect_manager_to_editor(manager : &FileManager, view : &sourceview5::View, buf_change_handler : &Rc<RefCell<Option<SignalHandlerId>>>) {
-    manager.connect_opened({
-        let view = view.clone();
-        let change_handler = buf_change_handler.clone();
-        move |(path, content)| {
-            println!("Text set");
-            let handler_guard = change_handler.borrow();
-            let change_handler = handler_guard.as_ref().unwrap();
-            view.buffer().block_signal(&change_handler);
-            view.buffer().set_text(&content);
-            view.buffer().unblock_signal(&change_handler);
-        }
-    });
-    manager.connect_buffer_read_request({
-        let view = view.clone();
-        move |_| -> String {
-            let buffer = view.buffer();
-            buffer.text(
-                &buffer.start_iter(),
-                &buffer.end_iter(),
-                true
-            ).to_string()
-        }
-    });
+        // paned.connect_position_set_notify(move |paned| {
+        // Move other paned by the same ammount.
+        // });
+
+        Self { scroll, view, overlay, paned, sub_paned, ignore_file_save_action, buf_change_handler : Rc::new(RefCell::new(None)), curr_toast, pdf_viewer }
+    }
 }
 
 impl React<FileManager> for PapersEditor {
 
     fn react(&self, manager : &FileManager) {
-        connect_manager_to_editor(manager, &self.view, &self.buf_change_handler);
+        archiver::connect_manager_to_editor(manager, &self.view, &self.buf_change_handler);
         manager.connect_close_confirm({
             let overlay = self.overlay.clone();
             let curr_toast = self.curr_toast.clone();
@@ -297,10 +301,13 @@ impl React<Titlebar> for PapersEditor {
                 paned.set_position(0);
             }
         });
-        titlebar.hide_pdf_btn.connect_clicked({
+        titlebar.pdf_btn.connect_toggled({
             let sub_paned = self.sub_paned.clone();
             move |btn| {
-                sub_paned.set_position(sub_paned.allocation().width);
+                if !btn.is_active() {
+                    sub_paned.set_position(sub_paned.allocation().width);
+                }
+                // sub_paned.set_sensitive(false);
             }
         });
         let view = &self.view;
