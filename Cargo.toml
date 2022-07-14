@@ -42,4 +42,7 @@ path = "src/helper.rs"
 # webkit2gtk5 = "0.1.2"
 # webkit2gtk5 = "0.1.2"
 
-
+[target.x86_64-unknown-linux-gnu]
+rustflags = [
+    "-C", "link-arg=-fuse-ld=lld",
+]

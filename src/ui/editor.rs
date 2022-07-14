@@ -601,6 +601,7 @@ fn configure_view(view : &View) {
     let scheme = manager.scheme("Adwaita").unwrap();
     buffer.set_style_scheme(Some(&scheme));
     buffer.set_highlight_syntax(true);
+    buffer.set_max_undo_levels(40);
     let provider = CssProvider::new();
     provider.load_from_data(b"textview { font-family: \"Sans Regular\"; font-size: 13pt; }");
     let ctx = view.style_context();

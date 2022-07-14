@@ -9,6 +9,8 @@ use stateful::React;
 use stateful::PersistentState;
 use papers::state::PapersState;
 
+// TODO (papers:6764): Gdk-CRITICAL **: 22:03:37.455: gdk_popup_present: assertion 'width > 0' failed
+
 // flatpak remote-add --if-not-exists gnome-nightly https://nightly.gnome.org/gnome-nightly.flatpakrepo
 // flatpak install gnome-nightly org.gnome.Sdk master
 // flatpak install gnome-nightly org.gnome.Platform master

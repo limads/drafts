@@ -16,6 +16,7 @@ use std::thread;
 use std::rc::Rc;
 use std::cell::RefCell;
 
+#[derive(Debug)]
 pub enum AnalyzerAction {
 
     TextChanged(String),
@@ -81,6 +82,7 @@ impl Analyzer {
         // TODO keep an thread watching an external bib file (if any). The user can simply use
         // the embedded bibliography instead.
 
+        let mut ix = 0;
         recv.attach(None, {
             let mut tk_info = TokenInfo::default();
             let mut doc = Document::default();
@@ -135,6 +137,10 @@ impl Analyzer {
             });
 
             move |action| {
+
+                println!("{}: {:?}", ix, action);
+                ix += 1;
+
                 match action {
                     AnalyzerAction::ChangeBaseDir(opt_path) => {
                         if let Some(path) = opt_path {
