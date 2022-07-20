@@ -49,11 +49,14 @@ pub struct Titlebar {
     pub bib_popover : BibPopover,
     pub symbol_btn : MenuButton,
     pub paper_popover : PaperPopover,
+    pub refresh_btn : Button,
     pub zoom_in_btn : Button,
     pub zoom_out_btn : Button,
     pub zoom_action : gio::SimpleAction,
     // pub hide_pdf_btn : Button,
-    pub export_pdf_btn : Button
+    pub export_pdf_btn : Button,
+    pub page_entry : Entry,
+    pub page_button : Button
 }
 
 #[derive(Debug, Clone)]
@@ -758,6 +761,9 @@ impl Titlebar {
     pub fn set_typeset_mode(&self, active : bool) {
         self.zoom_in_btn.set_sensitive(active);
         self.zoom_out_btn.set_sensitive(active);
+        if !active {
+            self.refresh_btn.set_sensitive(active);
+        }
         self.export_pdf_btn.set_sensitive(active);
         if !active {
             if self.pdf_btn.is_active() {
@@ -802,6 +808,28 @@ impl Titlebar {
         let page_btn = MenuButton::new();
         page_btn.set_icon_name("crop-symbolic");
         page_btn.set_popover(Some(&paper_popover.popover));
+
+        let page_bx = Box::new(Orientation::Horizontal, 0);
+        let page_entry = Entry::new();
+        page_entry.set_text("0");
+        page_entry.set_hexpand(false);
+        page_entry.set_halign(Align::Center);
+        page_bx.set_hexpand(false);
+        page_bx.set_halign(Align::Center);
+        //page_entry.set_hfill(false);
+        page_entry.set_max_length(4);
+        page_entry.set_width_chars(3);
+        page_entry.set_max_width_chars(4);
+        let page_button = Button::new();
+        page_button.set_label("of 0");
+        page_button.set_sensitive(false);
+
+        page_entry.set_input_purpose(InputPurpose::Digits);
+        page_bx.append(&page_entry);
+        page_bx.append(&page_button);
+        page_bx.style_context().add_class("linked");
+
+        page_entry.set_sensitive(false);
 
         // let bx = Box::new(Orientation::Vertical, 0);
         /*let section_btn = Button::with_label("Section");
@@ -928,13 +956,18 @@ impl Titlebar {
         let zoom_bx = Box::new(Orientation::Horizontal, 0);
         let zoom_in_btn = Button::new();
         let zoom_out_btn = Button::new();
+        let refresh_btn = Button::new();
+        refresh_btn.set_icon_name("view-refresh-symbolic");
+
         zoom_in_btn.set_sensitive(false);
         zoom_out_btn.set_sensitive(false);
+        refresh_btn.set_sensitive(false);
         zoom_in_btn.set_icon_name("zoom-in-symbolic");
         zoom_out_btn.set_icon_name("zoom-out-symbolic");
 
         // zoom_bx.style_context().add_class("linked");
 
+        zoom_bx.append(&refresh_btn);
         zoom_bx.append(&zoom_in_btn);
         zoom_bx.append(&zoom_out_btn);
 
@@ -961,7 +994,7 @@ impl Titlebar {
         header.pack_start(&bib_btn);
 
         header.pack_end(&menu_button);
-
+        header.pack_end(&page_bx);
         header.pack_end(&export_pdf_btn);
         // header.pack_end(&hide_pdf_btn);
         header.pack_end(&zoom_bx);
@@ -971,10 +1004,12 @@ impl Titlebar {
             let zoom_in_btn = zoom_in_btn.clone();
             let zoom_out_btn = zoom_out_btn.clone();
             let export_pdf_btn = export_pdf_btn.clone();
+            let refresh_btn = refresh_btn.clone();
             move |pdf_btn| {
                 // hide_pdf_btn.set_sensitive(false);
                 if !pdf_btn.is_active() {
                     export_pdf_btn.set_sensitive(false);
+                    refresh_btn.set_sensitive(false);
                     zoom_in_btn.set_sensitive(false);
                     zoom_out_btn.set_sensitive(false);
                 }
@@ -1034,6 +1069,7 @@ impl Titlebar {
             }
         });
 
+
         Self {
             symbol_btn,
             main_menu,
@@ -1054,8 +1090,11 @@ impl Titlebar {
             zoom_in_btn,
             zoom_out_btn,
             zoom_action,
+            refresh_btn,
             // hide_pdf_btn,
-            export_pdf_btn
+            export_pdf_btn,
+            page_entry,
+            page_button
         }
     }
 }
@@ -1066,9 +1105,11 @@ impl React<Typesetter> for Titlebar {
         let btn = self.pdf_btn.clone();
         let sidebar_toggle = self.sidebar_toggle.clone();
         typesetter.connect_done({
+            let refresh_btn = self.refresh_btn.clone();
             move |_| {
                 btn.set_icon_name("evince-symbolic");
                 btn.set_sensitive(true);
+                refresh_btn.set_sensitive(true);
 
                 // Auto-hide overview on document typesettting done.
                 // if sidebar_toggle.is_active() {

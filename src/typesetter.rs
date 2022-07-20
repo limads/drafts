@@ -635,37 +635,56 @@ impl Typesetter {
 
 }
 
+fn request_typesetting(
+    pdf_btn : &ToggleButton,
+    refresh_btn : &Button,
+    view : &sourceview5::View,
+    send : &glib::Sender<TypesetterAction>
+) {
+
+    let buffer = view.buffer();
+    let txt = buffer.text(
+        &buffer.start_iter(),
+        &buffer.end_iter(),
+        true
+    ).to_string();
+
+    if txt.is_empty() {
+        send.send(TypesetterAction::Error(String::from("Cannot typeset empty document")));
+        return;
+    }
+
+    send.send(TypesetterAction::Request(txt)).unwrap();
+    pdf_btn.set_icon_name("timer-symbolic");
+    pdf_btn.set_sensitive(false);
+    refresh_btn.set_sensitive(false);
+}
+
 impl React<PapersWindow> for Typesetter {
 
     fn react(&self, win : &PapersWindow) {
         let (titlebar, editor) = (&win.titlebar, &win.editor);
-        let send = self.send.clone();
         titlebar.pdf_btn.connect_toggled({
             let view = editor.view.clone();
+            let send = self.send.clone();
+            let refresh_btn = titlebar.refresh_btn.clone();
             // let window = window.clone();
             // let ws = ws.clone();
             move |btn| {
-
                 if btn.is_active() {
-                    let buffer = view.buffer();
-                    let txt = buffer.text(
-                        &buffer.start_iter(),
-                        &buffer.end_iter(),
-                        true
-                    ).to_string();
-
-                    if txt.is_empty() {
-                        send.send(TypesetterAction::Error(String::from("Cannot typeset empty document")));
-                        return;
-                    }
-
-                    send.send(TypesetterAction::Request(txt)).unwrap();
-                    btn.set_icon_name("timer-symbolic");
-                    btn.set_sensitive(false);
+                    request_typesetting(&btn, &refresh_btn, &view, &send);
                 }
 
                 // let mut ws = ws.borrow_mut();
                 // thread::sleep(Duration::from_secs(200));
+            }
+        });
+        titlebar.refresh_btn.connect_clicked({
+            let pdf_btn = titlebar.pdf_btn.clone();
+            let view = editor.view.clone();
+            let send = self.send.clone();
+            move |btn| {
+                request_typesetting(&pdf_btn, &btn, &view, &send);
             }
         });
     }

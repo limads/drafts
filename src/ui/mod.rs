@@ -16,6 +16,10 @@ use gdk_pixbuf::Pixbuf;
 use std::path::Path;
 use archiver::SingleArchiverImpl;
 use archiver::{OpenDialog, SaveDialog};
+use poppler::Document;
+
+// TODO replace existing file is not working when saving it.
+// (No current document to export)
 
 mod doctree;
 
@@ -517,7 +521,7 @@ impl PapersWindow {
         window.set_titlebar(Some(&titlebar.header));
         window.set_decorated(true);
         let doc_tree = DocTree::build();
-        let editor = PapersEditor::build();
+        let editor = PapersEditor::build(&titlebar.zoom_action);
         let start_screen = StartScreen::build();
 
         let export_pdf_dialog = archiver::SaveDialog::build("*.pdf");
@@ -934,15 +938,22 @@ pub struct PdfViewer {
     scroll : ScrolledWindow,
     pages_bx : Box,
     das : Rc<RefCell<Vec<DrawingArea>>>,
-    doc : Rc<RefCell<Option<poppler::Document>>>
+    doc : Rc<RefCell<Option<poppler::Document>>>,
+    da1 : DrawingArea,
+    da2 : DrawingArea,
+    curr_page : Rc<RefCell<usize>>,
+    stack : Stack
 }
 
 impl React<Titlebar> for PdfViewer {
     fn react(&self, titlebar : &Titlebar) {
         titlebar.zoom_action.connect_activate({
             let das = self.das.clone();
+            let (da1, da2) = (self.da1.clone(), self.da2.clone());
             move |_,_| {
                 das.borrow().iter().for_each(|da| da.queue_draw() );
+                da1.queue_draw();
+                da2.queue_draw();
             }
         });
         titlebar.pdf_btn.connect_toggled({
@@ -964,6 +975,45 @@ pub const PAGE_BORDER_COLOR : f64 = 0.80859375;
 
 pub const PAGE_BORDER_WIDTH : f64 = 0.5;
 
+fn turn_page(
+    stack : &Stack,
+    doc : &Rc<RefCell<Option<Document>>>,
+    curr_page : &Rc<RefCell<usize>>,
+    da1 : &DrawingArea,
+    da2 : &DrawingArea,
+    left : bool
+) {
+    let mut cp = curr_page.borrow_mut();
+    let n_pages = if let Ok(doc) = doc.try_borrow() {
+        doc.as_ref().map(|d| d.n_pages() as usize ).unwrap_or(0)
+    } else {
+        return;
+    };
+    if n_pages == 0 {
+        return;
+    }
+    if *cp == 0 && left {
+        return;
+    }
+    if (*cp == n_pages-1 && !left) {
+        return;
+    }
+    if left {
+        stack.set_transition_type(StackTransitionType::SlideRight);
+        stack.set_visible_child_name("left");
+        *cp -= 1;
+    } else {
+        stack.set_transition_type(StackTransitionType::SlideLeft);
+        stack.set_visible_child_name("right");
+        *cp += 1;
+    }
+    if *cp % 2 == 0 {
+        da1.queue_draw();
+    } else {
+        da2.queue_draw();
+    }
+}
+
 impl PdfViewer {
 
     pub fn clear_pages(&self) {
@@ -971,22 +1021,160 @@ impl PdfViewer {
             self.pages_bx.remove(&child);
         }
         self.doc.replace(None);
+        *(self.curr_page.borrow_mut()) = 0;
     }
 
-    pub fn new() -> Self {
+    pub fn new(zoom_action : &gio::SimpleAction) -> Self {
         let scroll = ScrolledWindow::new();
+        scroll.set_policy(PolicyType::Automatic, PolicyType::Automatic);
         let pages_bx = Box::new(Orientation::Vertical, 12);
-        scroll.set_child(Some(&pages_bx));
+        // scroll.set_child(Some(&pages_bx));
         let das = Rc::new(RefCell::new(Vec::new()));
-        Self { scroll, das, pages_bx, doc : Rc::new(RefCell::new(None)) }
+        let da1 = DrawingArea::new();
+        let da2 = DrawingArea::new();
+        let stack = Stack::new();
+        let click = GestureClick::new();
+        let curr_page = Rc::new(RefCell::new(0));
+        let doc = Rc::new(RefCell::new(None));
+
+        click.connect_pressed({
+            let stack = stack.clone();
+            move|_, _, _, _| {
+                stack.grab_focus();
+                println!("Click");
+            }
+        });
+        stack.add_controller(&click);
+        let controller = EventControllerKey::new();
+        stack.add_controller(&controller);
+        controller.connect_key_pressed(|ev, key, code, modifier| {
+            println!("key press {:?} {:?}", key, code);
+            glib::signal::Inhibit(false)
+        });
+        let scroll_ev = EventControllerScroll::new(EventControllerScrollFlags::HORIZONTAL);
+        scroll_ev.connect_scroll({
+            let stack = stack.clone();
+            let sw = scroll.clone();
+            let doc = doc.clone();
+            let curr_page = curr_page.clone();
+            let (da1, da2) = (da1.clone(), da2.clone());
+            move|ev, a, b| {
+                println!("Scroll {:?}: {} {}", ev, a, b);
+                // trajx.borrow_mut().push(a);
+
+                // Automatically handled at edge_overshoot in this case. When we have
+                // a horizontal bar, we should not move the page!
+                let has_hbar = sw.allocation().width != stack.allocation().width;
+                if has_hbar {
+                    return glib::signal::Inhibit(false);
+                }
+
+                if a < 0.0 {
+                    turn_page(&stack, &doc, &curr_page, &da1, &da2, true);
+                } else if a > 0.0 {
+                    turn_page(&stack, &doc, &curr_page, &da1, &da2, false);
+                }
+
+                glib::signal::Inhibit(false)
+            }
+        });
+        scroll.connect_edge_reached({
+            let stack = stack.clone();
+            move |s, pos| {
+                println!("reached");
+            }
+        });
+        scroll.connect_edge_overshot({
+            let stack = stack.clone();
+            move|s, pos| {
+                println!("overshoot");
+                /*match pos {
+                    Position::Left => { turn_page(&stack, true); },
+                    Position::Right => { turn_page(&stack, false); },
+                    _ => { }
+                }*/
+            }
+        });
+        scroll.add_controller(&scroll_ev);
+
+        // When passing a page, return zoom to best window fit, so the user does not
+        // need to worry about moving to the edge of the screen again before moving
+        // to the next page.
+
+        // TODO only pass page at the second overshoot (never at the first).
+
+        /*scroll.connect_scroll_end({
+            // let trajx = trajx.clone();
+            let curr_page = self.curr_page.clone();
+            let doc = self.doc.clone();
+            let stack = stack.clone();
+            let sw = self.scroll.clone();
+            move |ev| {
+
+                println!("End {:?}", ev);
+                let has_hbar = sw.allocation().width != stack.allocation().width;
+
+                // Automatically handled at edge_overshoot
+                if has_hbar {
+                    return;
+                }
+
+                // let s = sw.hscrollbar().unwrap().downcast_ref::<Scrollbar>().unwrap();
+                println!("Scroll end: {}", has_hbar );
+
+                let mut trajx = trajx.borrow_mut();
+                if let (Some(fst), Some(lst)) = (trajx.first(), trajx.last()) {
+                    let dx = *lst - *fst;
+                    let tl = trajx.len();
+                    println!("traj len: {tl}, scroll: {dx}");
+
+                    // Move to next page
+                    if dx < 0.0 {
+                        stack.set_transition_type(StackTransitionType::SlideLeft);
+                        stack.set_visible_child_name("right");
+                    } else {
+                        // Move to prev page
+                        stack.set_transition_type(StackTransitionType::SlideRight);
+                        stack.set_visible_child_name("left");
+                    }
+                }
+                trajx.clear();
+            }
+        });*/
+
+        stack.add_named(&da1, Some("left"));
+        stack.add_named(&da2, Some("right"));
+        for (da_pos, da) in [(0, &da1), (1, &da2)] {
+            da.set_draw_func({
+                let zoom_action = zoom_action.clone();
+                let doc = doc.clone();
+                let curr_page = curr_page.clone();
+                move |da, ctx, _, _| {
+                    let cp = curr_page.borrow();
+                    if *cp % 2 == da_pos {
+                        let doc = doc.borrow();
+                        if let Some(doc) = &*doc {
+                            if let Some(page) = doc.page(*cp as i32) {
+                                crate::adjust_dimension_for_page(da, zoom_action.clone(), &page);
+                                crate::draw_page_content(da, ctx, &zoom_action.clone(), &page, true);
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        crate::configure_da_for_doc(&da1);
+        crate::configure_da_for_doc(&da2);
+        scroll.set_child(Some(&stack));
+
+        Self { scroll, das, pages_bx, doc, da1, da2, curr_page, stack }
     }
 
-    pub fn update(&self, doc : &poppler::Document, zoom_action : &gio::SimpleAction) {
-
+    pub fn update_contiguous(&self, doc : &poppler::Document, zoom_action : &gio::SimpleAction) {
         {
             self.das.borrow_mut().clear();
         }
-
         self.clear_pages();
         for page_ix in 0..doc.n_pages() {
             let da = DrawingArea::new();
@@ -996,6 +1184,20 @@ impl PdfViewer {
             self.das.borrow_mut().push(da);
         }
         self.doc.replace(Some(doc.clone()));
+    }
+
+    pub fn update(&self, doc : &poppler::Document, zoom_action : &gio::SimpleAction) {
+        crate::draw_page_at_area(doc, 0, &self.da1, zoom_action);
+        if doc.n_pages() > 1 {
+            crate::draw_page_at_area(doc, 1, &self.da2, zoom_action);
+        }
+        self.doc.replace(Some(doc.clone()));
+        {
+            *(self.curr_page.borrow_mut()) = 0;
+        }
+        self.da1.queue_draw();
+        self.da2.queue_draw();
+        self.stack.set_visible_child_name("left");
     }
 
 }

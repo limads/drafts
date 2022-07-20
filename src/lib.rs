@@ -209,7 +209,6 @@ pub fn typesetting_helper() -> Result<(), String> {
 pub fn adjust_dimension_for_page(da : &DrawingArea, zoom_action : gio::SimpleAction, page : &poppler::Page) {
     let z = zoom_action.state().unwrap().get::<f64>().unwrap();
     let (w, h) = page.size();
-
     let page_w = (w * z) as i32;
     let page_h = (h * z) as i32;
     println!("page dims = {:?}", (page_w, page_h));
@@ -217,7 +216,13 @@ pub fn adjust_dimension_for_page(da : &DrawingArea, zoom_action : gio::SimpleAct
     da.set_height_request(page_h);
 }
 
-pub fn draw_page_content(da : &DrawingArea, ctx : &cairo::Context, zoom_action : &gio::SimpleAction, page : &poppler::Page, draw_borders : bool) {
+pub fn draw_page_content(
+    da : &DrawingArea,
+    ctx : &cairo::Context,
+    zoom_action : &gio::SimpleAction,
+    page : &poppler::Page,
+    draw_borders : bool
+) {
     let z = zoom_action.state().unwrap().get::<f64>().unwrap();
     ctx.save();
 
@@ -261,8 +266,7 @@ pub fn draw_page_content(da : &DrawingArea, ctx : &cairo::Context, zoom_action :
     ctx.restore();
 }
 
-pub fn draw_page_at_area(doc : &poppler::Document, page_ix : i32, da : &DrawingArea, zoom_action : &gio::SimpleAction) {
-    let page = doc.page(page_ix).unwrap();
+pub fn configure_da_for_doc(da : &DrawingArea) {
     da.set_vexpand(false);
     da.set_hexpand(false);
     da.set_halign(Align::Center);
@@ -270,6 +274,11 @@ pub fn draw_page_at_area(doc : &poppler::Document, page_ix : i32, da : &DrawingA
     da.set_margin_top(16);
     da.set_margin_start(16);
     da.set_margin_end(16);
+}
+
+pub fn draw_page_at_area(doc : &poppler::Document, page_ix : i32, da : &DrawingArea, zoom_action : &gio::SimpleAction) {
+    let page = doc.page(page_ix).unwrap();
+    configure_da_for_doc(&da);
     if page_ix == doc.n_pages()-1 {
         da.set_margin_bottom(16);
     }
@@ -285,7 +294,12 @@ pub fn draw_page_at_area(doc : &poppler::Document, page_ix : i32, da : &DrawingA
         }
     });
 
-    let motion = EventControllerMotion::new();
+    add_page_gestures(da);
+    da.queue_draw();
+}
+
+fn add_page_gestures(da : &DrawingArea) {
+    /*let motion = EventControllerMotion::new();
     motion.connect_enter(|motion, x, y| {
         // let cursor_ty = gdk::CursorType::Text;
         // cursor.set_curor(Some(&gdk::Cursor::for_display(gdk::Display::default(), cursor_ty)));
@@ -317,6 +331,5 @@ pub fn draw_page_at_area(doc : &poppler::Document, page_ix : i32, da : &DrawingA
         move |drag, x, y| {
 
         }
-    });
-    da.queue_draw();
+    });*/
 }

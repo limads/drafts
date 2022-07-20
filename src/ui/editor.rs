@@ -36,7 +36,7 @@ const TEXT_VERTICAL_PADDING : i32 = 98;
 
 impl PapersEditor {
 
-    pub fn build() -> Self {
+    pub fn build(zoom_action : &gio::SimpleAction) -> Self {
         let view = View::new();
         view.set_hexpand(true);
 
@@ -80,8 +80,10 @@ impl PapersEditor {
         sub_paned.set_shrink_start_child(false);
         sub_paned.set_resize_start_child(false);
         // sub_paned.set_sensitive(false);
-        let pdf_viewer = PdfViewer::new();
+        let pdf_viewer = PdfViewer::new(zoom_action);
         sub_paned.set_start_child(&scroll);
+
+        // sub_paned.set_end_child(&pdf_viewer.scroll);
         sub_paned.set_end_child(&pdf_viewer.scroll);
 
         /*sub_paned.connect_visible_notify(|sub_paned| {
