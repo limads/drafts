@@ -21,6 +21,7 @@ stateful = { path = "../stateful" }
 archiver = { path = "../archiver" }
 log = "0.4.17"
 systemd-journal-logger = "0.5.0"
+itertools = "0.10.3"
 
 # poppler-rs = { git = "https://github.com/limads/poppler-rs.git" }
 

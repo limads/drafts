@@ -1930,6 +1930,7 @@ dependencies = [
  "archiver",
  "either",
  "gtk4",
+ "itertools",
  "libadwaita",
  "log",
  "nom 7.1.1",

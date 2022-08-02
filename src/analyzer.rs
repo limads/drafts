@@ -443,10 +443,14 @@ impl React<PapersEditor> for Analyzer {
 
     fn react(&self, editor : &PapersEditor) {
 
+        let mut ix = RefCell::new(0);
         editor.view.buffer().connect_changed({
             let send = self.send.clone();
             let view = editor.view.clone();
             move |buffer| {
+                let mut ix = ix.borrow_mut();
+                println!("Buffer changed: {}", *ix);
+                *ix += 1;
                 let txt_up_to_cursor = buffer.text(
                     &buffer.start_iter(),
                     &buffer.iter_at_offset(buffer.cursor_position()),

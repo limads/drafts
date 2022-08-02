@@ -24,6 +24,7 @@ use stateful::React;
 use std::path::{Path, PathBuf};
 use crate::manager::FileManager;
 use archiver::SingleArchiverImpl;
+use itertools::Itertools;
 
 #[derive(Debug, Clone)]
 pub enum TypesetterTarget {
@@ -193,10 +194,10 @@ fn format_message(status : &str) -> String {
     /// Transform them here to their closest original meaning, at the same time inserting
     /// line breaks if the current line is too long.
     let mut last_space = 0;
-    let msg : String = status.trim().chars()
+    let mut msg : String = status.trim().chars()
         .map(|c| match c {
             '`' | '"' | '<' | '>' | '“' | '”' => '\'',
-            '\n' | '\t' | '!' => ' ',
+            '\n' | '\t' | '!' | '"' => ' ',
             _ => c
         })
         .map(|c| match c {
@@ -212,6 +213,12 @@ fn format_message(status : &str) -> String {
             _ => c
         })
         .collect::<String>();
+
+    // Toast markup require escaping &
+    msg = msg.clone().replace("&", "&amp;");
+
+    // Remove duplicated spaces
+    msg = msg.clone().chars().dedup_by(|a, b| *a == ' ' && *a == *b ).collect();
 
     // Remove final parts of the standard tectonic error message that do not give any
     // information to the user specific to the problem at hand.
@@ -230,16 +237,18 @@ fn format_message(status : &str) -> String {
     };
 
     // Make a pretty line output, ignoring the file name.
-    if let Some(m) = regex::Regex::new(r#"tex:\d+:"#).unwrap().find(&msg_new[..]) {
+    let msg_pretty = if let Some(m) = regex::Regex::new(r#"tex:\d+:"#).unwrap().find(&msg_new[..]) {
         let (start, end) = (m.start(), m.end());
         if let Some(line_n) = msg_new[start..end].split(":").nth(1).and_then(|n_str| n_str.parse::<usize>().ok() ) {
-            format!("(Line {}): {}", line_n, &msg_new[end..])
+            format!("(Line {}) {}", line_n, &msg_new[end..])
         } else {
             format!("{}", &msg_new[end..])
         }
     } else {
         msg_new.to_string()
-    }
+    };
+
+    msg_pretty.trim_start_matches("Error: ").to_string()
 }
 
 /*/// Slightly modified version of tectonic::latex_to_pdf (0.8.0), that uses a custom
@@ -443,6 +452,7 @@ pub fn spawn_helper(ws : &mut Workspace, latex : &str, base_path : Option<&Path>
         .args(&args)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
         .spawn();
 
     if res_cmd.is_err() {
@@ -451,6 +461,7 @@ pub fn spawn_helper(ws : &mut Workspace, latex : &str, base_path : Option<&Path>
                 .args(&args)
                 .stdin(Stdio::piped())
                 .stdout(Stdio::piped())
+                .stderr(Stdio::piped())
                 .spawn();
             if res_cmd.is_err() {
                 return Err(format!("Missing typesetter helper"));
@@ -466,7 +477,7 @@ pub fn spawn_helper(ws : &mut Workspace, latex : &str, base_path : Option<&Path>
             if out.status.success() {
                 Ok(out.stdout)
             } else {
-                Err(format!("{}",String::from_utf8(out.stderr).unwrap()))
+                Err(String::from_utf8(out.stderr).unwrap())
             }
         },
         Err(e) => {
@@ -511,7 +522,10 @@ pub fn typeset_document_from_cli(ws : &mut Workspace, latex : &str, base_path : 
             send.send(TypesetterAction::Done(TypesetterTarget::File(out_path)));
         },
         Err(e) => {
-            send.send(TypesetterAction::Error(format!("{}", e)));
+            if e.is_empty() {
+                println!("Error string is empty");
+            }
+            send.send(TypesetterAction::Error(e));
         }
     }
 }

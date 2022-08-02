@@ -9,6 +9,8 @@ use stateful::React;
 use stateful::PersistentState;
 use papers::state::PapersState;
 
+// TODO error messages must escape &
+
 // TODO (papers:6764): Gdk-CRITICAL **: 22:03:37.455: gdk_popup_present: assertion 'width > 0' failed
 
 // flatpak remote-add --if-not-exists gnome-nightly https://nightly.gnome.org/gnome-nightly.flatpakrepo
@@ -111,8 +113,10 @@ fn main() {
             // println!("{:?}", String::from_utf8(icon.as_ref().to_owned()).unwrap());
 
             let papers_win = PapersWindow::from(window);
-            let s = { user_state.borrow().window.width };
-            papers_win.editor.sub_paned.set_position(s);
+            user_state.update(&papers_win);
+
+            // let s = { user_state.borrow().window.width };
+            // papers_win.editor.sub_paned.set_position(s);
 
             papers_win.react(&papers_win.start_screen);
             user_state.react(&papers_win);

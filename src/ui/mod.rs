@@ -682,13 +682,16 @@ impl React<FileManager> for PapersWindow {
                 window.set_title(Some("Papers"));
                 action_save.set_enabled(false);
                 action_save_as.set_enabled(false);
-                paned.set_position(paned.allocation().width);
+                // paned.set_position(paned.allocation().width);
+                paned.set_position(i32::MAX);
                 // paned.set_sensitive(false);
                 titlebar.set_typeset_mode(false);
 
                 // New files are never linked to references before they are saved.
                 titlebar::clear_list(&bib_list);
                 titlebar::create_init_row(&bib_list);
+                titlebar.page_button.set_label("of 0");
+                titlebar.page_entry.set_text("0");
             }
         });
         manager.connect_opened({
@@ -697,10 +700,13 @@ impl React<FileManager> for PapersWindow {
             let titlebar = self.titlebar.clone();
             move |(path, _)| {
                 stack.set_visible_child_name("editor");
-                paned.set_position(paned.allocation().width);
+                // paned.set_position(paned.allocation().width);
+                paned.set_position(i32::MAX);
                 // paned.set_sensitive(false);
                 titlebar.set_typeset_mode(false);
                 titlebar.pdf_btn.set_sensitive(true);
+                titlebar.page_button.set_label("of 0");
+                titlebar.page_entry.set_text("0");
             }
         });
         manager.connect_new({
@@ -709,6 +715,8 @@ impl React<FileManager> for PapersWindow {
             move |_| {
                 stack.set_visible_child_name("start");
                 titlebar.pdf_btn.set_sensitive(false);
+                titlebar.page_button.set_label("of 0");
+                titlebar.page_entry.set_text("0");
             }
         });
     }
@@ -894,17 +902,10 @@ impl React<Typesetter> for PapersWindow {
             match target {
                 TypesetterTarget::File(path) => {
 
-                    // #[cfg(feature="poppler-rs")]
-                    // {
                     show_with_poppler(&editor.pdf_viewer, &titlebar.zoom_action, &win, &path[..]);
                     println!("Showing with poppler");
-                    // }
-
-                    // println!("Not showing with poppler");
-                    // show_with_evince(&path);
 
                     editor.sub_paned.set_position(editor.sub_paned.allocation().width / 2);
-                    // editor.sub_paned.set_sensitive(true);
                     titlebar.set_typeset_mode(true);
 
                     // If sidebar is open, use minimum zoom at PDF to minimize occlusion of content.
@@ -913,10 +914,25 @@ impl React<Typesetter> for PapersWindow {
                             titlebar.zoom_out_btn.emit_clicked();
                         }
                     }
+
+                    let doc = editor.pdf_viewer.doc();
+                    if let Some(doc) = &*doc.borrow() {
+                        let n = doc.n_pages();
+                        titlebar.page_button.set_label(&format!("of {}", n));
+                        titlebar.page_entry.set_text("0");
+                    }
                 },
                 _ => {
-
+                    println!("Unimplemented typesetting target");
                 }
+            }
+        });
+
+        typesetter.connect_error({
+            let titlebar = self.titlebar.clone();
+            move |_| {
+                titlebar.page_button.set_label("of 0");
+                titlebar.page_entry.set_text("0");
             }
         });
     }
@@ -959,9 +975,9 @@ impl React<Titlebar> for PdfViewer {
         titlebar.pdf_btn.connect_toggled({
             let viewer = self.clone();
             move |btn| {
-                if !btn.is_active() {
-                    viewer.clear_pages();
-                }
+                // if !btn.is_active() {
+                //    viewer.clear_pages();
+                // }
             }
         });
     }
@@ -983,6 +999,8 @@ fn turn_page(
     da2 : &DrawingArea,
     left : bool
 ) {
+    // da1.queue_draw();
+    // da2.queue_draw();
     let mut cp = curr_page.borrow_mut();
     let n_pages = if let Ok(doc) = doc.try_borrow() {
         doc.as_ref().map(|d| d.n_pages() as usize ).unwrap_or(0)
@@ -998,23 +1016,33 @@ fn turn_page(
     if (*cp == n_pages-1 && !left) {
         return;
     }
+    println!("curr page = {:?}; left = {:?}", *cp, left);
     if left {
-        stack.set_transition_type(StackTransitionType::SlideRight);
-        stack.set_visible_child_name("left");
         *cp -= 1;
+        stack.set_transition_type(StackTransitionType::SlideRight);
     } else {
-        stack.set_transition_type(StackTransitionType::SlideLeft);
-        stack.set_visible_child_name("right");
         *cp += 1;
+        stack.set_transition_type(StackTransitionType::SlideLeft);
     }
     if *cp % 2 == 0 {
+        stack.set_visible_child_name("left");
         da1.queue_draw();
     } else {
+        stack.set_visible_child_name("right");
         da2.queue_draw();
     }
+
+    // da1.queue_draw();
+    // da2.queue_draw();
+    // stack.queue_draw();
+    println!("Draw queued");
 }
 
 impl PdfViewer {
+
+    pub fn doc(&self) -> &Rc<RefCell<Option<poppler::Document>>> {
+        &self.doc
+    }
 
     pub fn clear_pages(&self) {
         while let Some(child) = self.pages_bx.last_child() {
@@ -1078,7 +1106,7 @@ impl PdfViewer {
                 glib::signal::Inhibit(false)
             }
         });
-        scroll.connect_edge_reached({
+        /*scroll.connect_edge_reached({
             let stack = stack.clone();
             move |s, pos| {
                 println!("reached");
@@ -1094,7 +1122,7 @@ impl PdfViewer {
                     _ => { }
                 }*/
             }
-        });
+        });*/
         scroll.add_controller(&scroll_ev);
 
         // When passing a page, return zoom to best window fit, so the user does not
@@ -1150,16 +1178,22 @@ impl PdfViewer {
                 let doc = doc.clone();
                 let curr_page = curr_page.clone();
                 move |da, ctx, _, _| {
+                    println!("Drawing {}", da_pos);
                     let cp = curr_page.borrow();
-                    if *cp % 2 == da_pos {
-                        let doc = doc.borrow();
-                        if let Some(doc) = &*doc {
-                            if let Some(page) = doc.page(*cp as i32) {
-                                crate::adjust_dimension_for_page(da, zoom_action.clone(), &page);
-                                crate::draw_page_content(da, ctx, &zoom_action.clone(), &page, true);
-                            }
+                    //if *cp % 2 == da_pos {
+                    let doc = doc.borrow();
+                    if let Some(doc) = &*doc {
+                        if let Some(page) = doc.page(*cp as i32) {
+                            crate::adjust_dimension_for_page(da, zoom_action.clone(), &page);
+                            crate::draw_page_content(da, ctx, &zoom_action.clone(), &page, true);
+                            println!("Just drawed {}", *cp);
+                        } else {
+                            println!("No page {} at draw", *cp);
                         }
+                    } else {
+                        println!("No doc at draw");
                     }
+                    //}
                 }
             });
         }
@@ -1187,10 +1221,10 @@ impl PdfViewer {
     }
 
     pub fn update(&self, doc : &poppler::Document, zoom_action : &gio::SimpleAction) {
-        crate::draw_page_at_area(doc, 0, &self.da1, zoom_action);
-        if doc.n_pages() > 1 {
-            crate::draw_page_at_area(doc, 1, &self.da2, zoom_action);
-        }
+        // crate::draw_page_at_area(doc, 0, &self.da1, zoom_action);
+        // if doc.n_pages() > 1 {
+        //    crate::draw_page_at_area(doc, 1, &self.da2, zoom_action);
+        // }
         self.doc.replace(Some(doc.clone()));
         {
             *(self.curr_page.borrow_mut()) = 0;
