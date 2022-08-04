@@ -765,6 +765,7 @@ impl Titlebar {
             self.refresh_btn.set_sensitive(active);
         }
         self.export_pdf_btn.set_sensitive(active);
+        self.page_entry.set_sensitive(active);
         if !active {
             if self.pdf_btn.is_active() {
                 self.pdf_btn.set_active(false);
@@ -1106,10 +1107,12 @@ impl React<Typesetter> for Titlebar {
         let sidebar_toggle = self.sidebar_toggle.clone();
         typesetter.connect_done({
             let refresh_btn = self.refresh_btn.clone();
+            let page_entry = self.page_entry.clone();
             move |_| {
                 btn.set_icon_name("evince-symbolic");
                 btn.set_sensitive(true);
                 refresh_btn.set_sensitive(true);
+                // page_entry.set_sensitive(true);
 
                 // Auto-hide overview on document typesettting done.
                 // if sidebar_toggle.is_active() {
@@ -1120,6 +1123,7 @@ impl React<Typesetter> for Titlebar {
         typesetter.connect_error({
             let btn = self.pdf_btn.clone();
             let titlebar = self.clone();
+            let page_entry = self.page_entry.clone();
             move |_| {
                 btn.set_icon_name("evince-symbolic");
                 btn.set_sensitive(true);
@@ -1128,6 +1132,20 @@ impl React<Typesetter> for Titlebar {
             }
         });
     }
+}
+
+impl React<PdfViewer> for Titlebar {
+
+    fn react(&self, viewer : &PdfViewer) {
+        viewer.turn_action.connect_activate({
+            let page_entry = self.page_entry.clone();
+            move |action, _| {
+                let page = action.state().unwrap().get::<i32>().unwrap() + 1;
+                page_entry.set_text(&format!("{page}"));
+            }
+        });
+    }
+
 }
 
 #[derive(Debug, Clone)]

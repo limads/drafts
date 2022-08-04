@@ -557,6 +557,7 @@ impl PapersWindow {
 
         titlebar.main_menu.save_dialog.dialog.set_transient_for(Some(&window));
         titlebar.main_menu.open_dialog.dialog.set_transient_for(Some(&window));
+        titlebar.react(&editor.pdf_viewer);
 
         // Keeps pdf paned hidden due to window changes. Maybe move to impl React<MainWindow> for Editor?
         window.connect_default_width_notify({
@@ -919,7 +920,7 @@ impl React<Typesetter> for PapersWindow {
                     if let Some(doc) = &*doc.borrow() {
                         let n = doc.n_pages();
                         titlebar.page_button.set_label(&format!("of {}", n));
-                        titlebar.page_entry.set_text("0");
+                        titlebar.page_entry.set_text("1");
                     }
                 },
                 _ => {
@@ -958,7 +959,8 @@ pub struct PdfViewer {
     da1 : DrawingArea,
     da2 : DrawingArea,
     curr_page : Rc<RefCell<usize>>,
-    stack : Stack
+    stack : Stack,
+    turn_action : gio::SimpleAction
 }
 
 impl React<Titlebar> for PdfViewer {
@@ -980,6 +982,49 @@ impl React<Titlebar> for PdfViewer {
                 // }
             }
         });
+
+        // Called by event controller (instead of text changed event)
+        // because the application changes the text too frequently without
+        // user input. Here we are sure this happened after some user input.
+        let ev = EventControllerKey::new();
+        titlebar.page_entry.add_controller(&ev);
+        ev.connect_key_released({
+            let doc = self.doc.clone();
+            let da1 = self.da1.clone();
+            let da2 = self.da2.clone();
+            let stack = self.stack.clone();
+            let turn_action = self.turn_action.clone();
+            let page_entry = titlebar.page_entry.clone();
+            let curr_page = self.curr_page.clone();
+            move |_, _, _, _| {
+                let txt = page_entry.text();
+                if txt.is_empty() {
+                    return;
+                }
+
+                // The user pages count from 1..n. The internal state count from
+                // 0..n-1 (as poppler does).
+                if let Ok(new_page) = txt.parse::<i32>() {
+                    if new_page >= 1 {
+                        let doc = doc.borrow();
+                        if new_page <= doc.as_ref().map(|d| d.n_pages() ).unwrap_or(0) {
+                            let mut curr_page = curr_page.borrow_mut();
+                            if new_page == *curr_page {
+                                return;
+                            }
+                            if new_page > *curr_page as i32 {
+                                stack.set_transition_type(StackTransitionType::SlideLeft);
+                            } else {
+                                stack.set_transition_type(StackTransitionType::SlideRight);
+                            }
+                            *curr_page = new_page as usize - 1;
+                            turn_action.set_state(&(new_page - 1).to_variant());
+                            draw_at_even_or_odd(&stack, &da1, &da2, new_page as usize - 1);
+                        }
+                    }
+                }
+            }
+        });
     }
 }
 
@@ -991,12 +1036,23 @@ pub const PAGE_BORDER_COLOR : f64 = 0.80859375;
 
 pub const PAGE_BORDER_WIDTH : f64 = 0.5;
 
+fn draw_at_even_or_odd(stack : &Stack, da1 : &DrawingArea, da2 : &DrawingArea, curr_page : usize) {
+    if curr_page % 2 == 0 {
+        stack.set_visible_child_name("left");
+        da1.queue_draw();
+    } else {
+        stack.set_visible_child_name("right");
+        da2.queue_draw();
+    }
+}
+
 fn turn_page(
     stack : &Stack,
     doc : &Rc<RefCell<Option<Document>>>,
     curr_page : &Rc<RefCell<usize>>,
     da1 : &DrawingArea,
     da2 : &DrawingArea,
+    turn_action : &gio::SimpleAction,
     left : bool
 ) {
     // da1.queue_draw();
@@ -1024,13 +1080,11 @@ fn turn_page(
         *cp += 1;
         stack.set_transition_type(StackTransitionType::SlideLeft);
     }
-    if *cp % 2 == 0 {
-        stack.set_visible_child_name("left");
-        da1.queue_draw();
-    } else {
-        stack.set_visible_child_name("right");
-        da2.queue_draw();
-    }
+
+    draw_at_even_or_odd(stack, da1, da2, *cp);
+
+    turn_action.set_state(&(*cp as i32).to_variant());
+    turn_action.activate(None);
 
     // da1.queue_draw();
     // da2.queue_draw();
@@ -1080,12 +1134,14 @@ impl PdfViewer {
             glib::signal::Inhibit(false)
         });
         let scroll_ev = EventControllerScroll::new(EventControllerScrollFlags::HORIZONTAL);
+        let turn_action = gio::SimpleAction::new_stateful("sidebar_hide", None, &(0i32).to_variant());
         scroll_ev.connect_scroll({
             let stack = stack.clone();
             let sw = scroll.clone();
             let doc = doc.clone();
             let curr_page = curr_page.clone();
             let (da1, da2) = (da1.clone(), da2.clone());
+            let turn_action = turn_action.clone();
             move|ev, a, b| {
                 println!("Scroll {:?}: {} {}", ev, a, b);
                 // trajx.borrow_mut().push(a);
@@ -1098,9 +1154,9 @@ impl PdfViewer {
                 }
 
                 if a < 0.0 {
-                    turn_page(&stack, &doc, &curr_page, &da1, &da2, true);
+                    turn_page(&stack, &doc, &curr_page, &da1, &da2, &turn_action, true);
                 } else if a > 0.0 {
-                    turn_page(&stack, &doc, &curr_page, &da1, &da2, false);
+                    turn_page(&stack, &doc, &curr_page, &da1, &da2, &turn_action, false);
                 }
 
                 glib::signal::Inhibit(false)
@@ -1202,10 +1258,12 @@ impl PdfViewer {
         crate::configure_da_for_doc(&da2);
         scroll.set_child(Some(&stack));
 
-        Self { scroll, das, pages_bx, doc, da1, da2, curr_page, stack }
+        Self { scroll, das, pages_bx, doc, da1, da2, curr_page, stack, turn_action }
     }
 
     pub fn update_contiguous(&self, doc : &poppler::Document, zoom_action : &gio::SimpleAction) {
+        self.turn_action.set_state(&(0i32).to_variant());
+        self.turn_action.activate(None);
         {
             self.das.borrow_mut().clear();
         }
@@ -1221,6 +1279,8 @@ impl PdfViewer {
     }
 
     pub fn update(&self, doc : &poppler::Document, zoom_action : &gio::SimpleAction) {
+        self.turn_action.set_state(&(0i32).to_variant());
+        self.turn_action.activate(None);
         // crate::draw_page_at_area(doc, 0, &self.da1, zoom_action);
         // if doc.n_pages() > 1 {
         //    crate::draw_page_at_area(doc, 1, &self.da2, zoom_action);
