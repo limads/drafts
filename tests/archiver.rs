@@ -1,4 +1,4 @@
-use papers::manager::*;
+use drafts::manager::*;
 use tempfile;
 use std::io::Write;
 use std::rc::Rc;

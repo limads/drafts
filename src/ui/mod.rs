@@ -216,7 +216,7 @@ impl DocBtn {
     pub fn build(image : &str, title : &str, sub : &str) -> Self {
         let btn = Button::new();
         //let img = Picture::for_filename(image);
-        let img = Picture::for_resource(Some(&format!("com/github/limads/papers/icons/scalable/actions/{}.svg", image)));
+        let img = Picture::for_resource(&format!("com/github/limads/papers/icons/scalable/actions/{}.svg", image));
         img.set_can_shrink(false);
         let lbl_bx = Box::new(Orientation::Vertical, 12);
         let lbl = Label::new(Some(title));
@@ -629,8 +629,8 @@ impl PapersWindow {
         stack.add_named(&start_screen.bx, Some("start"));
         stack.add_named(&editor.overlay, Some("editor"));
 
-        editor.paned.set_start_child(&doc_tree.bx);
-        editor.paned.set_end_child(&stack);
+        editor.paned.set_start_child(Some(&doc_tree.bx));
+        editor.paned.set_end_child(Some(&stack));
         editor.paned.set_position(0);
 
         window.set_child(Some(&editor.paned));
@@ -746,7 +746,7 @@ impl PackedImageLabel {
 
     pub fn build(icon_name : &str, label_name : &str) -> Self {
         let bx = Box::new(Orientation::Horizontal, 0);
-        let img = Image::from_icon_name(Some(icon_name));
+        let img = Image::from_icon_name(icon_name);
         let lbl = Label::new(Some(label_name));
         set_margins(&img, 6, 6);
         set_margins(&lbl, 6, 6);
@@ -820,7 +820,7 @@ fn start_position_as_ratio(win : &ApplicationWindow, paned : &Paned, ratio : f32
 }
 
 fn set_position_as_ratio(win : &ApplicationWindow, paned : &Paned, ratio : f32) {
-    let (mut w, mut h) = (win.allocation().width, win.allocation().height);
+    let (mut w, mut h) = (win.allocation().width(), win.allocation().height());
 
     // Allocation will be zero at the first time window is shown.
     if w == 0 {
@@ -875,8 +875,8 @@ fn preserve_ratio_on_resize(win : &ApplicationWindow, paned : &Paned, ratio : &R
     let win = win.clone();
     paned.connect_accept_position(move |paned| {
         let dim = match paned.orientation() {
-            Orientation::Horizontal => win.allocation().width as f32,
-            Orientation::Vertical => win.allocation().height as f32,
+            Orientation::Horizontal => win.allocation().width() as f32,
+            Orientation::Vertical => win.allocation().height() as f32,
             _ => { return true; }
         };
         let new_ratio = paned.position() as f32 / dim;
@@ -906,7 +906,7 @@ impl React<Typesetter> for PapersWindow {
                     show_with_poppler(&editor.pdf_viewer, &titlebar.zoom_action, &win, &path[..]);
                     println!("Showing with poppler");
 
-                    editor.sub_paned.set_position(editor.sub_paned.allocation().width / 2);
+                    editor.sub_paned.set_position(editor.sub_paned.allocation().width() / 2);
                     titlebar.set_typeset_mode(true);
 
                     // If sidebar is open, use minimum zoom at PDF to minimize occlusion of content.
@@ -1009,7 +1009,7 @@ impl React<Titlebar> for PdfViewer {
                         let doc = doc.borrow();
                         if new_page <= doc.as_ref().map(|d| d.n_pages() ).unwrap_or(0) {
                             let mut curr_page = curr_page.borrow_mut();
-                            if new_page == *curr_page {
+                            if new_page == *curr_page as i32 {
                                 return;
                             }
                             if new_page > *curr_page as i32 {
@@ -1148,7 +1148,7 @@ impl PdfViewer {
 
                 // Automatically handled at edge_overshoot in this case. When we have
                 // a horizontal bar, we should not move the page!
-                let has_hbar = sw.allocation().width != stack.allocation().width;
+                let has_hbar = sw.allocation().width() != stack.allocation().width();
                 if has_hbar {
                     return glib::signal::Inhibit(false);
                 }

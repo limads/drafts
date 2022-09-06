@@ -1276,7 +1276,7 @@ impl ReferenceRow {
             crate::tex::Entry::Book | crate::tex::Entry::Booklet => "user-bookmarks-symbolic",
             _ => "folder-documents-symbolic"
         };
-        let icon = Image::from_icon_name(Some(icon));
+        let icon = Image::from_icon_name(icon);
         super::set_all_margins(&icon, 6);
         bx_header.append(&icon);
         bx_header.append(&key_label);
@@ -1398,7 +1398,7 @@ fn create_unique_row(list : &ListBox, label : &str, icon : &str) {
     row.set_selectable(false);
     row.set_activatable(false);
     let bx = Box::new(Orientation::Horizontal, 0);
-    let icon = Image::from_icon_name(Some(icon));
+    let icon = Image::from_icon_name(icon);
     super::set_all_margins(&icon, 6);
     bx.append(&icon);
     let label = Label::new(Some(label));

@@ -122,18 +122,18 @@ use gdk_pixbuf::Pixbuf;
 
 pub fn load_icons_as_pixbufs_from_resource(icons : &[&'static str]) -> Result<HashMap<&'static str, Pixbuf>, String> {
     if let Some(display) = gdk::Display::default() {
-        if let Some(theme) = IconTheme::for_display(&display) {
-            theme.add_resource_path("/com/github/limads/papers");
-            theme.add_resource_path("/com/github/limads/papers/icons");
-            let mut icon_pixbufs = HashMap::new();
-            for icon_name in icons {
-                let pxb = Pixbuf::from_resource(&format!("/com/github/limads/papers/icons/scalable/actions/{}.svg", icon_name)).unwrap();
-                icon_pixbufs.insert(*icon_name,pxb);
-            }
-            Ok(icon_pixbufs)
-        } else {
-            Err(format!("No icon theme for default GDK display"))
+        let theme = IconTheme::for_display(&display);
+        theme.add_resource_path("/com/github/limads/papers");
+        theme.add_resource_path("/com/github/limads/papers/icons");
+        let mut icon_pixbufs = HashMap::new();
+        for icon_name in icons {
+            let pxb = Pixbuf::from_resource(&format!("/com/github/limads/papers/icons/scalable/actions/{}.svg", icon_name)).unwrap();
+            icon_pixbufs.insert(*icon_name,pxb);
         }
+        Ok(icon_pixbufs)
+        // } else {
+        //    Err(format!("No icon theme for default GDK display"))
+        // }
     } else {
         Err(format!("No default GDK display"))
     }
@@ -141,24 +141,24 @@ pub fn load_icons_as_pixbufs_from_resource(icons : &[&'static str]) -> Result<Ha
 
 pub fn load_icons_as_pixbufs_from_paths(icons : &[&'static str]) -> Result<HashMap<&'static str, Pixbuf>, String> {
     if let Some(display) = gdk::Display::default() {
-        if let Some(theme) = IconTheme::for_display(&display) {
-            let mut icon_pixbufs = HashMap::new();
-            for icon_name in icons {
-                if let Some(icon) = theme.lookup_icon(icon_name, &[], 16, 1, TextDirection::Ltr, IconLookupFlags::empty()) {
-                    let path = icon.file()
-                        .ok_or(format!("Icon {} has no corresponing file", icon_name))?
-                        .path()
-                        .ok_or(format!("File for icon {} has no valid path", icon_name))?;
-                        let pxb = Pixbuf::from_file_at_scale(path, 16, 16, true).unwrap();
-                        icon_pixbufs.insert(*icon_name,pxb);
-                } else {
-                    return Err(format!("No icon named {}", icon_name));
-                }
-            }
-            Ok(icon_pixbufs)
-        } else {
-            Err(format!("No icon theme for default GDK display"))
+        let theme = IconTheme::for_display(&display);
+        let mut icon_pixbufs = HashMap::new();
+        for icon_name in icons {
+            let icon = theme.lookup_icon(icon_name, &[], 16, 1, TextDirection::Ltr, IconLookupFlags::empty());
+            let path = icon.file()
+                .ok_or(format!("Icon {} has no corresponing file", icon_name))?
+                .path()
+                .ok_or(format!("File for icon {} has no valid path", icon_name))?;
+                let pxb = Pixbuf::from_file_at_scale(path, 16, 16, true).unwrap();
+                icon_pixbufs.insert(*icon_name,pxb);
+            //} else {
+            //    return Err(format!("No icon named {}", icon_name));
+            //}
         }
+        Ok(icon_pixbufs)
+        // } else {
+        //    Err(format!("No icon theme for default GDK display"))
+        // }
     } else {
         Err(format!("No default GDK display"))
     }
@@ -226,7 +226,7 @@ pub fn draw_page_content(
     let z = zoom_action.state().unwrap().get::<f64>().unwrap();
     ctx.save();
 
-    let (w, h) = (da.allocation().width as f64, da.allocation().height as f64);
+    let (w, h) = (da.allocation().width() as f64, da.allocation().height() as f64);
 
     // Draw white background of page
     ctx.set_source_rgb(1., 1., 1.);

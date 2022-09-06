@@ -1,12 +1,12 @@
 {
-    "app-id" : "com.github.limads.Papers",
+    "app-id" : "com.github.limads.Drafts",
     "runtime" : "org.gnome.Platform",
     "runtime-version" : "42",
     "sdk" : "org.gnome.Sdk",
     "sdk-extensions" : [
         "org.freedesktop.Sdk.Extension.rust-stable"
     ],
-    "command" : "papers",
+    "command" : "drafts",
     "finish-args" : [
         "--share=network",
         "--share=ipc",
@@ -25,7 +25,7 @@
         ],
         "env" : {
             "RUST_BACKTRACE" : "1",
-            "RUST_LOG" : "Papers=debug"
+            "RUST_LOG" : "Drafts=debug"
         }
     },
     "cleanup" : [
@@ -90,16 +90,16 @@
         },
 
         {
-	    "name" : "Papers",
+	    "name" : "Drafts",
 	    "builddir" : true,
 	    "buildsystem" : "simple",
 	    "build-options" : {
 		"env": {
 		    "PKG_CONFIG_PATH" : "/app/lib:/app/lib/pkgconfig",
-		    "ICON_SRC" : "/run/build/Papers/data/icons/hicolor",
+		    "ICON_SRC" : "/run/build/Drafts/data/icons/hicolor",
 		    "ICON_DST" : "/app/share/icons/hicolor",
 		    "FLATPAK_ICON_DST" : "/app/share/app-info/icons/flatpak",
-		    "CARGO_TARGET_PATH" : "/run/build/Papers/target/debug"
+		    "CARGO_TARGET_PATH" : "/run/build/Drafts/target/debug"
 		}
 	    },
 	    "build-commands" : [
@@ -108,7 +108,7 @@
 	    "sources" : [
 		{
 		    "type" : "git",
-		    "url" : "file:///home/diego/Software/papers"
+		    "url" : "file:///home/diego/Software/drafts"
 		}
 	    ],
 	    "post-install" : [
@@ -123,7 +123,7 @@
 	    	"mkdir -p ${FLATPAK_DEST}/share/appdata ${FLATPAK_DEST}/share/app-info/xmls",
 	    	"gzip ${FLATPAK_BUILDER_BUILDDIR}/data/${FLATPAK_ID}.appdata.xml --keep",
 	    	"install -D ${FLATPAK_BUILDER_BUILDDIR}/data/${FLATPAK_ID}.appdata.xml.gz ${FLATPAK_DEST}/share/app-info/xmls",
-	    	"install -D ${CARGO_TARGET_PATH}/papers ${FLATPAK_DEST}/bin",
+	    	"install -D ${CARGO_TARGET_PATH}/drafts ${FLATPAK_DEST}/bin",
 	    	"install -D ${CARGO_TARGET_PATH}/helper ${FLATPAK_DEST}/bin"
 	    ]
 	}

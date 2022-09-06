@@ -1,17 +1,17 @@
 [package]
-name = "papers"
+name = "drafts"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-gtk4 = "0.3.0"
-sourceview5 = { version = "0.3.0" }
+gtk4 = "0.4"
+sourceview5 = { version = "0.4" }
 libadwaita = "0.1.0-beta-1"
 tempfile = "3.3.0"
 nom = "7.1.0"
 either = "1.6.1"
 anyhow = "^1"
-tectonic = "0.8.2"
+tectonic = "0.9.0"
 # tectonic_bridge_core = "0.3.0"
 regex = "1.5.4"
 serde_json = "1.0.68"
@@ -26,10 +26,10 @@ itertools = "0.10.3"
 # poppler-rs = { git = "https://github.com/limads/poppler-rs.git" }
 
 [build-dependencies]
-gtk4 = "0.3.0"
+gtk4 = "0.4"
 
 [[bin]]
-name="papers"
+name="drafts"
 path="src/main.rs"
 
 [[bin]]
@@ -43,7 +43,3 @@ path = "src/helper.rs"
 # webkit2gtk5 = "0.1.2"
 # webkit2gtk5 = "0.1.2"
 
-[target.x86_64-unknown-linux-gnu]
-rustflags = [
-    "-C", "link-arg=-fuse-ld=lld",
-]

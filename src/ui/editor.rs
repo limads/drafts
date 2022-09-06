@@ -74,17 +74,19 @@ impl PapersEditor {
         // side widget, and the text won't wrap.
         // scroll.set_width_request(TEXT_WIDTH);
 
-        let overlay = libadwaita::ToastOverlay::builder().opacity(1.0).visible(true).build();
+        let overlay = libadwaita::ToastOverlay::new();
+        overlay.set_opacity(1.0);
+        overlay.set_visible(true);
 
         let sub_paned = Paned::new(Orientation::Horizontal);
         sub_paned.set_shrink_start_child(false);
         sub_paned.set_resize_start_child(false);
         // sub_paned.set_sensitive(false);
         let pdf_viewer = PdfViewer::new(zoom_action);
-        sub_paned.set_start_child(&scroll);
+        sub_paned.set_start_child(Some(&scroll));
 
         // sub_paned.set_end_child(&pdf_viewer.scroll);
-        sub_paned.set_end_child(&pdf_viewer.scroll);
+        sub_paned.set_end_child(Some(&pdf_viewer.scroll));
 
         /*sub_paned.connect_visible_notify(|sub_paned| {
             let w = sub_paned.parent().unwrap().allocation().width;
@@ -307,7 +309,7 @@ impl React<Titlebar> for PapersEditor {
             let sub_paned = self.sub_paned.clone();
             move |btn| {
                 if !btn.is_active() {
-                    sub_paned.set_position(sub_paned.allocation().width);
+                    sub_paned.set_position(sub_paned.allocation().width());
                 }
                 // sub_paned.set_sensitive(false);
             }
@@ -608,7 +610,7 @@ fn configure_view(view : &View) {
     provider.load_from_data(b"textview { font-family: \"Sans Regular\"; font-size: 13pt; }");
     let ctx = view.style_context();
     ctx.add_provider(&provider, 800);
-    let lang_manager = sourceview5::LanguageManager::default().unwrap();
+    let lang_manager = sourceview5::LanguageManager::default();
     let lang = lang_manager.language("latex").unwrap();
     buffer.set_language(Some(&lang));
     view.set_tab_width(4);
@@ -623,7 +625,7 @@ fn configure_view(view : &View) {
 
     // Seems to be working, but only when you click on the the word
     // and **then** press CTRL+Space (simply pressing CTRL+space does not work).
-    let completion = view.completion().unwrap();
+    let completion = view.completion();
     let words = sourceview5::CompletionWords::new(Some("main"));
     words.register(&view.buffer());
     completion.add_provider(&words);

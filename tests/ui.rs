@@ -1,5 +1,5 @@
-use papers::ui::*;
-use papers::*;
+use drafts::ui::*;
+use drafts::*;
 use gtk4::*;
 
 #[test]
@@ -8,7 +8,7 @@ fn main_window_builds() {
         .application_id(APP_ID)
         .build();
     let window = ApplicationWindow::builder().application(app).build();
-    let papers_win = PapersWindow::from(window);
+    let drafts_win = draftsWindow::from(window);
     println!("Main window built.");*/
 }
 

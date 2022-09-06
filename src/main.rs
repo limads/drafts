@@ -1,13 +1,13 @@
 use gtk4::*;
 use gtk4::prelude::*;
-use papers::manager::*;
-use papers::typesetter::Typesetter;
-use papers::ui::*;
-use papers::analyzer::Analyzer;
+use drafts::manager::*;
+use drafts::typesetter::Typesetter;
+use drafts::ui::*;
+use drafts::analyzer::Analyzer;
 use gtk4::gio;
 use stateful::React;
 use stateful::PersistentState;
-use papers::state::PapersState;
+use drafts::state::PapersState;
 
 // TODO error messages must escape &
 
@@ -31,7 +31,7 @@ XDG_STATE_HOME
 fn main() {
     gtk4::init().unwrap();
     let application = Application::builder()
-        .application_id(papers::APP_ID)
+        .application_id(drafts::APP_ID)
         .build();
 
     systemd_journal_logger::init();
@@ -58,8 +58,8 @@ fn main() {
         }
     }
 
-    let user_state = if let Some(mut path) = archiver::get_datadir(papers::APP_ID) {
-        path.push(papers::SETTINGS_FILE);
+    let user_state = if let Some(mut path) = archiver::get_datadir(drafts::APP_ID) {
+        path.push(drafts::SETTINGS_FILE);
         PapersState::recover(&path.to_str().unwrap()).unwrap_or_default()
     } else {
         log::warn!("Unable to get datadir for state recovery");
@@ -121,7 +121,7 @@ fn main() {
             papers_win.react(&papers_win.start_screen);
             user_state.react(&papers_win);
 
-            // papers::ui::setup_position_as_ratio(&papers_win.window, &papers_win.editor.sub_paned, 0.5);
+            // drafts::ui::setup_position_as_ratio(&papers_win.window, &papers_win.editor.sub_paned, 0.5);
 
             let manager = FileManager::new();
             manager.react(&papers_win.titlebar.main_menu.open_dialog);
@@ -164,8 +164,8 @@ fn main() {
 
     application.run();
 
-    if let Some(mut path) = archiver::get_datadir(papers::APP_ID) {
-        path.push(papers::SETTINGS_FILE);
+    if let Some(mut path) = archiver::get_datadir(drafts::APP_ID) {
+        path.push(drafts::SETTINGS_FILE);
         user_state.persist(&path.to_str().unwrap());
     } else {
         log::warn!("Unable to get datadir for state persistence");
