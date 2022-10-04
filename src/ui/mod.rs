@@ -296,12 +296,12 @@ impl StartScreen {
     pub fn build() -> Self {
         let doc_upper_bx = Box::new(Orientation::Horizontal, 0);
         let doc_lower_bx = Box::new(Orientation::Horizontal, 0);
-        /*let empty_btn = DocBtn::build("/home/diego/Software/papers/assets/pictures/empty.svg", "Empty", EMPTY_DESCRIPTION);
-        let minimal_btn = DocBtn::build("/home/diego/Software/papers/assets/pictures/minimal.svg", "Minimal", MINIMAL_DESCRIPTION);
-        let article_btn = DocBtn::build("/home/diego/Software/papers/assets/pictures/article.svg", "Article", ARTICLE_DESCRIPTION);
-        let report_btn = DocBtn::build("/home/diego/Software/papers/assets/pictures/report.svg", "Report", REPORT_DESCRIPTION);
-        let book_btn = DocBtn::build("/home/diego/Software/papers/assets/pictures/book.svg", "Book", BOOK_DESCRIPTION);
-        let present_btn = DocBtn::build("/home/diego/Software/papers/assets/pictures/presentation.svg", "Presentation", PRESENTATION_DESCRIPTION);*/
+        /*let empty_btn = DocBtn::build("/home/diego/Software/gnome/papers/assets/pictures/empty.svg", "Empty", EMPTY_DESCRIPTION);
+        let minimal_btn = DocBtn::build("/home/diego/Software/gnome/papers/assets/pictures/minimal.svg", "Minimal", MINIMAL_DESCRIPTION);
+        let article_btn = DocBtn::build("/home/diego/Software/gnome/papers/assets/pictures/article.svg", "Article", ARTICLE_DESCRIPTION);
+        let report_btn = DocBtn::build("/home/diego/Software/gnome/papers/assets/pictures/report.svg", "Report", REPORT_DESCRIPTION);
+        let book_btn = DocBtn::build("/home/diego/Software/gnome/papers/assets/pictures/book.svg", "Book", BOOK_DESCRIPTION);
+        let present_btn = DocBtn::build("/home/diego/Software/gnome/papers/assets/pictures/presentation.svg", "Presentation", PRESENTATION_DESCRIPTION);*/
         let empty_btn = DocBtn::build("empty", "Empty", EMPTY_DESCRIPTION);
         let minimal_btn = DocBtn::build("minimal", "Minimal", MINIMAL_DESCRIPTION);
         let article_btn = DocBtn::build("article", "Article", ARTICLE_DESCRIPTION);

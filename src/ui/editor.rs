@@ -2,6 +2,8 @@ use super::*;
 use crate::analyzer::Analyzer;
 use glib::signal::SignalHandlerId;
 
+// TODO Study using https://crates.io/crates/dissimilar for review
+
 #[derive(Debug, Clone)]
 pub struct PapersEditor {
     pub view : View,

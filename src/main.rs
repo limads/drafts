@@ -28,6 +28,12 @@ XDG_CACHE_HOME
 XDG_STATE_HOME
 */
 
+fn register_resource() {
+    let bytes = glib::Bytes::from_static(include_bytes!(concat!(env!("OUT_DIR"), "/", "compiled.gresource")));
+    let resource = gio::Resource::from_data(&bytes).unwrap();
+    gio::resources_register(&resource);
+}
+
 fn main() {
     gtk4::init().unwrap();
     let application = Application::builder()
@@ -37,9 +43,7 @@ fn main() {
     systemd_journal_logger::init();
     log::set_max_level(log::LevelFilter::Info);
 
-    let bytes = glib::Bytes::from_static(include_bytes!(concat!(env!("OUT_DIR"), "/", "compiled.gresource")));
-    let resource = gio::Resource::from_data(&bytes).unwrap();
-    gio::resources_register(&resource);
+    register_resource();
 
     // let resource = gio::Resource::load("resources/compiled.gresource");
 
@@ -69,8 +73,8 @@ fn main() {
     if let Some(display) = gdk::Display::default() {
         if let Some(theme) = IconTheme::for_display(&display) {
             // Useful for local builds
-            // theme.add_search_path("/home/diego/Software/papers/assets/icons");
-            // theme.add_search_path("/home/diego/Software/papers/data/icons");
+            // theme.add_search_path("/home/diego/Software/gnome/papers/assets/icons");
+            // theme.add_search_path("/home/diego/Software/gnome/papers/data/icons");
 
             // theme.add_resource_path("/com/github/limads/papers");
 
@@ -83,8 +87,8 @@ fn main() {
 
             // theme.add_resource_path("/com/github/limads/papers/icons/hicolor");
 
-            // theme.add_search_path("/home/diego/Software/papers/data/icons/hicolor/symbolic");
-            // theme.add_search_path("/home/diego/Software/papers/data/icons/hicolor/scalable");
+            // theme.add_search_path("/home/diego/Software/gnome/papers/data/icons/hicolor/symbolic");
+            // theme.add_search_path("/home/diego/Software/gnome/papers/data/icons/hicolor/scalable");
             // println!("Theme search path={:?}", theme.search_path());
             // println!("Icon names = {:?}", theme.icon_names());
             // let icon = theme.lookup_icon("break-point-symbolic", &[], 16, 1, TextDirection::Ltr, IconLookupFlags::empty());

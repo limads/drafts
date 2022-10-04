@@ -98,7 +98,7 @@ flatpak uninstall com.github.limads.Papers
 meson setup builddir
 meson compile -C builddir
 ```
-
+    
 ## To install locally
 
 This installs the executable to the local flatpak applications directory
