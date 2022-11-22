@@ -2,7 +2,7 @@ use super::*;
 use crate::analyzer::Analyzer;
 use crate::tex::{Difference, BibEntry};
 use crate::tex::Token;
-use archiver::FileActions;
+use filecase::FileActions;
 use std::borrow::Cow;
 use std::sync::{Arc, atomic::{AtomicBool, Ordering}};
 
@@ -36,7 +36,9 @@ pub struct Titlebar {
     pub header : HeaderBar,
     pub menu_button : MenuButton,
     pub main_menu : MainMenu,
-    pub pdf_btn : ToggleButton,
+    pub pdf_btn : Button,
+    pub view_pdf_btn : ToggleButton,
+    pub editor_btn : ToggleButton,
     pub sidebar_toggle : ToggleButton,
     pub sidebar_hide_action : gio::SimpleAction,
     pub sectioning_actions : SectioningActions,
@@ -759,6 +761,7 @@ pub const ZOOM_SCALE_INCREMENT : f64 = 0.5;
 impl Titlebar {
 
     pub fn set_typeset_mode(&self, active : bool) {
+        self.view_pdf_btn.set_active(true);
         self.zoom_in_btn.set_sensitive(active);
         self.zoom_out_btn.set_sensitive(active);
         if !active {
@@ -766,21 +769,32 @@ impl Titlebar {
         }
         self.export_pdf_btn.set_sensitive(active);
         self.page_entry.set_sensitive(active);
-        if !active {
-            if self.pdf_btn.is_active() {
-                self.pdf_btn.set_active(false);
-            }
-        }
+        //if !active {
+            //if self.pdf_btn.is_active() {
+            //    self.pdf_btn.set_active(false);
+            //}
+        //}
     }
 
     pub fn build() -> Self {
         let header = HeaderBar::new();
         let menu_button = MenuButton::builder().icon_name("open-menu-symbolic").build();
 
-        let pdf_btn = ToggleButton::builder().icon_name("evince-symbolic").build();
+        let editor_btn = ToggleButton::builder().icon_name("gedit-symbolic").build();
+        let pdf_btn = Button::builder().icon_name("ink-tool-symbolic").build();
+        let view_pdf_btn = ToggleButton::builder().icon_name("evince-symbolic").build();
+        view_pdf_btn.set_group(Some(&editor_btn));
+        editor_btn.style_context().add_class("flat");
+        pdf_btn.style_context().add_class("flat");
+        editor_btn.set_active(true);
+        let toggle_bx = Box::new(Orientation::Horizontal, 0);
+        toggle_bx.style_context().add_class("linked");
+        toggle_bx.append(&editor_btn);
+        toggle_bx.append(&view_pdf_btn);
+
         // let hide_pdf_btn = Button::builder().icon_name("user-trash-symbolic").build();
         let export_pdf_btn = Button::builder().icon_name("folder-download-symbolic").build();
-        let sidebar_toggle = ToggleButton::builder().icon_name("view-sidebar-symbolic").build();
+        let sidebar_toggle = ToggleButton::builder().icon_name("explore-symbolic").build();
         // hide_pdf_btn.set_sensitive(false);
         export_pdf_btn.set_sensitive(false);
         pdf_btn.set_sensitive(false);
@@ -974,7 +988,7 @@ impl Titlebar {
 
         // Set zoom to minimum whenever the user toggles the sidebar but the
         // typeset PDF is still open, to minimize occlusion of content.
-        sidebar_toggle.connect_toggled({
+        /*sidebar_toggle.connect_toggled({
             let zoom_out_btn = zoom_out_btn.clone();
             let pdf_btn = pdf_btn.clone();
             move |toggle| {
@@ -984,9 +998,8 @@ impl Titlebar {
                     }
                 }
             }
-        });
+        });*/
 
-        header.pack_start(&sidebar_toggle);
         header.pack_start(&org_btn);
         header.pack_start(&page_btn);
         header.pack_start(&fmt_btn);
@@ -999,9 +1012,11 @@ impl Titlebar {
         header.pack_end(&export_pdf_btn);
         // header.pack_end(&hide_pdf_btn);
         header.pack_end(&zoom_bx);
+        header.pack_end(&toggle_bx);
         header.pack_end(&pdf_btn);
+        header.pack_end(&sidebar_toggle);
 
-        pdf_btn.connect_toggled({
+        /*pdf_btn.connect_toggled({
             let zoom_in_btn = zoom_in_btn.clone();
             let zoom_out_btn = zoom_out_btn.clone();
             let export_pdf_btn = export_pdf_btn.clone();
@@ -1015,7 +1030,7 @@ impl Titlebar {
                     zoom_out_btn.set_sensitive(false);
                 }
             }
-        });
+        });*/
 
         // let zoom = Rc::new(RefCell::new(DEFAULT_SCALE));
         let zoom_action = gio::SimpleAction::new_stateful("zoom_change", None, &(DEFAULT_ZOOM_SCALE).to_variant());
@@ -1077,6 +1092,10 @@ impl Titlebar {
             header,
             menu_button,
             pdf_btn,
+
+            view_pdf_btn,
+            editor_btn,
+
             sidebar_toggle,
             sidebar_hide_action,
             bib_popover,
@@ -1109,7 +1128,7 @@ impl React<Typesetter> for Titlebar {
             let refresh_btn = self.refresh_btn.clone();
             let page_entry = self.page_entry.clone();
             move |_| {
-                btn.set_icon_name("evince-symbolic");
+                btn.set_icon_name("ink-tool-symbolic");
                 btn.set_sensitive(true);
                 refresh_btn.set_sensitive(true);
                 // page_entry.set_sensitive(true);
@@ -1125,7 +1144,7 @@ impl React<Typesetter> for Titlebar {
             let titlebar = self.clone();
             let page_entry = self.page_entry.clone();
             move |_| {
-                btn.set_icon_name("evince-symbolic");
+                btn.set_icon_name("ink-tool-symbolic");
                 btn.set_sensitive(true);
                 // btn.set_active(false);
                 titlebar.set_typeset_mode(false);

@@ -9,7 +9,7 @@ use crate::Callbacks;
 use std::sync::mpsc;
 use std::fs::File;
 use crate::manager::FileManager;
-use archiver::SingleArchiverImpl;
+use filecase::SingleArchiverImpl;
 use std::io::Read;
 use std::path::Path;
 use std::thread;

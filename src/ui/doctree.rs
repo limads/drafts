@@ -51,7 +51,7 @@ impl DocTree {
         /*let mut icons = crate::load_icons_as_pixbufs_from_paths(
             &["break-point-symbolic", "queries-symbolic", "image-x-generic-symbolic", "gnome-terminal-symbolic", "equation-symbolic", "dialog-error-symbolic"]
         ).unwrap();*/
-        let mut icons = archiver::load_icons_as_pixbufs_from_resource(
+        let mut icons = filecase::load_icons_as_pixbufs_from_resource(
             "/com/github/limads/papers",
             &["break-point-symbolic", "queries-symbolic", "image-x-generic-symbolic", "gnome-terminal-symbolic", "equation-symbolic", "dialog-error-symbolic"]
         ).unwrap();

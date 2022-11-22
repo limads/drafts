@@ -1,5 +1,5 @@
 fn main() -> Result<(), String> {
-    papers::typesetting_helper()
+    drafts::typesetting_helper()
 }
 
 

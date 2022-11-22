@@ -9,6 +9,7 @@
     <file preprocess="xml-stripblanks" alias="icons/scalable/actions/line-height-symbolic.svg">../icons/hicolor/symbolic/actions/line-height-symbolic.svg</file>
     <file preprocess="xml-stripblanks" alias="icons/scalable/actions/margin-bottom-symbolic.svg">../icons/hicolor/symbolic/actions/margin-bottom-symbolic.svg</file>
     <file preprocess="xml-stripblanks" alias="icons/scalable/actions/margin-left-symbolic.svg">../icons/hicolor/symbolic/actions/margin-left-symbolic.svg</file>
+    <file preprocess="xml-stripblanks" alias="icons/scalable/actions/ink-tool-symbolic.svg">../icons/hicolor/symbolic/actions/ink-tool-symbolic.svg</file>
     <file preprocess="xml-stripblanks" alias="icons/scalable/actions/margin-right-symbolic.svg">../icons/hicolor/symbolic/actions/margin-right-symbolic.svg</file>
     <file preprocess="xml-stripblanks" alias="icons/scalable/actions/margin-top-symbolic.svg">../icons/hicolor/symbolic/actions/margin-top-symbolic.svg</file>
     <file preprocess="xml-stripblanks" alias="icons/scalable/actions/queries-symbolic.svg">../icons/hicolor/symbolic/actions/queries-symbolic.svg</file>

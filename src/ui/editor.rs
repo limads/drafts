@@ -11,7 +11,7 @@ pub struct PapersEditor {
     pub overlay : libadwaita::ToastOverlay,
 
     // Holds overlay with overview + sub_paned
-    pub paned : Paned,
+    // pub paned : Paned,
 
     // Holds Sourceview scroll + PDF viewer scroll
     pub sub_paned : Paned,
@@ -20,7 +20,9 @@ pub struct PapersEditor {
     pub buf_change_handler : Rc<RefCell<Option<SignalHandlerId>>>,
     pub curr_toast : Rc<RefCell<Option<libadwaita::Toast>>>,
 
-    pub pdf_viewer : PdfViewer
+    pub pdf_viewer : PdfViewer,
+
+    pub popover : Popover
 }
 
 /*
@@ -96,30 +98,34 @@ impl PapersEditor {
             sub_paned.set_position(w);
         });*/
 
-        sub_paned.connect_accept_position(move |paned| {
-            println!("Paned position accept");
-            false
-        });
+        //sub_paned.connect_accept_position(move |paned| {
+        //    println!("Paned position accept");
+        //    false
+        //});
 
+        sub_paned.set_position(i32::MAX);
         overlay.set_child(Some(&sub_paned));
 
         let ignore_file_save_action = gio::SimpleAction::new("ignore_file_save", None);
         let curr_toast : Rc<RefCell<Option<libadwaita::Toast>>> = Rc::new(RefCell::new(None));
 
-        let paned = Paned::new(Orientation::Horizontal);
+        // let paned = Paned::new(Orientation::Horizontal);
 
         // paned.connect_position_set_notify(move |paned| {
         // Move other paned by the same ammount.
         // });
 
-        Self { scroll, view, overlay, paned, sub_paned, ignore_file_save_action, buf_change_handler : Rc::new(RefCell::new(None)), curr_toast, pdf_viewer }
+        let popover = Popover::new();
+
+
+        Self { scroll, view, overlay, /*paned,*/ sub_paned, ignore_file_save_action, buf_change_handler : Rc::new(RefCell::new(None)), curr_toast, pdf_viewer, popover }
     }
 }
 
 impl React<FileManager> for PapersEditor {
 
     fn react(&self, manager : &FileManager) {
-        archiver::connect_manager_to_editor(manager, &self.view, &self.buf_change_handler);
+        filecase::connect_manager_to_editor(manager, &self.view, &self.buf_change_handler);
         manager.connect_close_confirm({
             let overlay = self.overlay.clone();
             let curr_toast = self.curr_toast.clone();
@@ -292,7 +298,7 @@ pub fn enclose_or_insert_at_cursor(btn : &Button, view : View, popover : Popover
 impl React<Titlebar> for PapersEditor {
 
     fn react(&self, titlebar : &Titlebar) {
-        let hide_action = titlebar.sidebar_hide_action.clone();
+        /*let hide_action = titlebar.sidebar_hide_action.clone();
         let paned = self.paned.clone();
         titlebar.sidebar_toggle.connect_toggled(move |btn| {
             if btn.is_active() {
@@ -306,8 +312,26 @@ impl React<Titlebar> for PapersEditor {
                 hide_action.set_state(&paned.position().to_variant());
                 paned.set_position(0);
             }
+        });*/
+
+        titlebar.sidebar_toggle.connect_toggled({
+            let popover = self.popover.clone();
+            move |btn| {
+                if btn.is_active() {
+                    popover.popup();
+                }
+            }
         });
-        titlebar.pdf_btn.connect_toggled({
+        self.popover.connect_closed({
+            let toggle = titlebar.sidebar_toggle.clone();
+            move|_| {
+                if toggle.is_active() {
+                    toggle.set_active(false);
+                }
+            }
+        });
+
+        /*titlebar.pdf_btn.connect_clicked({
             let sub_paned = self.sub_paned.clone();
             move |btn| {
                 if !btn.is_active() {
@@ -315,7 +339,8 @@ impl React<Titlebar> for PapersEditor {
                 }
                 // sub_paned.set_sensitive(false);
             }
-        });
+        });*/
+
         let view = &self.view;
         let popover = &titlebar.fmt_popover.popover;
 
@@ -609,7 +634,7 @@ fn configure_view(view : &View) {
     buffer.set_highlight_syntax(true);
     buffer.set_max_undo_levels(40);
     let provider = CssProvider::new();
-    provider.load_from_data(b"textview { font-family: \"Sans Regular\"; font-size: 13pt; }");
+    provider.load_from_data(b"textview { font-family: \"Ubuntu Mono\"; font-size: 16pt; line-height : 1.5; }");
     let ctx = view.style_context();
     ctx.add_provider(&provider, 800);
     let lang_manager = sourceview5::LanguageManager::default();

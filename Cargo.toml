@@ -4,29 +4,27 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-gtk4 = "0.4"
-sourceview5 = { version = "0.4" }
-libadwaita = "0.1.0-beta-1"
+gtk4 = "0.5.1"
+sourceview5 = { version = "0.5.0" }
+libadwaita = { version = "0.2.0", features = ["v1_2"] }
 tempfile = "3.3.0"
 nom = "7.1.0"
 either = "1.6.1"
 anyhow = "^1"
-tectonic = "0.9.0"
-# tectonic_bridge_core = "0.3.0"
+tectonic = "0.11.0"
 regex = "1.5.4"
 serde_json = "1.0.68"
 serde = { version="1.0.130", features=["derive"] }
 poppler-rs = "0.19.0"
 stateful = { path = "../stateful" }
-archiver = { path = "../archiver" }
+filecase = { path = "../filecase" }
 log = "0.4.17"
 systemd-journal-logger = "0.5.0"
 itertools = "0.10.3"
-
-# poppler-rs = { git = "https://github.com/limads/poppler-rs.git" }
+libc = "0.2.135"
 
 [build-dependencies]
-gtk4 = "0.4"
+glib-build-tools = "0.16.0"
 
 [[bin]]
 name="drafts"
@@ -35,11 +33,4 @@ path="src/main.rs"
 [[bin]]
 name = "helper"
 path = "src/helper.rs"
-
-# Poppler is not distributed on the Gnome SDK, therefore it is not being used
-# on the flatpak build.
-# poppler-rs = { git = "https://gitlab.gnome.org/World/Rust/poppler-rs.git", optional = true }
-
-# webkit2gtk5 = "0.1.2"
-# webkit2gtk5 = "0.1.2"
 

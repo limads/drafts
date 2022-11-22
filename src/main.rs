@@ -36,6 +36,7 @@ fn register_resource() {
 
 fn main() {
     gtk4::init().unwrap();
+
     let application = Application::builder()
         .application_id(drafts::APP_ID)
         .build();
@@ -53,16 +54,19 @@ fn main() {
     // create it otherwise.
     // let cache = std::env::var("XDG_CACHE_HOME");
 
-    match libadwaita::StyleManager::default() {
+    let style_manager = libadwaita::StyleManager::default();
+    style_manager.set_color_scheme(libadwaita::ColorScheme::Default);
+
+    /*match  {
         Some(style_manager) => {
-            style_manager.set_color_scheme(libadwaita::ColorScheme::Default);
+
         },
         None => {
             panic!()
         }
-    }
+    }*/
 
-    let user_state = if let Some(mut path) = archiver::get_datadir(drafts::APP_ID) {
+    let user_state = if let Some(mut path) = filecase::get_datadir(drafts::APP_ID) {
         path.push(drafts::SETTINGS_FILE);
         PapersState::recover(&path.to_str().unwrap()).unwrap_or_default()
     } else {
@@ -71,43 +75,24 @@ fn main() {
     };
 
     if let Some(display) = gdk::Display::default() {
-        if let Some(theme) = IconTheme::for_display(&display) {
-            // Useful for local builds
-            // theme.add_search_path("/home/diego/Software/gnome/papers/assets/icons");
-            // theme.add_search_path("/home/diego/Software/gnome/papers/data/icons");
-
-            // theme.add_resource_path("/com/github/limads/papers");
-
-            // This is the valid path according to docs.
-            theme.add_resource_path("/com/github/limads/papers/icons");
-            // theme.add_resource_path("/com/github/limads/papers/icons/scalable");
-
-            // theme.add_resource_path("/com/github/limads/papers/icons/symbolic");
-
-
-            // theme.add_resource_path("/com/github/limads/papers/icons/hicolor");
-
-            // theme.add_search_path("/home/diego/Software/gnome/papers/data/icons/hicolor/symbolic");
-            // theme.add_search_path("/home/diego/Software/gnome/papers/data/icons/hicolor/scalable");
-            // println!("Theme search path={:?}", theme.search_path());
-            // println!("Icon names = {:?}", theme.icon_names());
-            // let icon = theme.lookup_icon("break-point-symbolic", &[], 16, 1, TextDirection::Ltr, IconLookupFlags::empty());
-            // println!("Icon = {:?}", icon);
-            // println!("Icon file = {:?}", icon.and_then(|icon| icon.file().and_then(|f| f.path() )));
-            // Then Pixbuf::from_file_at_scale("assets/icons/break-point-symbolic.svg", 16, 16, true) with the desired path.
-        } else {
-            panic!("No icon theme");
-        }
+        let theme = IconTheme::for_display(&display);
+        theme.add_resource_path("/com/github/limads/papers/icons");
     } else {
         panic!("No default display");
     }
+
+    application.set_accels_for_action("win.save_file", &["<Ctrl>S"]);
+    application.set_accels_for_action("win.open_file", &["<Ctrl>O"]);
+    application.set_accels_for_action("win.new_file", &["<Ctrl>N"]);
+    application.set_accels_for_action("win.save_as_file", &["<Ctrl><Shift>S"]);
+    // application.set_accels_for_action("win.exec", &["F7"]);
 
     application.connect_activate({
         let user_state = user_state.clone();
         move |app| {
             let window = ApplicationWindow::builder()
                 .application(app)
-                .title("Papers")
+                .title("Drafts")
                 .default_width(1024)
                 .default_height(768)
                 .build();
@@ -163,12 +148,17 @@ fn main() {
         }
     });
 
+    // segfault.
+    // application.connect_window_added(move |app, win| {
+    //    win.destroy();
+    // });
+
     // application.connect_window_added()
     // application.connect_window_removed()
 
     application.run();
 
-    if let Some(mut path) = archiver::get_datadir(drafts::APP_ID) {
+    if let Some(mut path) = filecase::get_datadir(drafts::APP_ID) {
         path.push(drafts::SETTINGS_FILE);
         user_state.persist(&path.to_str().unwrap());
     } else {

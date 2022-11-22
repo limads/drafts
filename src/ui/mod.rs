@@ -14,8 +14,8 @@ use gio::prelude::*;
 use glib::{types::Type, value::{Value, ToValue}};
 use gdk_pixbuf::Pixbuf;
 use std::path::Path;
-use archiver::SingleArchiverImpl;
-use archiver::{OpenDialog, SaveDialog};
+use filecase::SingleArchiverImpl;
+use filecase::{OpenDialog, SaveDialog};
 use poppler::Document;
 
 // TODO replace existing file is not working when saving it.
@@ -524,15 +524,15 @@ impl PapersWindow {
         let editor = PapersEditor::build(&titlebar.zoom_action);
         let start_screen = StartScreen::build();
 
-        let export_pdf_dialog = archiver::SaveDialog::build("*.pdf");
+        let export_pdf_dialog = filecase::SaveDialog::build("*.pdf");
         export_pdf_dialog.dialog.set_transient_for(Some(&window));
 
-        titlebar.export_pdf_btn.connect_clicked({
+        /*titlebar.export_pdf_btn.connect_clicked({
             let export_pdf_dialog = export_pdf_dialog.clone();
             move|btn| {
                 export_pdf_dialog.dialog.show();
             }
-        });
+        });*/
         export_pdf_dialog.dialog.connect_response({
             let doc = editor.pdf_viewer.doc.clone();
             move |dialog, resp| {
@@ -560,13 +560,12 @@ impl PapersWindow {
         titlebar.react(&editor.pdf_viewer);
 
         // Keeps pdf paned hidden due to window changes. Maybe move to impl React<MainWindow> for Editor?
-        window.connect_default_width_notify({
+        /*window.connect_default_width_notify({
             let paned = editor.sub_paned.clone();
             let pdf_btn = titlebar.pdf_btn.clone();
             move |win| {
-                // println!("width changed");
                 if !pdf_btn.is_active() || !pdf_btn.is_sensitive() {
-                    paned.set_position(i32::MAX);
+                    // paned.set_position(i32::MAX);
                 }
             }
         });
@@ -574,31 +573,43 @@ impl PapersWindow {
             let paned = editor.sub_paned.clone();
             let pdf_btn = titlebar.pdf_btn.clone();
             move |win| {
-                // println!("height changed");
                 if !pdf_btn.is_active() || !pdf_btn.is_sensitive() {
-                    paned.set_position(i32::MAX);
+                    // paned.set_position(i32::MAX);
                 }
             }
-        });
+        });*/
 
-        window.connect_maximized_notify({
+        /*window.connect_maximized_notify({
             let paned = editor.sub_paned.clone();
             let pdf_btn = titlebar.pdf_btn.clone();
             move |win| {
-                // println!("Maximized changed");
                 if !pdf_btn.is_active() || !pdf_btn.is_sensitive() {
-                    // let w = win.allocation().width;
-                    // println!("{}", w);
-                    paned.set_position(i32::MAX);
+                    // paned.set_position(i32::MAX);
                 }
             }
-        });
+        });*/
         window.connect_fullscreened_notify({
             move |win| {
                 println!("Fullscreened changed");
             }
         });
 
+        titlebar.editor_btn.connect_toggled({
+            let sub_paned = editor.sub_paned.clone();
+            move|btn| {
+                if btn.is_active() {
+                    sub_paned.set_position(i32::MAX);
+                }
+            }
+        });
+        titlebar.view_pdf_btn.connect_toggled({
+            let sub_paned = editor.sub_paned.clone();
+            move|btn| {
+                if btn.is_active() {
+                    sub_paned.set_position(sub_paned.allocation().width() / 2);
+                }
+            }
+        });
         // titlebar.main_menu.open_dialog.react(&titlebar.main_menu);
         titlebar.main_menu.save_dialog.react(&titlebar.main_menu);
         editor.react(&titlebar);
@@ -629,15 +640,23 @@ impl PapersWindow {
         stack.add_named(&start_screen.bx, Some("start"));
         stack.add_named(&editor.overlay, Some("editor"));
 
-        editor.paned.set_start_child(Some(&doc_tree.bx));
-        editor.paned.set_end_child(Some(&stack));
-        editor.paned.set_position(0);
+        editor.popover.set_parent(&titlebar.sidebar_toggle);
+        editor.popover.set_pointing_to(Some(&titlebar.sidebar_toggle.allocation()));
+        editor.popover.set_child(Some(&doc_tree.bx));
+        editor.popover.set_position(PositionType::Bottom);
+        editor.popover.set_width_request(320);
+        editor.popover.set_height_request(640);
 
-        window.set_child(Some(&editor.paned));
+        // editor.paned.set_start_child(Some(&doc_tree.bx));
+        // editor.paned.set_end_child(Some(&stack));
+        // editor.paned.set_position(0);
+
+        // window.set_child(Some(&editor.paned));
+        window.set_child(Some(&stack));
 
         let symbol_dialog = Dialog::new();
         symbol_dialog.set_title(Some("Symbols"));
-        archiver::configure_dialog(&symbol_dialog);
+        filecase::configure_dialog(&symbol_dialog);
         symbol_dialog.set_transient_for(Some(&window));
 
         let symbol_popover = SymbolPopover::build(&editor);
@@ -666,7 +685,7 @@ impl PapersWindow {
 impl React<FileManager> for PapersWindow {
 
     fn react(&self, manager : &FileManager) {
-        archiver::connect_manager_with_app_window_and_actions(manager, &self.window, &self.titlebar.main_menu.actions, "tex");
+        filecase::connect_manager_with_app_window_and_actions(manager, &self.window, &self.titlebar.main_menu.actions, "tex");
 
         // We should trigger a document re-analysis whenever the file is saved.
         // manager.connect_save(move |_| {
@@ -679,10 +698,12 @@ impl React<FileManager> for PapersWindow {
             let bib_list = self.titlebar.bib_popover.list.clone();
             let paned = self.editor.sub_paned.clone();
             let titlebar = self.titlebar.clone();
+            let editor_btn = self.titlebar.editor_btn.clone();
             move |_| {
                 window.set_title(Some("Papers"));
                 action_save.set_enabled(false);
                 action_save_as.set_enabled(false);
+                editor_btn.set_active(true);
                 // paned.set_position(paned.allocation().width);
                 paned.set_position(i32::MAX);
                 // paned.set_sensitive(false);
@@ -695,27 +716,29 @@ impl React<FileManager> for PapersWindow {
                 titlebar.page_entry.set_text("0");
             }
         });
-        manager.connect_opened({
-            let stack = self.stack.clone();
-            let paned = self.editor.sub_paned.clone();
-            let titlebar = self.titlebar.clone();
-            move |(path, _)| {
-                stack.set_visible_child_name("editor");
-                // paned.set_position(paned.allocation().width);
-                paned.set_position(i32::MAX);
-                // paned.set_sensitive(false);
-                titlebar.set_typeset_mode(false);
-                titlebar.pdf_btn.set_sensitive(true);
-                titlebar.page_button.set_label("of 0");
-                titlebar.page_entry.set_text("0");
-            }
-        });
         manager.connect_new({
             let stack = self.stack.clone();
             let titlebar = self.titlebar.clone();
             move |_| {
                 stack.set_visible_child_name("start");
                 titlebar.pdf_btn.set_sensitive(false);
+                titlebar.page_button.set_label("of 0");
+                titlebar.page_entry.set_text("0");
+            }
+        });
+        manager.connect_opened({
+            let stack = self.stack.clone();
+            let paned = self.editor.sub_paned.clone();
+            let titlebar = self.titlebar.clone();
+            let editor_btn = self.titlebar.editor_btn.clone();
+            move |(path, _)| {
+                stack.set_visible_child_name("editor");
+                editor_btn.set_active(true);
+                // paned.set_position(paned.allocation().width);
+                paned.set_position(i32::MAX);
+                // paned.set_sensitive(false);
+                titlebar.set_typeset_mode(false);
+                titlebar.pdf_btn.set_sensitive(true);
                 titlebar.page_button.set_label("of 0");
                 titlebar.page_entry.set_text("0");
             }
@@ -873,7 +896,7 @@ fn preserve_ratio_on_resize(win : &ApplicationWindow, paned : &Paned, ratio : &R
     });
     let ratio = ratio.clone();
     let win = win.clone();
-    paned.connect_accept_position(move |paned| {
+    /*paned.connect_accept_position(move |paned| {
         let dim = match paned.orientation() {
             Orientation::Horizontal => win.allocation().width() as f32,
             Orientation::Vertical => win.allocation().height() as f32,
@@ -882,7 +905,7 @@ fn preserve_ratio_on_resize(win : &ApplicationWindow, paned : &Paned, ratio : &R
         let new_ratio = paned.position() as f32 / dim;
         *(ratio.borrow_mut()) = new_ratio;
         true
-    });
+    });*/
 }
 
 const A4 : (f64, f64) = (210.0, 297.4);
@@ -906,7 +929,8 @@ impl React<Typesetter> for PapersWindow {
                     show_with_poppler(&editor.pdf_viewer, &titlebar.zoom_action, &win, &path[..]);
                     println!("Showing with poppler");
 
-                    editor.sub_paned.set_position(editor.sub_paned.allocation().width() / 2);
+                    // editor.sub_paned.set_position(editor.sub_paned.allocation().width() / 2);
+                    // editor.sub_paned.set_position(400);
                     titlebar.set_typeset_mode(true);
 
                     // If sidebar is open, use minimum zoom at PDF to minimize occlusion of content.
@@ -974,14 +998,14 @@ impl React<Titlebar> for PdfViewer {
                 da2.queue_draw();
             }
         });
-        titlebar.pdf_btn.connect_toggled({
+        /*titlebar.pdf_btn.connect_toggled({
             let viewer = self.clone();
             move |btn| {
                 // if !btn.is_active() {
                 //    viewer.clear_pages();
                 // }
             }
-        });
+        });*/
 
         // Called by event controller (instead of text changed event)
         // because the application changes the text too frequently without
@@ -1143,7 +1167,7 @@ impl PdfViewer {
             let (da1, da2) = (da1.clone(), da2.clone());
             let turn_action = turn_action.clone();
             move|ev, a, b| {
-                println!("Scroll {:?}: {} {}", ev, a, b);
+                // println!("Scroll {:?}: {} {}", ev, a, b);
                 // trajx.borrow_mut().push(a);
 
                 // Automatically handled at edge_overshoot in this case. When we have
@@ -1234,7 +1258,7 @@ impl PdfViewer {
                 let doc = doc.clone();
                 let curr_page = curr_page.clone();
                 move |da, ctx, _, _| {
-                    println!("Drawing {}", da_pos);
+                    // println!("Drawing {}", da_pos);
                     let cp = curr_page.borrow();
                     //if *cp % 2 == da_pos {
                     let doc = doc.borrow();
@@ -1242,7 +1266,7 @@ impl PdfViewer {
                         if let Some(page) = doc.page(*cp as i32) {
                             crate::adjust_dimension_for_page(da, zoom_action.clone(), &page);
                             crate::draw_page_content(da, ctx, &zoom_action.clone(), &page, true);
-                            println!("Just drawed {}", *cp);
+                            // println!("Just drawed {}", *cp);
                         } else {
                             println!("No page {} at draw", *cp);
                         }

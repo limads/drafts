@@ -23,7 +23,7 @@ use stateful::{Callbacks, ValuedCallbacks};
 use stateful::React;
 use std::path::{Path, PathBuf};
 use crate::manager::FileManager;
-use archiver::SingleArchiverImpl;
+use filecase::SingleArchiverImpl;
 use itertools::Itertools;
 
 #[derive(Debug, Clone)]
@@ -457,7 +457,7 @@ pub fn spawn_helper(ws : &mut Workspace, latex : &str, base_path : Option<&Path>
 
     if res_cmd.is_err() {
         if let Ok(exe_path) = std::env::current_exe() {
-            res_cmd = Command::new(&format!("{}/helper", exe_path.to_str().unwrap()))
+            res_cmd = Command::new(&format!("/home/diego/Software/gnome/target/debug/helper"))
                 .args(&args)
                 .stdin(Stdio::piped())
                 .stdout(Stdio::piped())
@@ -532,6 +532,10 @@ pub fn typeset_document_from_cli(ws : &mut Workspace, latex : &str, base_path : 
 
 fn typeset_document_from_lib(ws : &mut Workspace, latex : &str, base_path : Option<&Path>, send : &glib::Sender<TypesetterAction>) {
 
+    // Overwrite the GTK4 call of signal(SIGPIPE, SIG_IGN); since tectonic requires
+    // them for communicatin with external processes.
+    // unsafe { libc::signal(libc::SIGPIPE, libc::SIG_DFL); }
+
     println!("Processing: {}", latex);
     let bp = base_path.unwrap_or(ws.outdir.path());
     match typeset_document(&latex[..], bp.as_ref(), ws.outdir.path()) {
@@ -588,7 +592,7 @@ impl Typesetter {
                 loop {
                     match content_recv.recv() {
                         Ok(TypesettingRequest { content, base_path }) => {
-                            // typeset_document_from_lib(&mut ws, &content, &send);
+                            // typeset_document_from_lib(&mut ws, &content, base_path.as_ref().map(|p| p.as_path() ), &send);
                             typeset_document_from_cli(&mut ws, &content, base_path.as_ref().map(|p| p.as_path() ), &send)
                         },
                         _ => { }
@@ -650,7 +654,7 @@ impl Typesetter {
 }
 
 fn request_typesetting(
-    pdf_btn : &ToggleButton,
+    pdf_btn : &Button,
     refresh_btn : &Button,
     view : &sourceview5::View,
     send : &glib::Sender<TypesetterAction>
@@ -678,16 +682,16 @@ impl React<PapersWindow> for Typesetter {
 
     fn react(&self, win : &PapersWindow) {
         let (titlebar, editor) = (&win.titlebar, &win.editor);
-        titlebar.pdf_btn.connect_toggled({
+        titlebar.pdf_btn.connect_clicked({
             let view = editor.view.clone();
             let send = self.send.clone();
             let refresh_btn = titlebar.refresh_btn.clone();
             // let window = window.clone();
             // let ws = ws.clone();
             move |btn| {
-                if btn.is_active() {
-                    request_typesetting(&btn, &refresh_btn, &view, &send);
-                }
+                //if btn.is_active() {
+                request_typesetting(&btn, &refresh_btn, &view, &send);
+                //}
 
                 // let mut ws = ws.borrow_mut();
                 // thread::sleep(Duration::from_secs(200));
