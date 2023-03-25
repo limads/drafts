@@ -30,6 +30,8 @@ pub enum Object {
 
     Code(usize, ObjectIndex, Option<String>),
 
+    Bibliography(usize, String),
+
     // Paragraph(usize, ObjectIndex)
 
 }
@@ -42,6 +44,7 @@ impl Object {
             Object::Image(_, ix, _) => *ix,
             Object::Equation(_, ix, _) => *ix,
             Object::Code(_, ix, _) => *ix,
+            Object::Bibliography(_, _) => ObjectIndex::Root(0),
             // Object::Paragraph(_, ix) => *ix,
         }
     }
@@ -51,7 +54,7 @@ impl Object {
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Document {
 
-    items : Vec<Item>
+    pub items : Vec<Item>
 
 }
 
@@ -93,6 +96,14 @@ pub enum Item {
 }
 
 impl Item {
+
+    pub fn line(&self) -> usize {
+        match self {
+            Item::Section(_, ix) => *ix,
+            Item::Subsection(_, ix) => *ix,
+            Item::Object(_, ix) => *ix,
+        }
+    }
 
     pub fn token_index(&self) -> usize {
         match self {
@@ -338,6 +349,38 @@ fn iter_next_item(objs : &mut Vec<Object>, tree : &[Item]) {
 
 impl Document {
 
+    pub fn get_line(&self, sel_ixs : &[usize]) -> Option<usize> {
+        match (sel_ixs.get(0), sel_ixs.get(1), sel_ixs.get(2)) {
+            (Some(sec_or_obj), None, None) => {
+                Some(self.items.get(*sec_or_obj)?.line())
+            },
+            (Some(sec), Some(subsec_or_obj), None) => {
+                match self.items.get(*sec)? {
+                    Item::Section(Section { items, .. }, _) => {
+                        Some(items.get(*subsec_or_obj)?.line())
+                    },
+                    _ => None
+                }
+            },
+            (Some(sec), Some(subsec), Some(obj)) => {
+                match self.items.get(*sec)? {
+                    Item::Section(Section { items, .. }, _) => {
+                        match items.get(*subsec)? {
+                            Item::Subsection(Subsection { items, .. }, _) => {
+                                Some(items.get(*obj)?.line())
+                            },
+                            _ => None
+                        }
+                    },
+                    _ => None
+                }
+            },
+            _ => {
+                None
+            }
+        }
+    }
+
     pub fn token_index_at(&self, ixs : &[usize]) -> Option<usize> {
 
         // println!("Requesting position at {:?}", ixs);
@@ -577,7 +620,7 @@ fn test_bibtex_parser() {
          }
     "#;
 
-    println!("{:#?}", Parser::parse(txt));
+    println!("{:#?}", BibParser::parse(txt));
 
 }
 
@@ -689,13 +732,12 @@ fn space_delimited_bib(txt : &str) -> nom::IResult<&str, BibEntry> {
 impl BibParser {
 
     pub fn parse(txt : &str) -> Result<References, String> {
-        // println!("To parse = {}", txt);
         let (res, out) = delimited(
             multispace0,
             separated_list0(multispace1, super::bib_entry),
             multispace0
         )(txt).map_err(|e| e.to_string() )?;
-        println!("{}", res);
+        // println!("out = {:?}", out);
         Ok(References(out))
 
         /*let (rem, _) = (many0(multispace1))(txt).map_err(|e| e.to_string() )?;

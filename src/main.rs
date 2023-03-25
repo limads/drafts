@@ -76,16 +76,19 @@ fn main() {
 
     if let Some(display) = gdk::Display::default() {
         let theme = IconTheme::for_display(&display);
-        theme.add_resource_path("/com/github/limads/papers/icons");
+        theme.add_resource_path("/io/github/limads/drafts/icons");
     } else {
         panic!("No default display");
     }
 
     application.set_accels_for_action("win.save_file", &["<Ctrl>S"]);
     application.set_accels_for_action("win.open_file", &["<Ctrl>O"]);
-    application.set_accels_for_action("win.new_file", &["<Ctrl>N"]);
+
+    // Because "new file" is closing action to the user.
+    application.set_accels_for_action("win.new_file", &["<Ctrl>Q"]);
+
     application.set_accels_for_action("win.save_as_file", &["<Ctrl><Shift>S"]);
-    // application.set_accels_for_action("win.exec", &["F7"]);
+    application.set_accels_for_action("win.typeset", &["F7"]);
 
     application.connect_activate({
         let user_state = user_state.clone();
@@ -108,7 +111,6 @@ fn main() {
             // papers_win.editor.sub_paned.set_position(s);
 
             papers_win.react(&papers_win.start_screen);
-            user_state.react(&papers_win);
 
             // drafts::ui::setup_position_as_ratio(&papers_win.window, &papers_win.editor.sub_paned, 0.5);
 
@@ -119,8 +121,13 @@ fn main() {
             manager.react(&papers_win);
             manager.react(&papers_win.editor);
 
+            user_state.react(&papers_win);
+            user_state.react(&manager);
+
             papers_win.titlebar.main_menu.save_dialog.react(&manager);
             papers_win.titlebar.main_menu.open_dialog.react(&manager);
+
+            papers_win.start_screen.recent_list.react(&manager);
 
             let typesetter = Typesetter::new();
             typesetter.react(&papers_win);
@@ -135,10 +142,12 @@ fn main() {
             papers_win.react(&manager);
 
             let analyzer = Analyzer::new();
-            analyzer.react(&papers_win.editor);
+            analyzer.react(&papers_win);
             analyzer.react(&papers_win.doc_tree);
             analyzer.react(&manager);
 
+            papers_win.titlebar.react(&analyzer);
+            papers_win.titlebar.react(&manager);
             papers_win.titlebar.bib_popover.react(&analyzer);
             papers_win.doc_tree.react(&analyzer);
             papers_win.editor.react(&analyzer);

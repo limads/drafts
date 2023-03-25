@@ -11,7 +11,7 @@ use std::fs::File;
 use crate::manager::FileManager;
 use filecase::SingleArchiverImpl;
 use std::io::Read;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::thread;
 use std::rc::Rc;
 use std::cell::RefCell;
@@ -105,9 +105,12 @@ impl Analyzer {
                     loop {
                         match bib_recv.recv() {
                             Ok(Some(bib)) => {
-                                println!("received {:?}", bib);
+                                // println!("received {:?}", bib);
                                 if let (Some(fname), Some(base_path)) = (bib.filename, bib.base_dir) {
-                                    let path = format!("{}/{}.bib", base_path, fname);
+
+                                    // let path = format!("{}/{}.bib", base_path, fname);
+                                    let path = format!("{}/{}", base_path, fname);
+
                                     if Path::new(&path).exists() {
                                         if let Ok(mut f) = File::open(&path) {
                                             let mut content = String::new();
@@ -124,7 +127,7 @@ impl Analyzer {
                                         send.send(AnalyzerAction::BibError(format!("Path {} does not exist", path)));
                                     }
                                 } else {
-                                    println!("No filename or base path available");
+                                    println!("Bibliography: No filename or base path available");
                                 }
                             },
                             Ok(None) => { },
@@ -138,8 +141,8 @@ impl Analyzer {
 
             move |action| {
 
-                println!("{}: {:?}", ix, action);
-                ix += 1;
+                // println!("{}: {:?}", ix, action);
+                // ix += 1;
 
                 match action {
                     AnalyzerAction::ChangeBaseDir(opt_path) => {
@@ -162,31 +165,55 @@ impl Analyzer {
                     // first added to sourceview because signal is blocked.
                     // Must know text changes exactly when text is loaded.
                     AnalyzerAction::TextInit(new_txt) | AnalyzerAction::TextChanged(new_txt) => {
-                        println!("Text init/changed");
+
+                        match crate::typst_tools::parse_doc(Path::new(""), new_txt) {
+                            Ok(new_doc) => {
+                                println!("Doc parsed");
+                                if doc != new_doc || last_err.is_some() {
+                                    on_doc_changed.call(new_doc.clone());
+                                }
+                                last_err = None;
+                                doc = new_doc;
+                                for obj in doc.objects() {
+                                    match obj {
+                                        Object::Bibliography(_, new_fname) => {
+                                            if let Some(bib_file) = bib_file.as_mut() {
+                                                if let Some(old_fname) = &bib_file.filename {
+                                                    if &old_fname[..] != &new_fname[..] {
+                                                        bib_file.filename = Some(new_fname.to_string());
+                                                        bib_send.send(Some(bib_file.clone()));
+                                                    }
+                                                } else {
+                                                    bib_file.filename = Some(new_fname.to_string());
+                                                    bib_send.send(Some(bib_file.clone()));
+                                                }
+                                            } else {
+                                                bib_file = Some(BibFile {
+                                                    filename : Some(new_fname.to_string()),
+                                                    base_dir : None
+                                                });
+                                                bib_send.send(bib_file.clone());
+                                            }
+                                            break;
+                                        },
+                                        _ => { }
+                                    }
+                                }
+                            },
+                            Err(errs) => {
+                                println!("Doc parsing error");
+                                let fst_err = errs.get(0).map(|e| e.1.clone() )
+                                    .unwrap_or(String::from("Unknown error"));
+                                println!("{}", fst_err);
+                                doc = Document::default();
+                                on_doc_cleared.call(());
+                                on_doc_error.call(TexError { msg : fst_err, line : 0 });
+                            }
+                        }
+
+                        /*println!("Text init/changed");
                         match Lexer::scan(&new_txt[..]).map(|tks| tks.to_owned() ) {
                             Ok(new_info) => {
-
-                                // for diff in tk_info.compare_tokens(&new_info, Comparison::Sections) {
-                                //    on_section_changed.borrow().iter().for_each(|f| f(diff.clone() ) );
-                                // }
-
-                                // Update inline references
-                                /*if new_info.references().is_empty() {
-                                    on_refs_cleared.call(());
-                                    println!("References cleared");
-                                } else {
-                                    // Old tkinfo had empty references, but new one is not empty.
-                                    if tk_info.references().is_empty() {
-                                        on_refs_validated.call(());
-                                        println!("References validated");
-                                    }
-                                    for diff in tk_info.compare_tokens(&new_info, Comparison::References) {
-                                        // println!("{:?}", diff);
-                                        on_reference_changed.call(diff.clone());
-                                        println!("References changed");
-                                    }
-                                }*/
-
                                 // Update external file references
                                 // Tectonic always require that \bibliographystyle{plain} (or other desired style)
                                 // is always present at the document for references to be processed correctly.
@@ -241,17 +268,15 @@ impl Analyzer {
                                 on_doc_error.call(e.clone());
                                 println!("{}", e);
                             }
-                        }
+                        }*/
                     },
                     AnalyzerAction::BibChanged(txt) => {
-                        // println!("Bib changed");
                         match BibParser::parse(&txt[..]) {
                             Ok(refs) =>  {
                                 on_refs_cleared.call(());
                                 let n = refs.as_ref().len();
-                                // println!("{} refs available", n);
+                                println!("Have {} refs", n);
                                 for (ix, r) in refs.as_ref().iter().enumerate() {
-                                    // println!("{}", r.to_string());
                                     on_reference_changed.call(Difference::Added(ix, r.to_string()));
                                 }
                             },
@@ -264,16 +289,18 @@ impl Analyzer {
                         on_doc_error.call(TexError { msg : e, line : 0 });
                     },
                     AnalyzerAction::ItemSelected(sel_ixs) => {
-                        if let Some(tk_ix) = doc.token_index_at(&sel_ixs[..]) {
+                        /*if let Some(tk_ix) = doc.token_index_at(&sel_ixs[..]) {
                             // Count \n at all tokens before tk_ix
                             // let lines_before = tk_info.pos[0..tk_ix].iter().map(|pos| tk_info.txt[pos.clone()].chars().filter(|c| *c == '\n').count() ).sum::<usize>();
                             let lines_before = tk_info.txt[..tk_info.pos[tk_ix].start].chars().filter(|c| *c == '\n').count();
 
                             // Add one because we want one past the last line, add +1 because lines count from 1, not zero.
                             on_line_selection.call(lines_before);
-                            // println!("Token {} at line {}", tk_ix, lines_before);
                         } else {
                             println!("No token at document index {:?}", sel_ixs);
+                        }*/
+                        if let Some(line) = doc.get_line(&sel_ixs[..]) {
+                            on_line_selection.call(line);
                         }
                     }
                 }
@@ -363,7 +390,7 @@ impl React<FileManager> for Analyzer {
 
     fn react(&self, manager : &FileManager) {
 
-        let is_new = Rc::new(RefCell::new(true));
+        // let is_new = Rc::new(RefCell::new(true));
 
         let send = self.send.clone();
         manager.connect_save({
@@ -374,49 +401,49 @@ impl React<FileManager> for Analyzer {
 
         manager.connect_save({
             let send = self.send.clone();
-            let is_new = is_new.clone();
-            move|path| {
+            // let is_new = is_new.clone();
+            move |path| {
 
-                let mut is_new = is_new.borrow_mut();
+                // let mut is_new = is_new.borrow_mut();
                 // Trigger a document analysis whenever doc is saved, because
                 // we might have gone from unknown path -> known path and now
                 // we might be able to parse the bibtex file.
-                if *is_new {
-                    let send = send.clone();
-                    thread::spawn(move || {
-                        match File::open(&path) {
-                            Ok(mut f) => {
-                                let mut content = String::new();
-                                match f.read_to_string(&mut content) {
-                                    Ok(_) => {
-                                        send.send(AnalyzerAction::TextChanged(content));
-                                    },
-                                    _ => { }
-                                }
-                            },
-                            Err(_) => { }
-                        }
-                    });
-                    *is_new = false;
-                }
+                // if *is_new {
+                let send = send.clone();
+                thread::spawn(move || {
+                    match File::open(&path) {
+                        Ok(mut f) => {
+                            let mut content = String::new();
+                            match f.read_to_string(&mut content) {
+                                Ok(_) => {
+                                    send.send(AnalyzerAction::TextChanged(content));
+                                },
+                                _ => { }
+                            }
+                        },
+                        Err(_) => { }
+                    }
+                });
+                // *is_new = false;
+                // }
             }
         });
         manager.connect_opened({
             let send = self.send.clone();
-            let is_new = is_new.clone();
+            // let is_new = is_new.clone();
             move |(path, content)| {
                 send.send(AnalyzerAction::ChangeBaseDir(Some(path.into())));
                 send.send(AnalyzerAction::TextInit(content));
-                *(is_new.borrow_mut()) = false;
+                // *(is_new.borrow_mut()) = false;
             }
         });
         manager.connect_new({
             let send = self.send.clone();
-            let is_new = is_new.clone();
+            // let is_new = is_new.clone();
             move |_| {
                 send.send(AnalyzerAction::ChangeBaseDir(None));
                 send.send(AnalyzerAction::TextInit(String::new()));
-                *(is_new.borrow_mut()) = true;
+                // *(is_new.borrow_mut()) = true;
             }
         });
     }
@@ -439,115 +466,35 @@ impl React<DocTree> for Analyzer  {
 
 }
 
-impl React<PapersEditor> for Analyzer {
+impl React<PapersWindow> for Analyzer {
 
-    fn react(&self, editor : &PapersEditor) {
+    fn react(&self, window : &PapersWindow) {
 
-        let mut ix = RefCell::new(0);
-        editor.view.buffer().connect_changed({
+        /* It is important to re-parse the document when the popover is opened
+        to keep the document lines in sync with the document objects.
+        This is a reliable signal that the user needs the most recent version
+        of the document, so we can re-parse the document here. */
+        window.editor.popover.connect_show({
+            let view = window.editor.view.clone();
             let send = self.send.clone();
-            let view = editor.view.clone();
-            move |buffer| {
-                let mut ix = ix.borrow_mut();
-                println!("Buffer changed: {}", *ix);
-                *ix += 1;
-                let txt_up_to_cursor = buffer.text(
-                    &buffer.start_iter(),
-                    &buffer.iter_at_offset(buffer.cursor_position()),
-                    true
-                );
-                if txt_up_to_cursor.ends_with("}") || txt_up_to_cursor.ends_with("$") {
-                    let txt = buffer.text(
-                        &buffer.start_iter(),
-                        &buffer.end_iter(),
-                        true
-                    );
-                    send.send(AnalyzerAction::TextChanged(txt.to_string()));
-                }
+            move |_| {
+                send.send(AnalyzerAction::TextChanged(get_text(&view)));
             }
         });
-
-        editor.view.buffer().connect_delete_range({
+        window.titlebar.bib_popover.popover.connect_show({
+            let view = window.editor.view.clone();
             let send = self.send.clone();
-            move |buffer, _, _| {
-                let txt = buffer.text(
-                    &buffer.start_iter(),
-                    &buffer.end_iter(),
-                    true
-                );
-                send.send(AnalyzerAction::TextChanged(txt.to_string()));
+            move |_| {
+                send.send(AnalyzerAction::TextChanged(get_text(&view)));
             }
         });
-
-        editor.view.connect_delete_from_cursor({
-            let send = self.send.clone();
-            move |view, _, _| {
-                let buffer = view.buffer();
-                let txt = buffer.text(
-                    &buffer.start_iter(),
-                    &buffer.end_iter(),
-                    true
-                );
-                send.send(AnalyzerAction::TextChanged(txt.to_string()));
-            }
-        });
-
-        editor.view.connect_paste_clipboard({
-            let send = self.send.clone();
-            let view = editor.view.clone();
-            move |view| {
-                let buffer = view.buffer();
-                let txt = buffer.text(
-                    &buffer.start_iter(),
-                    &buffer.end_iter(),
-                    true
-                );
-                send.send(AnalyzerAction::TextChanged(txt.to_string()));
-            }
-        });
-
-        // TODO also update on file opened.
-
-        /*editor.view.connect_delete_from_cursor({
-            let send = self.send.clone();
-            let view = editor.view.clone();
-            move |view, _, _| {
-                let buffer = view.buffer();
-                let txt = buffer.text(
-                    &buffer.start_iter(),
-                    &buffer.end_iter(),
-                    true
-                );
-                send.send(AnalyzerAction::TextChanged(txt.to_string()));
-            }
-        });*/
-
-        /*// Get cursor
-        view.iter_at_mark(view.get_insert());
-        // Get selection
-        match buffer.selection_bounds() {
-            Some((from, to,)) => {
-                from.text(&to).map(|txt| txt.to_string())
-            },
-            None => { }
-        }
-
-        // Insert - To replace, first we insert ""
-
-        // Also have forward.. versions.
-         iter.backward_chars(n)
-         iter.backward_cursor_position()
-         iter.backward_cursor_positions(n)
-         iter.backward_find_char
-         iter.forward_to_line_end
-
-         buffer.delete(start_iter, end_iter);
-         buffer.insert(&mut textiter, "mytext");
-         buffer.insert_at_cursor("mytext");
-         buffer.select_range(start, end);
-        */
     }
 
+}
+
+fn get_text(view : &sourceview5::View) -> String {
+    let buffer = view.buffer();
+    buffer.text(&buffer.start_iter(), &buffer.end_iter(), true).to_string()
 }
 
 

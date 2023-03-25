@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <gresources>
-  <gresource prefix="/com/github/limads/papers">
+  <gresource prefix="/io/github/limads/drafts">
     <file preprocess="xml-stripblanks" alias="icons/scalable/actions/break-point-symbolic.svg">../icons/hicolor/symbolic/actions/break-point-symbolic.svg</file>
     <file preprocess="xml-stripblanks" alias="icons/scalable/actions/dialog-error-symbolic.svg">../icons/hicolor/symbolic/actions/dialog-error-symbolic.svg</file>
     <file preprocess="xml-stripblanks" alias="icons/scalable/actions/equation-symbolic.svg">../icons/hicolor/symbolic/actions/equation-symbolic.svg</file>
@@ -21,6 +21,7 @@
     <file preprocess="xml-stripblanks" alias="icons/scalable/actions/text-normal-symbolic.svg">../icons/hicolor/symbolic/actions/text-normal-symbolic.svg</file>
     <file preprocess="xml-stripblanks" alias="icons/scalable/actions/text-small-symbolic.svg">../icons/hicolor/symbolic/actions/text-small-symbolic.svg</file>
     <file preprocess="xml-stripblanks" alias="icons/scalable/actions/two-columns-symbolic.svg">../icons/hicolor/symbolic/actions/two-columns-symbolic.svg</file>
+    <file preprocess="xml-stripblanks" alias="icons/scalable/actions/user-bookmarks-symbolic.svg">../icons/hicolor/symbolic/actions/user-bookmarks-symbolic.svg</file>
 
     <file preprocess="xml-stripblanks" alias="icons/scalable/actions/article.svg">../icons/hicolor/scalable/actions/article.svg</file>
     <file preprocess="xml-stripblanks" alias="icons/scalable/actions/book.svg">../icons/hicolor/scalable/actions/book.svg</file>

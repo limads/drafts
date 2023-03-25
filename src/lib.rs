@@ -4,9 +4,9 @@ use std::boxed;
 use gio;
 use stateful::{Callbacks, ValuedCallbacks};
 
-pub const APP_ID : &'static str = "com.github.limads.papers";
+pub const APP_ID : &'static str = "io.github.limads.Drafts";
 
-pub const RESOURCE_PREFIX : &'static str = "com/github/limads/Papers";
+pub const RESOURCE_PREFIX : &'static str = "io/github/limads/drafts";
 
 pub const SETTINGS_FILE : &'static str = "user.json";
 
@@ -23,6 +23,8 @@ pub mod tex;
 pub mod analyzer;
 
 pub mod state;
+
+pub mod typst_tools;
 
 // pub type Callbacks<T> = Rc<RefCell<Vec<boxed::Box<dyn Fn(T) + 'static>>>>;
 

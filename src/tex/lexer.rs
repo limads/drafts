@@ -24,6 +24,8 @@ use std::ops::Range;
 use nom::error::ErrorKind;
 use nom::error::Error;
 use either::Either;
+use nom::character::complete::multispace0;
+use nom::sequence::{terminated, preceded};
 
 // Reference: http://latexref.xyz/LaTeX-command-syntax.html
 
@@ -896,7 +898,6 @@ fn bib_cmd() {
 
 #[test]
 fn bib_with_cmd() {
-
     println!("{:?}", Lexer::scan(r#"@article{Vrabic2021,
 	    author = {Vrabi{\ifmmode\check{c}\else\v{c}\fi}, Nika and Juro{\ifmmode\check{s}\else\v{s}\fi}, Bor and Pompe,
 	    Manca Tekav{\ifmmode\check{c}\else\v{c}\fi}i{\ifmmode\check{c}\else\v{c}\fi}},
@@ -948,17 +949,72 @@ fn bib_field_value(s : &str) -> IResult<&str, &str> {
         delimited(tag("{{"), group_or_cmd_or_txt_str, tag("}}")),
         delimited(tag("{"), group_or_cmd_or_txt_str, tag("}")),
         delimited(tag("\""), group_or_cmd_or_txt_str, tag("\"")),
-        is_not(",")
+        // is_not(",")
     ))(s)?;
     Ok((rem, &s[..(s.len() - rem.len())]))
 }
 
+// https://en.wikipedia.org/wiki/BibTeX
+fn bib_key(s : &str) -> IResult<&str, &str> {
+    alt((
+        alt((
+            tag("author"),
+            tag("title"),
+            tag("journal"),
+            tag("volume"),
+            tag("pages"),
+            tag("issn"),
+            tag("eprint"),
+            tag("number"),
+            tag("publisher"),
+            tag("year"),
+            tag("address"),
+            tag("annote"),
+            tag("booktitle"),
+            tag("Email"),
+            tag("chapter"),
+            tag("crossref"),
+            tag("doi"),
+            tag("editor"),
+            tag("howpublished"),
+            tag("institution"),
+            tag("journal")
+        )),
+        alt((
+            tag("key"),
+            tag("month"),
+            tag("note"),
+            tag("organization"),
+            tag("pages"),
+            tag("publisher"),
+            tag("school"),
+            tag("series"),
+            tag("type"),
+            tag("edition")
+        ))
+    ))(s)
+}
+
+#[test]
+fn bf() {
+    println!("{:?}", bib_field("\n\t\n\n\tauthor = {Guestrin, E. D. and Eizenman, M.}"));
+    println!("{:?}", bib_field("title = {{General theory of remote gaze estimation using the pupil center and corneal reflections}}"));
+    println!("{:?}", bib_field("journal = {IEEE Trans. Biomed. Eng.}"));
+    println!("{:?}", bib_field("volume = {53}"));
+    println!("{:?}", bib_field("number = {6}"));
+    println!("{:?}", bib_field("pages = {1124--1133}"));
+    println!("{:?}", bib_field("year = {2006}"));
+    println!("{:?}", bib_field("month = {Jun}"));
+    println!("{:?}", bib_field("publisher = {IEEE}"));
+    println!("{:?}", bib_field("doi = {10.1109/TBME.2005.863952}"));
+}
+
 fn bib_field(s : &str) -> IResult<&str, (&str, &str)> {
-    tuple((
-        space0,
-        separated_pair(is_not("="), tuple((space0, char('='), space0)), bib_field_value),
-        space0
-    ))(s).map(|(rem, s)| (rem, (s.1.0.trim(), s.1.1.trim())) )
+    delimited(
+        multispace0,
+        separated_pair(delimited(space0, bib_key, space0), tuple((space0, char('='), space0)), bib_field_value),
+        multispace0
+    )(s).map(|(rem, s)| (rem, (s.0.trim(), s.1.trim())) )
 }
 
 fn entry(s : &str) -> IResult<&str, Entry> {
@@ -981,14 +1037,14 @@ fn entry(s : &str) -> IResult<&str, Entry> {
 }
 
 pub fn bib_entry(s : &str) -> IResult<&str, BibEntry> {
-    let (rem, entry) = delimited(char('@'), entry, tag("{"))(s)?;
-
-    let (rem, key) = is_not(",")(rem)?;
-    let (rem, _) = take(1usize)(rem)?;
-
-    let (rem, fields) = separated_list1(tag(","), bib_field)(rem)?;
-    let (rem, _) = is_not("}")(rem)?;
-    let (rem, _) = tag("}")(rem)?;
+    let (rem, (entry, (_, key, _, _))) = tuple((
+        delimited(char('@'), entry, tuple((space0, tag("{")))),
+        tuple((space0, alphanumeric1, tag(","), multispace0))
+    ))(s)?;
+    let (rem, fields) = terminated(
+        separated_list1(tag(","), bib_field),
+        tuple((opt(tag(",")), multispace0, tag("}")))
+    )(rem)?;
     Ok((rem, BibEntry {
         entry,
         key : key.trim(),

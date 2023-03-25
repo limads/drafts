@@ -2,14 +2,16 @@ use super::*;
 use crate::analyzer::Analyzer;
 use crate::tex::{Difference, BibEntry};
 use crate::tex::Token;
-use filecase::FileActions;
 use std::borrow::Cow;
 use std::sync::{Arc, atomic::{AtomicBool, Ordering}};
+use filecase::FileActions;
 
 #[derive(Debug, Clone)]
 pub struct MainMenu {
     pub popover : PopoverMenu,
     pub actions : FileActions,
+    // pub action_close : gio::SimpleAction,
+    pub export_action : gio::SimpleAction,
     pub open_dialog : OpenDialog,
     pub save_dialog : SaveDialog,
 }
@@ -18,15 +20,25 @@ impl MainMenu {
 
     fn build() -> Self {
         let menu = gio::Menu::new();
-        menu.append(Some("New"), Some("win.new_file"));
         menu.append(Some("Open"), Some("win.open_file"));
+
+        // Actually, "closing" is creating a new file from scratch.
+        // Clicking one of the templates simply writes to the sourceview
+        // buffer and switches the stack.
+        menu.append(Some("Close"), Some("win.new_file"));
+
         menu.append(Some("Save"), Some("win.save_file"));
         menu.append(Some("Save as"), Some("win.save_as_file"));
+        menu.append(Some("Export"), Some("win.export"));
         let popover = PopoverMenu::from_model(Some(&menu));
         let actions = FileActions::new();
-        let open_dialog = OpenDialog::build("*.tex");
-        let save_dialog = SaveDialog::build("*.tex");
-        Self { popover, actions, open_dialog, save_dialog }
+        let open_dialog = OpenDialog::build("*.typ");
+        let save_dialog = SaveDialog::build("*.typ");
+        // let export_dialog = SaveDialog::build("*.pdf");
+        let export_action = gio::SimpleAction::new("export", None);
+        // let action_close = gio::SimpleAction::new("close_file", None);
+        export_action.set_enabled(false);
+        Self { popover, actions, open_dialog, save_dialog, /*export_dialog,*/ export_action, /*action_close*/ }
     }
 
 }
@@ -38,8 +50,10 @@ pub struct Titlebar {
     pub main_menu : MainMenu,
     pub pdf_btn : Button,
     pub view_pdf_btn : ToggleButton,
-    pub editor_btn : ToggleButton,
-    pub sidebar_toggle : ToggleButton,
+    pub typeset_action : gio::SimpleAction,
+    // pub editor_btn : ToggleButton,
+    // pub explore_toggle : ToggleButton,
+    pub explore_toggle : MenuButton,
     pub sidebar_hide_action : gio::SimpleAction,
     pub sectioning_actions : SectioningActions,
     pub object_actions : ObjectActions,
@@ -51,12 +65,14 @@ pub struct Titlebar {
     pub bib_popover : BibPopover,
     pub symbol_btn : MenuButton,
     pub paper_popover : PaperPopover,
-    pub refresh_btn : Button,
+    // pub refresh_btn : Button,
     pub zoom_in_btn : Button,
     pub zoom_out_btn : Button,
+    pub left_btn : Button,
+    pub right_btn : Button,
     pub zoom_action : gio::SimpleAction,
     // pub hide_pdf_btn : Button,
-    pub export_pdf_btn : Button,
+    // pub export_pdf_btn : Button,
     pub page_entry : Entry,
     pub page_button : Button
 }
@@ -64,9 +80,10 @@ pub struct Titlebar {
 #[derive(Debug, Clone)]
 pub struct BlockActions {
     pub list : gio::SimpleAction,
+    pub listord : gio::SimpleAction,
     pub verbatim : gio::SimpleAction,
     pub eq : gio::SimpleAction,
-    pub bib : gio::SimpleAction,
+    pub code : gio::SimpleAction,
     pub tbl : gio::SimpleAction
 }
 
@@ -74,15 +91,16 @@ impl BlockActions {
 
     pub fn build() -> Self {
         let list = gio::SimpleAction::new("list", None);
+        let listord = gio::SimpleAction::new("listord", None);
         let verbatim = gio::SimpleAction::new("verbatim", None);
         let eq = gio::SimpleAction::new("eq", None);
-        let bib = gio::SimpleAction::new("bib", None);
+        let code = gio::SimpleAction::new("code", None);
         let tbl = gio::SimpleAction::new("tbl", None);
-        Self { list, verbatim, eq, bib, tbl }
+        Self { list, listord, verbatim, eq, code, tbl }
     }
 
     pub fn iter<'a>(&'a self) -> impl Iterator<Item=gio::SimpleAction> + 'a {
-        [self.list.clone(), self.verbatim.clone(), self.eq.clone(), self.bib.clone(), self.tbl.clone()].into_iter()
+        [self.list.clone(), self.listord.clone(), self.verbatim.clone(), self.eq.clone(), self.code.clone(), self.tbl.clone()].into_iter()
     }
 
 }
@@ -117,7 +135,7 @@ impl LayoutActions {
 
 #[derive(Debug, Clone)]
 pub struct SectioningActions {
-    pub chapter : gio::SimpleAction,
+    // pub chapter : gio::SimpleAction,
     pub section : gio::SimpleAction,
     pub subsection : gio::SimpleAction,
     pub sub_subsection : gio::SimpleAction,
@@ -129,12 +147,12 @@ impl SectioningActions {
         let section = gio::SimpleAction::new("section", None);
         let subsection = gio::SimpleAction::new("subsection", None);
         let sub_subsection = gio::SimpleAction::new("sub_subsection", None);
-        let chapter = gio::SimpleAction::new("chapter", None);
-        Self { section, subsection, sub_subsection, chapter }
+        // let chapter = gio::SimpleAction::new("chapter", None);
+        Self { section, subsection, sub_subsection, /*chapter*/ }
     }
 
     pub fn iter<'a>(&'a self) -> impl Iterator<Item=gio::SimpleAction> + 'a {
-        [self.section.clone(), self.subsection.clone(), self.sub_subsection.clone(), self.chapter.clone()].into_iter()
+        [self.section.clone(), self.subsection.clone(), self.sub_subsection.clone(), /*self.chapter.clone()*/].into_iter()
     }
 
 }
@@ -253,7 +271,9 @@ pub struct FormatPopover {
     pub twocol_btn : Button,
     pub left_btn : Button,
     pub right_btn : Button,
-    pub center_btn : Button
+    pub center_btn : Button,
+    pub justify_btn : Button,
+    pub font_btn : FontButton
 }
 
 fn build_fmt_btn(label : &str) -> Button {
@@ -272,7 +292,10 @@ impl FormatPopover {
         popover.set_child(Some(&bx));
 
         let char_upper_bx = Box::new(Orientation::Horizontal, 0);
-        let char_lower_bx = Box::new(Orientation::Horizontal, 0);
+        // char_bx.set_valign(Align::Center);
+        // char_bx.set_vexpand(true);
+
+        // let char_lower_bx = Box::new(Orientation::Horizontal, 0);
 
         let bold_btn = Button::builder().icon_name("format-text-bold-symbolic").build();
         let italic_btn = Button::builder().icon_name("format-text-italic-symbolic").build();
@@ -291,20 +314,20 @@ impl FormatPopover {
         let large_btn = Button::builder().icon_name("text-large-symbolic").build();
         let huge_btn = Button::builder().icon_name("text-huge-symbolic").build();
 
-        for btn in [&bold_btn, &italic_btn, &underline_btn, &strike_btn, &sup_btn] {
+        for btn in [&bold_btn, &italic_btn, &underline_btn, &strike_btn, &sub_btn, &sup_btn] {
             btn.style_context().add_class("flat");
             char_upper_bx.append(btn);
         }
 
-        for btn in [&small_btn, &normal_btn, &large_btn, &huge_btn, &sub_btn] {
+        /*for btn in [&small_btn, &normal_btn, &large_btn, &huge_btn] {
             btn.style_context().add_class("flat");
             char_lower_bx.append(btn);
-        }
+        }*/
 
         let char_bx = Box::new(Orientation::Vertical, 0);
         char_bx.append(&Label::builder().label("Character").halign(Align::Start).justify(Justification::Left).margin_bottom(6).build());
         char_bx.append(&char_upper_bx);
-        char_bx.append(&char_lower_bx);
+        // char_bx.append(&char_lower_bx);
 
         let par_bx = Box::new(Orientation::Horizontal, 12);
 
@@ -312,7 +335,7 @@ impl FormatPopover {
 
         let indent_entry = Entry::new();
         indent_entry.set_primary_icon_name(Some("format-indent-more-symbolic"));
-        indent_entry.set_placeholder_text(Some("Indentation (mm)"));
+        indent_entry.set_placeholder_text(Some("Indentation (pt)"));
 
         // par_bx.append(&indent_entry);
         //let line_height_entry = Entry::new();
@@ -361,19 +384,9 @@ impl FormatPopover {
         alignment_inner_bx.append(&center_btn);
 
         // Latex justifies the text by default - not needed here.
-        // let fill_btn = Button::new();
-        // fill_btn.set_icon_name("format-justify-fill-symbolic");
-        // alignment_inner_bx.append(&fill_btn);
-
-        /*\begin{multicols}{2}
-        lots of text
-        \end{multicols}*/
-
-        // {\raggedleft Some text flushed right. }
-        // {\raggedright Some text flushed right. }
-        // {\centering Some text centered. }
-        // Use the freeform commands (without {}) to apply to whole document. Use the
-        // previous forms when the user selected some text.
+        let justify_btn = Button::new();
+        justify_btn.set_icon_name("format-justify-fill-symbolic");
+        alignment_inner_bx.append(&justify_btn);
 
         let left_btn = Button::new();
         left_btn.set_hexpand(true);
@@ -443,7 +456,9 @@ impl FormatPopover {
             line_height_20,
             center_btn,
             left_btn,
-            right_btn
+            right_btn,
+            justify_btn,
+            font_btn
         }
     }
 
@@ -705,10 +720,14 @@ impl PaperPopover {
         margin_bx.set_valign(Align::Center);
 
         let paper_combo = ComboBoxText::new();
+        paper_combo.append(Some("A3"), "A3");
         paper_combo.append(Some("A4"), "A4");
-        paper_combo.append(Some("Letter"), "Letter");
-        paper_combo.append(Some("Legal"), "Legal");
-        paper_combo.append(Some("Custom"), "Custom");
+        paper_combo.append(Some("US-Letter"), "US-Letter");
+        paper_combo.append(Some("US-Legal"), "US-Legal");
+        paper_combo.append(Some("Presentation-4-3"), "Presentation-4-3");
+        paper_combo.append(Some("Presentation-16-9"), "Presentation-16-9");
+
+        // paper_combo.append(Some("Custom"), "Custom");
         paper_combo.connect_changed({
             let page_da = page_da.clone();
             let dim = dim.clone();
@@ -758,47 +777,73 @@ pub const DEFAULT_ZOOM_SCALE : f64 = 1.5;
 
 pub const ZOOM_SCALE_INCREMENT : f64 = 0.5;
 
+impl React<Analyzer> for Titlebar {
+    fn react(&self, analyzer : &Analyzer) {
+        let explore_toggle = self.explore_toggle.clone();
+        analyzer.connect_line_selection(move |_line| {
+            // if explore_toggle.is_active() {
+            //    explore_toggle.set_active(false);
+            // }
+            println!("explore toggle set to active false");
+            // println!("is active = {:?}", explore_toggle.is_active());
+        });
+    }
+}
+
 impl Titlebar {
 
+    pub fn set_prepared(&self, prepared : bool) {
+        self.main_menu.actions.save.set_enabled(prepared);
+        self.main_menu.actions.save_as.set_enabled(prepared);
+        self.pdf_btn.set_sensitive(prepared);
+        self.view_pdf_btn.set_sensitive(prepared);
+        self.set_typeset_mode(false);
+    }
+
+    pub fn clear_pages(&self) {
+        self.page_button.set_label("of 0");
+        self.page_entry.set_text("0");
+    }
+
     pub fn set_typeset_mode(&self, active : bool) {
-        self.view_pdf_btn.set_active(true);
+        self.view_pdf_btn.set_active(active);
+        println!("view is true");
         self.zoom_in_btn.set_sensitive(active);
         self.zoom_out_btn.set_sensitive(active);
-        if !active {
-            self.refresh_btn.set_sensitive(active);
-        }
-        self.export_pdf_btn.set_sensitive(active);
+        self.left_btn.set_sensitive(active);
+        self.right_btn.set_sensitive(active);
+        self.main_menu.export_action.set_enabled(active);
         self.page_entry.set_sensitive(active);
-        //if !active {
-            //if self.pdf_btn.is_active() {
-            //    self.pdf_btn.set_active(false);
-            //}
-        //}
     }
 
     pub fn build() -> Self {
         let header = HeaderBar::new();
         let menu_button = MenuButton::builder().icon_name("open-menu-symbolic").build();
 
-        let editor_btn = ToggleButton::builder().icon_name("gedit-symbolic").build();
+        // let editor_btn = ToggleButton::builder().icon_name("gedit-symbolic").build();
         let pdf_btn = Button::builder().icon_name("ink-tool-symbolic").build();
-        let view_pdf_btn = ToggleButton::builder().icon_name("evince-symbolic").build();
-        view_pdf_btn.set_group(Some(&editor_btn));
-        editor_btn.style_context().add_class("flat");
-        pdf_btn.style_context().add_class("flat");
-        editor_btn.set_active(true);
-        let toggle_bx = Box::new(Orientation::Horizontal, 0);
-        toggle_bx.style_context().add_class("linked");
-        toggle_bx.append(&editor_btn);
-        toggle_bx.append(&view_pdf_btn);
 
-        // let hide_pdf_btn = Button::builder().icon_name("user-trash-symbolic").build();
-        let export_pdf_btn = Button::builder().icon_name("folder-download-symbolic").build();
-        let sidebar_toggle = ToggleButton::builder().icon_name("explore-symbolic").build();
-        // hide_pdf_btn.set_sensitive(false);
-        export_pdf_btn.set_sensitive(false);
+        // view_pdf_btn.set_group(Some(&editor_btn));
+        // editor_btn.style_context().add_class("flat");
+        pdf_btn.style_context().add_class("flat");
         pdf_btn.set_sensitive(false);
 
+        let view_pdf_btn = ToggleButton::builder().icon_name("evince-symbolic").build();
+        view_pdf_btn.set_active(false);
+        view_pdf_btn.set_sensitive(false);
+
+        // editor_btn.set_active(true);
+        // let toggle_bx = Box::new(Orientation::Horizontal, 0);
+        // toggle_bx.style_context().add_class("linked");
+        // toggle_bx.append(&editor_btn);
+        // toggle_bx.append(&view_pdf_btn);
+
+        // let hide_pdf_btn = Button::builder().icon_name("user-trash-symbolic").build();
+        // let export_pdf_btn = Button::builder().icon_name("folder-download-symbolic").build();
+        let explore_toggle = MenuButton::builder().icon_name("explore-symbolic").build();
+        // hide_pdf_btn.set_sensitive(false);
+
+        // export_pdf_btn.set_sensitive(false);
         // \noindent - inline command that applies to current paragarph
         // \setlength{\parindent}{20pt} - At document config.
 
@@ -855,9 +900,8 @@ impl Titlebar {
 
         let obj_menu = gio::Menu::new();
         obj_menu.append_item(&gio::MenuItem::new(Some("Image"), Some("win.image")));
-        obj_menu.append_item(&gio::MenuItem::new(Some("Table"), Some("win.table")));
-        obj_menu.append_item(&gio::MenuItem::new(Some("Link to resource"), Some("win.link")));
-        obj_menu.append_item(&gio::MenuItem::new(Some("Bibliography file"), Some("win.bibfile")));
+        obj_menu.append_item(&gio::MenuItem::new(Some("Table (csv)"), Some("win.table")));
+        obj_menu.append_item(&gio::MenuItem::new(Some("Bibliography (bib)"), Some("win.bibfile")));
 
         // let struct_submenu = gio::Menu::new();
 
@@ -908,10 +952,10 @@ impl Titlebar {
         let org_menu = gio::Menu::new();
 
         let sectioning_submenu = gio::Menu::new();
-        sectioning_submenu.append_item(&gio::MenuItem::new(Some("Chapter"), Some("win.chapter")));
-        sectioning_submenu.append_item(&gio::MenuItem::new(Some("Section"), Some("win.section")));
-        sectioning_submenu.append_item(&gio::MenuItem::new(Some("Subsection"), Some("win.subsection")));
-        sectioning_submenu.append_item(&gio::MenuItem::new(Some("Sub-subsection"), Some("win.sub_subsection")));
+        // sectioning_submenu.append_item(&gio::MenuItem::new(Some("Chapter"), Some("win.chapter")));
+        sectioning_submenu.append_item(&gio::MenuItem::new(Some("Heading (1st level)"), Some("win.section")));
+        sectioning_submenu.append_item(&gio::MenuItem::new(Some("Heading (2nd level)"), Some("win.subsection")));
+        sectioning_submenu.append_item(&gio::MenuItem::new(Some("Heading (3rd level)"), Some("win.sub_subsection")));
         org_menu.append_item(&gio::MenuItem::new_submenu(Some("Sectioning"), &sectioning_submenu));
 
         //\clearpage
@@ -920,8 +964,10 @@ impl Titlebar {
         layout_submenu.append_item(&gio::MenuItem::new(Some("Line break"), Some("win.line_break")));
         layout_submenu.append_item(&gio::MenuItem::new(Some("Horizontal space"), Some("win.horizontal_space")));
         layout_submenu.append_item(&gio::MenuItem::new(Some("Vertical space"), Some("win.vertical_space")));
-        layout_submenu.append_item(&gio::MenuItem::new(Some("Horizontal fill"), Some("win.horizontal_fill")));
-        layout_submenu.append_item(&gio::MenuItem::new(Some("Vertical fill"), Some("win.vertical_fill")));
+        org_menu.append_item(&gio::MenuItem::new_submenu(Some("Layout"), &layout_submenu));
+
+        // layout_submenu.append_item(&gio::MenuItem::new(Some("Horizontal fill"), Some("win.horizontal_fill")));
+        // layout_submenu.append_item(&gio::MenuItem::new(Some("Vertical fill"), Some("win.vertical_fill")));
 
         // \hspace{2cm}
         // \vspace{2cm}
@@ -931,11 +977,11 @@ impl Titlebar {
         // \pagebreak[0]
         // \newline
 
-        org_menu.append_item(&gio::MenuItem::new_submenu(Some("Layout"), &layout_submenu));
-
         let block_submenu = gio::Menu::new();
         block_submenu.append_item(&gio::MenuItem::new(Some("Equation"), Some("win.eq")));
-        block_submenu.append_item(&gio::MenuItem::new(Some("List"), Some("win.list")));
+        block_submenu.append_item(&gio::MenuItem::new(Some("Code listing"), Some("win.code")));
+        block_submenu.append_item(&gio::MenuItem::new(Some("Unordered List"), Some("win.list")));
+        block_submenu.append_item(&gio::MenuItem::new(Some("Ordered List"), Some("win.listord")));
 
         // \quote{}
         // block_submenu.append_item(&gio::MenuItem::new(Some("Quote (simple)"), Some("win.function")));
@@ -943,52 +989,63 @@ impl Titlebar {
         // \quotation{}
         // block_submenu.append_item(&gio::MenuItem::new(Some("Quote (long)"), Some("win.function")));
 
-        block_submenu.append_item(&gio::MenuItem::new(Some("Verbatim"), Some("win.verbatim")));
+        // block_submenu.append_item(&gio::MenuItem::new(Some("Verbatim"), Some("win.verbatim")));
         // block_submenu.append_item(&gio::MenuItem::new(Some("Abstract"), Some("win.operator")));
         // block_submenu.append_item(&gio::MenuItem::new(Some("Code listing"), Some("win.code")));
-        block_submenu.append_item(&gio::MenuItem::new(Some("Table (embedded)"), Some("win.tbl")));
-        block_submenu.append_item(&gio::MenuItem::new(Some("Bibliography (embedded)"), Some("win.bib")));
+        // block_submenu.append_item(&gio::MenuItem::new(Some("Table (embedded)"), Some("win.tbl")));
+        // block_submenu.append_item(&gio::MenuItem::new(Some("Bibliography (embedded)"), Some("win.bib")));
         org_menu.append_item(&gio::MenuItem::new_submenu(Some("Block"), &block_submenu));
 
-        let meta_submenu = gio::Menu::new();
+        /*let meta_submenu = gio::Menu::new();
         meta_submenu.append_item(&gio::MenuItem::new(Some("Author"), Some("win.author")));
         meta_submenu.append_item(&gio::MenuItem::new(Some("Title"), Some("win.title")));
         meta_submenu.append_item(&gio::MenuItem::new(Some("Date"), Some("win.date")));
-        org_menu.append_item(&gio::MenuItem::new_submenu(Some("Metadata"), &meta_submenu));
+        org_menu.append_item(&gio::MenuItem::new_submenu(Some("Metadata"), &meta_submenu));*/
 
-        let indexing_submenu = gio::Menu::new();
+        /*let indexing_submenu = gio::Menu::new();
         indexing_submenu.append_item(&gio::MenuItem::new(Some("Table of contents"), Some("win.toc")));
-        indexing_submenu.append_item(&gio::MenuItem::new(Some("List of tables"), Some("win.lot")));
-        indexing_submenu.append_item(&gio::MenuItem::new(Some("List of figures"), Some("win.lof")));
-        org_menu.append_item(&gio::MenuItem::new_submenu(Some("Indexing"), &indexing_submenu));
+        // indexing_submenu.append_item(&gio::MenuItem::new(Some("List of tables"), Some("win.lot")));
+        // indexing_submenu.append_item(&gio::MenuItem::new(Some("List of figures"), Some("win.lof")));
+        org_menu.append_item(&gio::MenuItem::new_submenu(Some("Indexing"), &indexing_submenu));*/
 
         let org_popover = PopoverMenu::from_model(Some(&org_menu));
 
         let org_btn = MenuButton::new();
-        org_btn.set_icon_name("format-unordered-list-symbolic");
+
+        // org_btn.set_icon_name("format-unordered-list-symbolic");
+        org_btn.set_icon_name("list-add-symbolic");
+
         org_btn.set_popover(Some(&org_popover));
 
         let zoom_bx = Box::new(Orientation::Horizontal, 0);
         let zoom_in_btn = Button::new();
         let zoom_out_btn = Button::new();
-        let refresh_btn = Button::new();
-        refresh_btn.set_icon_name("view-refresh-symbolic");
-
         zoom_in_btn.set_sensitive(false);
         zoom_out_btn.set_sensitive(false);
-        refresh_btn.set_sensitive(false);
+        zoom_bx.append(&zoom_in_btn);
+        zoom_bx.append(&zoom_out_btn);
         zoom_in_btn.set_icon_name("zoom-in-symbolic");
         zoom_out_btn.set_icon_name("zoom-out-symbolic");
 
+        let nav_bx = Box::new(Orientation::Horizontal, 0);
+        let left_btn = Button::from_icon_name("carousel-arrow-previous-symbolic");
+        let right_btn = Button::from_icon_name("carousel-arrow-next-symbolic");
+        nav_bx.append(&left_btn);
+        nav_bx.append(&right_btn);
+        left_btn.set_sensitive(false);
+        right_btn.set_sensitive(false);
+
+        // let refresh_btn = Button::new();
+        // refresh_btn.set_icon_name("view-refresh-symbolic");
+
         // zoom_bx.style_context().add_class("linked");
 
-        zoom_bx.append(&refresh_btn);
-        zoom_bx.append(&zoom_in_btn);
-        zoom_bx.append(&zoom_out_btn);
+        // zoom_bx.append(&refresh_btn);
+
 
         // Set zoom to minimum whenever the user toggles the sidebar but the
         // typeset PDF is still open, to minimize occlusion of content.
-        /*sidebar_toggle.connect_toggled({
+        /*explore_toggle.connect_toggled({
             let zoom_out_btn = zoom_out_btn.clone();
             let pdf_btn = pdf_btn.clone();
             move |toggle| {
@@ -1000,8 +1057,9 @@ impl Titlebar {
             }
         });*/
 
-        header.pack_start(&org_btn);
+        header.pack_start(&explore_toggle);
         header.pack_start(&page_btn);
+        header.pack_start(&org_btn);
         header.pack_start(&fmt_btn);
         header.pack_start(&symbol_btn);
         header.pack_start(&add_btn);
@@ -1009,12 +1067,14 @@ impl Titlebar {
 
         header.pack_end(&menu_button);
         header.pack_end(&page_bx);
-        header.pack_end(&export_pdf_btn);
+        // header.pack_end(&export_pdf_btn);
         // header.pack_end(&hide_pdf_btn);
+        header.pack_end(&nav_bx);
         header.pack_end(&zoom_bx);
-        header.pack_end(&toggle_bx);
+        // header.pack_end(&toggle_bx);
+        header.pack_end(&view_pdf_btn);
+
         header.pack_end(&pdf_btn);
-        header.pack_end(&sidebar_toggle);
 
         /*pdf_btn.connect_toggled({
             let zoom_in_btn = zoom_in_btn.clone();
@@ -1085,8 +1145,9 @@ impl Titlebar {
             }
         });
 
-
+        let typeset_action = gio::SimpleAction::new("typeset", None);
         Self {
+            typeset_action,
             symbol_btn,
             main_menu,
             header,
@@ -1094,9 +1155,9 @@ impl Titlebar {
             pdf_btn,
 
             view_pdf_btn,
-            editor_btn,
+            // editor_btn,
 
-            sidebar_toggle,
+            explore_toggle,
             sidebar_hide_action,
             bib_popover,
             object_actions : ObjectActions::build(),
@@ -1109,10 +1170,12 @@ impl Titlebar {
             paper_popover,
             zoom_in_btn,
             zoom_out_btn,
+            left_btn,
+            right_btn,
             zoom_action,
-            refresh_btn,
+            // refresh_btn,
             // hide_pdf_btn,
-            export_pdf_btn,
+            // export_pdf_btn,
             page_entry,
             page_button
         }
@@ -1123,19 +1186,19 @@ impl React<Typesetter> for Titlebar {
 
     fn react(&self, typesetter : &Typesetter) {
         let btn = self.pdf_btn.clone();
-        let sidebar_toggle = self.sidebar_toggle.clone();
+        let explore_toggle = self.explore_toggle.clone();
         typesetter.connect_done({
-            let refresh_btn = self.refresh_btn.clone();
+            // let refresh_btn = self.refresh_btn.clone();
             let page_entry = self.page_entry.clone();
             move |_| {
                 btn.set_icon_name("ink-tool-symbolic");
                 btn.set_sensitive(true);
-                refresh_btn.set_sensitive(true);
+                // refresh_btn.set_sensitive(true);
                 // page_entry.set_sensitive(true);
 
                 // Auto-hide overview on document typesettting done.
-                // if sidebar_toggle.is_active() {
-                //    sidebar_toggle.set_active(false);
+                // if explore_toggle.is_active() {
+                //    explore_toggle.set_active(false);
                 // }
             }
         });
@@ -1320,6 +1383,37 @@ impl ReferenceRow {
 
 }
 
+impl React<FileManager> for Titlebar {
+
+    fn react(&self, manager : &FileManager) {
+        manager.connect_opened({
+            let pdf_btn = self.pdf_btn.clone();
+            move |_| {
+                pdf_btn.set_sensitive(true);
+            }
+        });
+        /*manager.connect_new({
+            let pdf_btn = self.pdf_btn.clone();
+            move |_| {
+                // pdf_btn.set_sensitive(true);
+            }
+        });*/
+        manager.connect_save({
+            let pdf_btn = self.pdf_btn.clone();
+            move |_| {
+                pdf_btn.set_sensitive(true);
+            }
+        });
+        manager.connect_file_changed({
+            let pdf_btn = self.pdf_btn.clone();
+            move |_| {
+                pdf_btn.set_sensitive(false);
+            }
+        });
+    }
+
+}
+
 /*impl React<FileManager> for BibPopover {
 
     fn react(&self, manager : &FileManager) {
@@ -1340,7 +1434,9 @@ impl React<Analyzer> for BibPopover {
                             let row = ReferenceRow::build(&bib_entry);
                             bib_list.insert(&row.row, pos as i32);
                         },
-                        _ => { }
+                        other => {
+                            println!("Invalid reference: {:?}", other);
+                        }
                     }
                 },
                 Difference::Edited(pos, txt) => {
@@ -1366,7 +1462,6 @@ impl React<Analyzer> for BibPopover {
             let list = self.list.clone();
             move |_| {
                 clear_list(&list);
-                // create_init_row(&list);
             }
         });
         analyzer.connect_references_validated({
@@ -1409,7 +1504,7 @@ pub(super) fn clear_list(list : &ListBox) {
 }
 
 pub(super) fn create_init_row(list : &ListBox) {
-    create_unique_row(&list, "Insert a bibliography section and save the file locally \nto search its references here", "user-bookmarks-symbolic");
+    create_unique_row(&list, "No bibliography at current document", "user-bookmarks-symbolic");
 }
 
 fn create_unique_row(list : &ListBox, label : &str, icon : &str) {

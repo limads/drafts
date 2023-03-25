@@ -1,6 +1,6 @@
-use drafts::ui::*;
-use drafts::*;
-use gtk4::*;
+// use drafts::ui::*;
+// use drafts::*;
+// use gtk4::*;
 
 #[test]
 fn main_window_builds() {

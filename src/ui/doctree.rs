@@ -16,7 +16,8 @@ pub struct DocIcons {
     img_icon : Pixbuf,
     code_icon : Pixbuf,
     eq_icon : Pixbuf,
-    err_icon : Pixbuf
+    err_icon : Pixbuf,
+    bib_icon : Pixbuf
 }
 
 #[derive(Debug, Clone)]
@@ -52,8 +53,16 @@ impl DocTree {
             &["break-point-symbolic", "queries-symbolic", "image-x-generic-symbolic", "gnome-terminal-symbolic", "equation-symbolic", "dialog-error-symbolic"]
         ).unwrap();*/
         let mut icons = filecase::load_icons_as_pixbufs_from_resource(
-            "/com/github/limads/papers",
-            &["break-point-symbolic", "queries-symbolic", "image-x-generic-symbolic", "gnome-terminal-symbolic", "equation-symbolic", "dialog-error-symbolic"]
+            "/io/github/limads/drafts",
+            &[
+                "break-point-symbolic",
+                "queries-symbolic",
+                "image-x-generic-symbolic",
+                "gnome-terminal-symbolic",
+                "equation-symbolic",
+                "dialog-error-symbolic",
+                "user-bookmarks-symbolic"
+            ]
         ).unwrap();
         /*let doc_icons = DocIcons {
             section_icon : Pixbuf::from_file_at_scale("assets/icons/break-point-symbolic.svg", 16, 16, true).unwrap(),
@@ -69,7 +78,8 @@ impl DocTree {
             img_icon : icons.remove("image-x-generic-symbolic").unwrap(),
             code_icon : icons.remove("gnome-terminal-symbolic").unwrap(),
             eq_icon : icons.remove("equation-symbolic").unwrap(),
-            err_icon : icons.remove("dialog-error-symbolic").unwrap()
+            err_icon : icons.remove("dialog-error-symbolic").unwrap(),
+            bib_icon : icons.remove("user-bookmarks-symbolic").unwrap(),
         };
         Self { tree_view, bx, store, doc_icons }
     }
@@ -109,10 +119,11 @@ fn insert_subsection(iter : TreeIter, store : &TreeStore, sub : Subsection, icon
 
 fn insert_object(iter : TreeIter, store : &TreeStore, tree_view : &TreeView, obj : Object, doc_ix : ObjectIndex, icons : &DocIcons) {
     let (icon, name) = match obj {
-        Object::Table(order, _, _) => (&icons.tbl_icon, format!("Table {}", order + 1)),
-        Object::Image(order, _, _) => (&icons.img_icon, format!("Image {}", order + 1)),
-        Object::Equation(order, _, _) => (&icons.eq_icon, format!("Equation {}", order + 1)),
-        Object::Code(order, _, _) => (&icons.code_icon, format!("Listing {}", order + 1)),
+        Object::Table(order, _, _) => (&icons.tbl_icon, format!("Table {}", order)),
+        Object::Image(order, _, _) => (&icons.img_icon, format!("Image {}", order)),
+        Object::Equation(order, _, _) => (&icons.eq_icon, format!("Equation {}", order)),
+        Object::Code(order, _, _) => (&icons.code_icon, format!("Listing {}", order)),
+        Object::Bibliography(_, _) => (&icons.code_icon, format!("Bibliography")),
     };
     /*let (parent_iter, pos) = match doc_ix {
         ObjectIndex::Root(ix) => {

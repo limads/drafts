@@ -41,7 +41,7 @@ pub struct PapersWindow {
     pub doc_tree : DocTree,
     pub stack : Stack,
     pub start_screen : StartScreen,
-    pub export_pdf_dialog : SaveDialog
+    pub export_pdf_dialog : SaveDialog,
 }
 
 // \usepackage[utf8]{ulem}
@@ -122,11 +122,12 @@ const PRESENTATION_TEMPLATE : &'static str = r#"\documentclass{beamer}
 "#;
 
 fn start_document(view : &View, stack : &Stack, titlebar : &Titlebar, template : &str) {
-    view.buffer().set_text(ARTICLE_TEMPLATE);
+    view.buffer().set_text(template);
     stack.set_visible_child_name("editor");
     titlebar.main_menu.actions.save.set_enabled(true);
     titlebar.main_menu.actions.save_as.set_enabled(true);
-    titlebar.pdf_btn.set_sensitive(true);
+    titlebar.view_pdf_btn.set_active(false);
+    titlebar.view_pdf_btn.set_sensitive(true);
 }
 
 impl React<StartScreen> for PapersWindow {
@@ -135,13 +136,9 @@ impl React<StartScreen> for PapersWindow {
 
         start_screen.empty_btn.connect_clicked({
             let (view, stack)  = (self.editor.view.clone(), self.stack.clone());
-            let action_save = self.titlebar.main_menu.actions.save.clone();
-            let action_save_as = self.titlebar.main_menu.actions.save_as.clone();
+            let titlebar = self.titlebar.clone();
             move |_| {
-                view.buffer().set_text("");
-                stack.set_visible_child_name("editor");
-                action_save.set_enabled(true);
-                action_save_as.set_enabled(true);
+                start_document(&view, &stack, &titlebar, "");
             }
         });
         start_screen.article_btn.connect_clicked({
@@ -151,6 +148,7 @@ impl React<StartScreen> for PapersWindow {
                 start_document(&view, &stack, &titlebar, ARTICLE_TEMPLATE);
             }
         });
+
         /*start_screen.report_btn.connect_clicked({
             let (view, stack)  = (self.editor.view.clone(), self.stack.clone());
             let action_save = self.titlebar.main_menu.actions.save.clone();
@@ -198,15 +196,6 @@ impl React<StartScreen> for PapersWindow {
 ]
 */
 
-#[derive(Debug, Clone)]
-pub struct StartScreen {
-    bx : Box,
-    empty_btn : Button,
-    article_btn : Button,
-    //report_btn : Button,
-    //presentation_btn : Button
-}
-
 pub struct DocBtn {
     pub btn : Button
 }
@@ -216,7 +205,7 @@ impl DocBtn {
     pub fn build(image : &str, title : &str, sub : &str) -> Self {
         let btn = Button::new();
         //let img = Picture::for_filename(image);
-        let img = Picture::for_resource(&format!("com/github/limads/papers/icons/scalable/actions/{}.svg", image));
+        let img = Picture::for_resource(&format!("io/github/limads/drafts/icons/scalable/actions/{}.svg", image));
         img.set_can_shrink(false);
         let lbl_bx = Box::new(Orientation::Vertical, 12);
         let lbl = Label::new(Some(title));
@@ -265,43 +254,43 @@ const PAPERS_PRELUDE : &'static str = r"
 ";
 
 const EMPTY_DESCRIPTION : &'static str = r#"
-Document without a
-predefined class"#;
+Start a document without a template"#;
 
 const MINIMAL_DESCRIPTION : &'static str = r#"
-Minimal document. Useful for notes, drafts
-or any other kind of composition not
-requiring sections or metadata."#;
+Useful for notes, drafts and other generic text"#;
 
 const ARTICLE_DESCRIPTION : &'static str = r#"
 Short document divided into sections and
 subsections. Aimed at journal articles."#;
 
 const REPORT_DESCRIPTION : &'static str = r#"
-Longer document divided into chapters.
-Usually aimed at technical reports,
+Longer document aimed at technical reports,
 dissertations and thesis."#;
 
 const BOOK_DESCRIPTION : &'static str = r#"
-Long document divided into chapters.
-Structured into front matter, main matter
-and back matter."#;
+Long document divided into chapters
+and with front, main and back matter."#;
 
 const PRESENTATION_DESCRIPTION : &'static str = r#"
-A document focused on visual presentation.
+A document focusing on visual communication.
 Separated into slides."#;
+
+#[derive(Debug, Clone)]
+pub struct StartScreen {
+    bx : Box,
+    empty_btn : Button,
+    article_btn : Button,
+    pub recent_list : RecentList
+    //report_btn : Button,
+    //presentation_btn : Button
+}
 
 impl StartScreen {
 
     pub fn build() -> Self {
         let doc_upper_bx = Box::new(Orientation::Horizontal, 0);
+        let doc_middle_bx = Box::new(Orientation::Horizontal, 0);
         let doc_lower_bx = Box::new(Orientation::Horizontal, 0);
-        /*let empty_btn = DocBtn::build("/home/diego/Software/gnome/papers/assets/pictures/empty.svg", "Empty", EMPTY_DESCRIPTION);
-        let minimal_btn = DocBtn::build("/home/diego/Software/gnome/papers/assets/pictures/minimal.svg", "Minimal", MINIMAL_DESCRIPTION);
-        let article_btn = DocBtn::build("/home/diego/Software/gnome/papers/assets/pictures/article.svg", "Article", ARTICLE_DESCRIPTION);
-        let report_btn = DocBtn::build("/home/diego/Software/gnome/papers/assets/pictures/report.svg", "Report", REPORT_DESCRIPTION);
-        let book_btn = DocBtn::build("/home/diego/Software/gnome/papers/assets/pictures/book.svg", "Book", BOOK_DESCRIPTION);
-        let present_btn = DocBtn::build("/home/diego/Software/gnome/papers/assets/pictures/presentation.svg", "Presentation", PRESENTATION_DESCRIPTION);*/
         let empty_btn = DocBtn::build("empty", "Empty", EMPTY_DESCRIPTION);
         let minimal_btn = DocBtn::build("minimal", "Minimal", MINIMAL_DESCRIPTION);
         let article_btn = DocBtn::build("article", "Article", ARTICLE_DESCRIPTION);
@@ -314,28 +303,35 @@ impl StartScreen {
         // letter
         // book
 
-        let center_bx = Box::new(Orientation::Vertical, 32);
+        let new_bx = Box::new(Orientation::Vertical, 16);
         doc_upper_bx.append(&empty_btn.btn);
         doc_upper_bx.append(&minimal_btn.btn);
-        doc_upper_bx.append(&article_btn.btn);
-        doc_lower_bx.append(&report_btn.btn);
+        doc_middle_bx.append(&article_btn.btn);
+        doc_middle_bx.append(&report_btn.btn);
         doc_lower_bx.append(&book_btn.btn);
         doc_lower_bx.append(&present_btn.btn);
 
-        let bx = Box::new(Orientation::Vertical, 0);
-        let title = title_label("New document");
-        center_bx.append(&title);
-        center_bx.append(&doc_upper_bx);
-        center_bx.append(&doc_lower_bx);
+        let bx = Box::new(Orientation::Horizontal, 0);
+        let title = title_label("New");
+        new_bx.append(&title);
+        new_bx.append(&doc_upper_bx);
+        new_bx.append(&doc_middle_bx);
+        new_bx.append(&doc_lower_bx);
+        new_bx.set_margin_end(128);
         //set_margins(&center_bx, 128, 0);
-        bx.append(&center_bx);
-        center_bx.set_vexpand(true);
-        center_bx.set_valign(Align::Center);
-        center_bx.set_hexpand(true);
-        center_bx.set_halign(Align::Center);
+
+        new_bx.set_vexpand(true);
+        new_bx.set_valign(Align::Center);
+        new_bx.set_hexpand(true);
+        new_bx.set_halign(Align::End);
 
         // bx.append(&report_btn);
-        Self { bx, empty_btn : empty_btn.btn.clone(), article_btn : article_btn.btn.clone(), /*report_btn, presentation_btn*/ }
+
+        let recent_list = RecentList::build();
+        bx.append(&recent_list.bx);
+        bx.append(&new_bx);
+
+        Self { bx, empty_btn : empty_btn.btn.clone(), article_btn : article_btn.btn.clone(), recent_list }
     }
 
 }
@@ -510,9 +506,6 @@ impl SymbolPopover {
     }
 }
 
-// let min_driver = tectonic_bridge_core::MinimalDriver::new(tectonic_io_base::stdstreams::BufferedPrimaryIo::from_buffer(Vec::new()));
-// let status = tectonic::status::plain::PlainStatusBackend::new(tectonic::status::ChatterLevel::Minimal);
-// tectonic::engines::spx2html::SpxHtmlEngine::new(&mut min_driver, &mut status).process(hooks, status, spx_str);
 impl PapersWindow {
 
     pub fn from(window : ApplicationWindow) -> Self {
@@ -523,16 +516,23 @@ impl PapersWindow {
         let doc_tree = DocTree::build();
         let editor = PapersEditor::build(&titlebar.zoom_action);
         let start_screen = StartScreen::build();
+        start_screen.recent_list.open_btn.connect_clicked({
+            let open_action = titlebar.main_menu.actions.open.clone();
+            move|_| {
+                open_action.activate(None);
+            }
+        });
 
         let export_pdf_dialog = filecase::SaveDialog::build("*.pdf");
         export_pdf_dialog.dialog.set_transient_for(Some(&window));
 
-        /*titlebar.export_pdf_btn.connect_clicked({
+        titlebar.main_menu.export_action.connect_activate({
             let export_pdf_dialog = export_pdf_dialog.clone();
-            move|btn| {
+            move |_,_| {
                 export_pdf_dialog.dialog.show();
             }
-        });*/
+        });
+
         export_pdf_dialog.dialog.connect_response({
             let doc = editor.pdf_viewer.doc.clone();
             move |dialog, resp| {
@@ -594,22 +594,6 @@ impl PapersWindow {
             }
         });
 
-        titlebar.editor_btn.connect_toggled({
-            let sub_paned = editor.sub_paned.clone();
-            move|btn| {
-                if btn.is_active() {
-                    sub_paned.set_position(i32::MAX);
-                }
-            }
-        });
-        titlebar.view_pdf_btn.connect_toggled({
-            let sub_paned = editor.sub_paned.clone();
-            move|btn| {
-                if btn.is_active() {
-                    sub_paned.set_position(sub_paned.allocation().width() / 2);
-                }
-            }
-        });
         // titlebar.main_menu.open_dialog.react(&titlebar.main_menu);
         titlebar.main_menu.save_dialog.react(&titlebar.main_menu);
         editor.react(&titlebar);
@@ -631,6 +615,8 @@ impl PapersWindow {
         window.add_action(&titlebar.main_menu.actions.open);
         window.add_action(&titlebar.main_menu.actions.save);
         window.add_action(&titlebar.main_menu.actions.save_as);
+        window.add_action(&titlebar.main_menu.export_action);
+        window.add_action(&titlebar.typeset_action);
 
         window.add_action(&titlebar.sidebar_hide_action);
         window.add_action(&titlebar.zoom_action);
@@ -640,8 +626,26 @@ impl PapersWindow {
         stack.add_named(&start_screen.bx, Some("start"));
         stack.add_named(&editor.overlay, Some("editor"));
 
-        editor.popover.set_parent(&titlebar.sidebar_toggle);
-        editor.popover.set_pointing_to(Some(&titlebar.sidebar_toggle.allocation()));
+        titlebar.view_pdf_btn.connect_toggled({
+            let sub_paned = editor.sub_paned.clone();
+            let stack = stack.clone();
+            move|btn| {
+                if let Some(nm) = stack.visible_child_name() {
+                    if btn.is_sensitive() && &nm[..] == "editor" {
+                        if btn.is_active() {
+                            sub_paned.set_position(sub_paned.allocation().width() / 2);
+                        } else {
+                            sub_paned.set_position(i32::MAX);
+                        }
+                    }
+                }
+            }
+        });
+
+        // editor.popover.set_parent(&titlebar.explore_toggle);
+        // editor.popover.set_pointing_to(Some(&titlebar.explore_toggle.allocation()));
+        titlebar.explore_toggle.set_popover(Some(&editor.popover));
+
         editor.popover.set_child(Some(&doc_tree.bx));
         editor.popover.set_position(PositionType::Bottom);
         editor.popover.set_width_request(320);
@@ -685,66 +689,56 @@ impl PapersWindow {
 impl React<FileManager> for PapersWindow {
 
     fn react(&self, manager : &FileManager) {
-        filecase::connect_manager_with_app_window_and_actions(manager, &self.window, &self.titlebar.main_menu.actions, "tex");
-
-        // We should trigger a document re-analysis whenever the file is saved.
-        // manager.connect_save(move |_| {
-        // });
-
-        manager.connect_new({
-            let window = self.window.clone();
-            let action_save = self.titlebar.main_menu.actions.save.clone();
-            let action_save_as = self.titlebar.main_menu.actions.save_as.clone();
-            let bib_list = self.titlebar.bib_popover.list.clone();
-            let paned = self.editor.sub_paned.clone();
-            let titlebar = self.titlebar.clone();
-            let editor_btn = self.titlebar.editor_btn.clone();
-            move |_| {
-                window.set_title(Some("Papers"));
-                action_save.set_enabled(false);
-                action_save_as.set_enabled(false);
-                editor_btn.set_active(true);
-                // paned.set_position(paned.allocation().width);
-                paned.set_position(i32::MAX);
-                // paned.set_sensitive(false);
-                titlebar.set_typeset_mode(false);
-
-                // New files are never linked to references before they are saved.
-                titlebar::clear_list(&bib_list);
-                titlebar::create_init_row(&bib_list);
-                titlebar.page_button.set_label("of 0");
-                titlebar.page_entry.set_text("0");
-            }
-        });
+        filecase::connect_manager_with_app_window_and_actions(manager, &self.window, &self.titlebar.main_menu.actions, "typ");
         manager.connect_new({
             let stack = self.stack.clone();
             let titlebar = self.titlebar.clone();
+            let window = self.window.clone();
+            let paned = self.editor.sub_paned.clone();
+            let bib_list = self.titlebar.bib_popover.list.clone();
             move |_| {
+                window.set_title(Some("Drafts"));
+                paned.set_position(i32::MAX);
                 stack.set_visible_child_name("start");
-                titlebar.pdf_btn.set_sensitive(false);
-                titlebar.page_button.set_label("of 0");
-                titlebar.page_entry.set_text("0");
+                titlebar.set_prepared(false);
+                titlebar.clear_pages();
+                titlebar::clear_list(&bib_list);
+                titlebar::create_init_row(&bib_list);
             }
         });
         manager.connect_opened({
             let stack = self.stack.clone();
-            let paned = self.editor.sub_paned.clone();
+            // let paned = self.editor.sub_paned.clone();
             let titlebar = self.titlebar.clone();
-            let editor_btn = self.titlebar.editor_btn.clone();
+            let export_pdf_dialog = self.export_pdf_dialog.clone();
+            // let view_pdf_btn = self.titlebar.view_pdf_btn.clone();
             move |(path, _)| {
                 stack.set_visible_child_name("editor");
-                editor_btn.set_active(true);
-                // paned.set_position(paned.allocation().width);
-                paned.set_position(i32::MAX);
-                // paned.set_sensitive(false);
-                titlebar.set_typeset_mode(false);
-                titlebar.pdf_btn.set_sensitive(true);
-                titlebar.page_button.set_label("of 0");
-                titlebar.page_entry.set_text("0");
+                titlebar.set_prepared(true);
+                titlebar.clear_pages();
+                init_export_path(&export_pdf_dialog.dialog, path);
+            }
+        });
+        manager.connect_save({
+            let export_pdf_dialog = self.export_pdf_dialog.clone();
+            move |path| {
+                init_export_path(&export_pdf_dialog.dialog, path);
             }
         });
     }
 
+}
+
+fn init_export_path(export_pdf_dialog : &FileChooserDialog, source_path : String) {
+    if export_pdf_dialog.file().is_none() {
+        if let Some(parent) = Path::new(&source_path).parent() {
+            if let Ok(_) = export_pdf_dialog.set_current_folder(Some(&gio::File::for_path(parent.to_str().unwrap()))) {
+                if let Some(stem) = Path::new(&source_path).file_stem() {
+                    export_pdf_dialog.set_current_name(&format!("{}.pdf", stem.to_str().unwrap()));
+                }
+            }
+        }
+    }
 }
 
 impl React<MainMenu> for SaveDialog {
@@ -916,6 +910,28 @@ const LEGAL : (f64, f64) = (215.9, 355.6);
 
 // const PX_PER_MM : f64 = 3.0;
 
+fn update_titlebar(titlebar : &Titlebar, pdf_viewer : &PdfViewer) {
+    // editor.sub_paned.set_position(editor.sub_paned.allocation().width() / 2);
+    // editor.sub_paned.set_position(400);
+
+    titlebar.set_typeset_mode(true);
+
+    // If sidebar is open, use minimum zoom at PDF to minimize occlusion of content.
+
+    /*if titlebar.explore_toggle.is_active() {
+        while titlebar.zoom_out_btn.is_sensitive() {
+            titlebar.zoom_out_btn.emit_clicked();
+        }
+    }*/
+
+    let doc = pdf_viewer.doc();
+    if let Some(doc) = &*doc.borrow() {
+        let n = doc.n_pages();
+        titlebar.page_button.set_label(&format!("of {}", n));
+        titlebar.page_entry.set_text("1");
+    }
+}
+
 impl React<Typesetter> for PapersWindow {
 
     fn react(&self, typesetter : &Typesetter) {
@@ -925,26 +941,23 @@ impl React<Typesetter> for PapersWindow {
         typesetter.connect_done(move |target| {
             match target {
                 TypesetterTarget::File(path) => {
-
-                    show_with_poppler(&editor.pdf_viewer, &titlebar.zoom_action, &win, &path[..]);
+                    let doc = poppler::Document::from_file(&format!("file://{}", path), None).unwrap();
+                    editor.pdf_viewer.update(&doc, &titlebar.zoom_action);
                     println!("Showing with poppler");
-
-                    // editor.sub_paned.set_position(editor.sub_paned.allocation().width() / 2);
-                    // editor.sub_paned.set_position(400);
-                    titlebar.set_typeset_mode(true);
-
-                    // If sidebar is open, use minimum zoom at PDF to minimize occlusion of content.
-                    if titlebar.sidebar_toggle.is_active() {
-                        while titlebar.zoom_out_btn.is_sensitive() {
-                            titlebar.zoom_out_btn.emit_clicked();
+                    update_titlebar(&titlebar, &editor.pdf_viewer);
+                },
+                TypesetterTarget::PDFContent(bytes) => {
+                    use std::io::Write;
+                    let mut f = std::fs::File::create("/home/diego/Downloads/out.pdf").unwrap();
+                    f.write_all(&bytes).unwrap();
+                    match poppler::Document::from_data(&bytes[..], None) {
+                        Ok(doc) => {
+                            editor.pdf_viewer.update(&doc, &titlebar.zoom_action);
+                            update_titlebar(&titlebar, &editor.pdf_viewer);
+                        },
+                        Err(e) => {
+                            println!("Poppler error: {}", e);
                         }
-                    }
-
-                    let doc = editor.pdf_viewer.doc();
-                    if let Some(doc) = &*doc.borrow() {
-                        let n = doc.n_pages();
-                        titlebar.page_button.set_label(&format!("of {}", n));
-                        titlebar.page_entry.set_text("1");
                     }
                 },
                 _ => {
@@ -1008,8 +1021,9 @@ impl React<Titlebar> for PdfViewer {
         });*/
 
         // Called by event controller (instead of text changed event)
-        // because the application changes the text too frequently without
-        // user input. Here we are sure this happened after some user input.
+        // because the application changes the text at the entry too frequently without
+        // user input (like button/arrow press or swipe).
+        // Here we are sure this happened after some user input.
         let ev = EventControllerKey::new();
         titlebar.page_entry.add_controller(&ev);
         ev.connect_key_released({
@@ -1029,26 +1043,72 @@ impl React<Titlebar> for PdfViewer {
                 // The user pages count from 1..n. The internal state count from
                 // 0..n-1 (as poppler does).
                 if let Ok(new_page) = txt.parse::<i32>() {
-                    if new_page >= 1 {
-                        let doc = doc.borrow();
-                        if new_page <= doc.as_ref().map(|d| d.n_pages() ).unwrap_or(0) {
-                            let mut curr_page = curr_page.borrow_mut();
-                            if new_page == *curr_page as i32 {
-                                return;
-                            }
-                            if new_page > *curr_page as i32 {
-                                stack.set_transition_type(StackTransitionType::SlideLeft);
-                            } else {
-                                stack.set_transition_type(StackTransitionType::SlideRight);
-                            }
-                            *curr_page = new_page as usize - 1;
-                            turn_action.set_state(&(new_page - 1).to_variant());
-                            draw_at_even_or_odd(&stack, &da1, &da2, new_page as usize - 1);
-                        }
-                    }
+                    go_to_page(
+                        &doc,
+                        &da1,
+                        &da2,
+                        &curr_page,
+                        &turn_action,
+                        &stack,
+                        new_page
+                    );
                 }
             }
         });
+
+        titlebar.left_btn.connect_clicked({
+            let doc = self.doc.clone();
+            let da1 = self.da1.clone();
+            let da2 = self.da2.clone();
+            let stack = self.stack.clone();
+            let turn_action = self.turn_action.clone();
+            let page_entry = titlebar.page_entry.clone();
+            let curr_page = self.curr_page.clone();
+            move |_| {
+                turn_page(&stack, &doc, &curr_page, &da1, &da2, &turn_action, true);
+            }
+        });
+        titlebar.right_btn.connect_clicked({
+            let doc = self.doc.clone();
+            let da1 = self.da1.clone();
+            let da2 = self.da2.clone();
+            let stack = self.stack.clone();
+            let turn_action = self.turn_action.clone();
+            let page_entry = titlebar.page_entry.clone();
+            let curr_page = self.curr_page.clone();
+            move |_| {
+                turn_page(&stack, &doc, &curr_page, &da1, &da2, &turn_action, false);
+            }
+        });
+
+    }
+}
+
+fn go_to_page(
+    doc : &Rc<RefCell<Option<poppler::Document>>>,
+    da1 : &DrawingArea,
+    da2 : &DrawingArea,
+    curr_page : &Rc<RefCell<usize>>,
+    turn_action : &gio::SimpleAction,
+    stack : &Stack,
+    new_page : i32
+) {
+    if new_page >= 1 {
+        let doc = doc.borrow();
+        if new_page <= doc.as_ref().map(|d| d.n_pages() ).unwrap_or(0) {
+            let mut curr_page = curr_page.borrow_mut();
+            if new_page == *curr_page as i32 {
+                return;
+            }
+            if new_page > *curr_page as i32 {
+                stack.set_transition_type(StackTransitionType::SlideLeft);
+            } else {
+                stack.set_transition_type(StackTransitionType::SlideRight);
+            }
+            *curr_page = new_page as usize - 1;
+            turn_action.set_state(&(new_page - 1).to_variant());
+            draw_at_even_or_odd(&stack, &da1, &da2, new_page as usize - 1);
+        }
     }
 }
 
@@ -1320,10 +1380,9 @@ impl PdfViewer {
 
 }
 
-// #[cfg(feature="poppler")]
+/*// #[cfg(feature="poppler")]
 fn show_with_poppler(viewer : &PdfViewer, zoom_action : &gio::SimpleAction, win : &ApplicationWindow, path : &str) {
-    let doc = poppler::Document::from_file(&format!("file://{}", path), None).unwrap();
-    viewer.update(&doc, zoom_action);
+
     // let dialog = Dialog::new();
     // dialog.set_default_width(1024);
     // dialog.set_default_height(768);
@@ -1335,7 +1394,7 @@ fn show_with_poppler(viewer : &PdfViewer, zoom_action : &gio::SimpleAction, win 
     // dialog.set_child(Some(&viewer.scroll));
     // set_margins(&bx, 32, 32);
     // dialog.show();
-}
+}*/
 
 pub fn title_label(txt : &str) -> Label {
     let lbl = Label::builder()
@@ -1407,5 +1466,76 @@ impl React<FileManager> for SaveDialog {
         });*/
     }
 
+}
+
+
+#[derive(Debug, Clone)]
+pub struct RecentList {
+    pub open_btn : Button,
+    pub list : ListBox,
+    pub bx : Box
+}
+
+impl RecentList {
+
+    pub fn build() -> Self {
+        let open_btn = Button::from_icon_name("document-open-symbolic");
+        open_btn.style_context().add_class("flat");
+        let list = ListBox::new();
+        set_margins(&list, 1, 1);
+        list.style_context().add_class("boxed-list");
+        let scroll = ScrolledWindow::new();
+        scroll.set_child(Some(&list));
+        scroll.set_width_request(560);
+        scroll.set_height_request(442);
+        scroll.set_has_frame(false);
+        list.set_activate_on_single_click(true);
+        list.set_show_separators(true);
+        let bx = Box::new(Orientation::Vertical, 16);
+        bx.set_halign(Align::Center);
+        let title = title_label("Recent");
+        let title_bx = Box::new(Orientation::Horizontal, 0);
+        title_bx.append(&title);
+        title_bx.append(&open_btn);
+        title_bx.set_hexpand(true);
+        title.set_halign(Align::Start);
+        open_btn.set_halign(Align::End);
+        open_btn.set_hexpand(true);
+        bx.append(&title_bx);
+        bx.append(&scroll);
+        bx.set_valign(Align::Center);
+        bx.set_hexpand(true);
+        bx.set_margin_start(128);
+        Self { open_btn, list, bx }
+    }
+
+    pub fn add_row(&self, path : &str, begin : bool) {
+        let row = ListBoxRow::new();
+        row.set_height_request(64);
+        let lbl = PackedImageLabel::build("emblem-documents-symbolic", path);
+        row.set_child(Some(&lbl.bx));
+        row.set_selectable(false);
+        row.set_activatable(true);
+        if begin {
+            self.list.prepend(&row);
+        } else {
+            self.list.append(&row);
+        }
+    }
+
+}
+
+impl React<FileManager> for RecentList {
+
+    fn react(&self, manager : &FileManager) {
+        let recent = self.clone();
+        manager.connect_opened(move |(path, _)| {
+            recent.add_row(&path, true);
+        });
+        let recent = self.clone();
+        manager.connect_save(move |path| {
+            recent.add_row(&path, true);
+        });
+    }
 }
 

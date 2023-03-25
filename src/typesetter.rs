@@ -76,7 +76,7 @@ impl Workspace {
 
     pub fn new() -> Self {
         let outdir = tempfile::Builder::new().tempdir().unwrap();
-        println!("Outdir = {}", outdir.path().display());
+        // println!("Outdir = {}", outdir.path().display());
         // let file = tempfile::Builder::new().suffix(".tex").tempfile().unwrap();
         // println!("Tempfile path = {}", file.path().to_str().unwrap());
         // let out_uri = format!("file://{}/{}.pdf", outdir.path().to_str().unwrap(), file.path().file_stem().unwrap().to_str().unwrap().trim_end_matches(".tex"));
@@ -530,6 +530,42 @@ pub fn typeset_document_from_cli(ws : &mut Workspace, latex : &str, base_path : 
     }
 }
 
+fn typeset_document_with_typst(ws : &mut Workspace, file : &Path, send : &glib::Sender<TypesetterAction>) {
+    match crate::typst_tools::compile(file) {
+        Ok(pdf_bytes) => {
+            use std::io::Write;
+            if let Some(fname) = file.file_stem().and_then(|f| f.to_str() ) {
+                let mut out_path = PathBuf::from(ws.outdir.path().display().to_string());
+                if !out_path.exists() || !out_path.is_dir() {
+                    eprintln!("Invalid output path to PDF: {:?}", out_path);
+                    return;
+                }
+                out_path.push(format!("{}.pdf", fname));
+                println!("new out path = {:?}", out_path);
+                match std::fs::File::create(&out_path) {
+                    Ok(mut f) => {
+                        if let Ok(_) = f.write_all(&pdf_bytes) {
+                            send.send(TypesetterAction::Done(TypesetterTarget::File(out_path.to_str().unwrap().to_string()))).unwrap();
+                        } else {
+                            eprintln!("Unable to write to temporary file");
+                        }
+                    },
+                    Err(e) => {
+                        eprintln!("Unable to create temporary file: {}", e);
+                    }
+                }
+            } else {
+                eprintln!("Missing file name");
+            }
+        },
+        Err(errs) => {
+            for (line, msg) in errs.iter() {
+                send.send(TypesetterAction::Error(format!("(Line {}) {}", (line + 1), msg)));
+            }
+        }
+    }
+}
+
 fn typeset_document_from_lib(ws : &mut Workspace, latex : &str, base_path : Option<&Path>, send : &glib::Sender<TypesetterAction>) {
 
     // Overwrite the GTK4 call of signal(SIGPIPE, SIG_IGN); since tectonic requires
@@ -572,7 +608,9 @@ pub struct TypesettingRequest {
 
     content : String,
 
-    base_path : Option<PathBuf>
+    base_path : Option<PathBuf>,
+
+    file :  Option<PathBuf>
 
 }
 
@@ -591,9 +629,14 @@ impl Typesetter {
                 println!("Outdir: {}", ws.outdir.path().display());
                 loop {
                     match content_recv.recv() {
-                        Ok(TypesettingRequest { content, base_path }) => {
+                        Ok(TypesettingRequest { content, base_path, file }) => {
                             // typeset_document_from_lib(&mut ws, &content, base_path.as_ref().map(|p| p.as_path() ), &send);
-                            typeset_document_from_cli(&mut ws, &content, base_path.as_ref().map(|p| p.as_path() ), &send)
+                            // typeset_document_from_cli(&mut ws, &content, base_path.as_ref().map(|p| p.as_path() ), &send)
+                            if let Some(file) = file {
+                                typeset_document_with_typst(&mut ws, &file, &send);
+                            } else {
+                                println!("Missing current file");
+                            }
                         },
                         _ => { }
                     }
@@ -602,6 +645,7 @@ impl Typesetter {
         });
 
         let mut base_path : Option<PathBuf> = None;
+        let mut file : Option<PathBuf> = None;
         recv.attach(None, {
             let send = send.clone();
             let on_done = on_done.clone();
@@ -609,8 +653,7 @@ impl Typesetter {
             move |action| {
                 match action {
                     TypesetterAction::Request(txt) => {
-                        println!("Base path: {:?}", base_path.clone());
-                        content_send.send(TypesettingRequest { content : txt, base_path : base_path.clone() });
+                        content_send.send(TypesettingRequest { content : txt, base_path : base_path.clone(), file : file.clone() });
                     },
                     TypesetterAction::Done(target) => {
                         on_done.call(target.clone());
@@ -622,11 +665,13 @@ impl Typesetter {
                         if let Some(path) = opt_path {
                             if let Some(parent) = Path::new(&path).parent() {
                                 base_path = Some(parent.to_owned());
+                                file = Some(path.to_owned());
                             } else {
                                 log::warn!("File without valid parent path");
                             }
                         } else {
                             base_path = None;
+                            file = None;
                         }
                     }
                 }
@@ -653,9 +698,17 @@ impl Typesetter {
 
 }
 
-fn request_typesetting(
+fn request_typesetting_file(
     pdf_btn : &Button,
-    refresh_btn : &Button,
+    send : &glib::Sender<TypesetterAction>
+) {
+    send.send(TypesetterAction::Request(String::new())).unwrap();
+    pdf_btn.set_icon_name("timer-symbolic");
+    pdf_btn.set_sensitive(false);
+}
+
+fn request_typesetting_buffer(
+    pdf_btn : &Button,
     view : &sourceview5::View,
     send : &glib::Sender<TypesetterAction>
 ) {
@@ -675,36 +728,44 @@ fn request_typesetting(
     send.send(TypesetterAction::Request(txt)).unwrap();
     pdf_btn.set_icon_name("timer-symbolic");
     pdf_btn.set_sensitive(false);
-    refresh_btn.set_sensitive(false);
+    //refresh_btn.set_sensitive(false);
 }
 
 impl React<PapersWindow> for Typesetter {
 
     fn react(&self, win : &PapersWindow) {
         let (titlebar, editor) = (&win.titlebar, &win.editor);
-        titlebar.pdf_btn.connect_clicked({
+
+        titlebar.typeset_action.connect_activate({
             let view = editor.view.clone();
             let send = self.send.clone();
-            let refresh_btn = titlebar.refresh_btn.clone();
-            // let window = window.clone();
-            // let ws = ws.clone();
-            move |btn| {
-                //if btn.is_active() {
-                request_typesetting(&btn, &refresh_btn, &view, &send);
-                //}
-
-                // let mut ws = ws.borrow_mut();
-                // thread::sleep(Duration::from_secs(200));
+            let pdf_btn = titlebar.pdf_btn.clone();
+            move |_, _| {
+                request_typesetting_file(&pdf_btn, &send);
             }
         });
-        titlebar.refresh_btn.connect_clicked({
+        titlebar.pdf_btn.connect_clicked({
+            let typeset_action = titlebar.typeset_action.clone();
+            move |btn| {
+                typeset_action.activate(None);
+            }
+        });
+        /*titlebar.pdf_btn.connect_clicked({
+            let view = editor.view.clone();
+            let send = self.send.clone();
+            move |btn| {
+                request_typesetting_buffer(&btn, /*&refresh_btn,*/ &view, &send);
+            }
+        });*/
+
+        /*titlebar.refresh_btn.connect_clicked({
             let pdf_btn = titlebar.pdf_btn.clone();
             let view = editor.view.clone();
             let send = self.send.clone();
             move |btn| {
                 request_typesetting(&pdf_btn, &btn, &view, &send);
             }
-        });
+        });*/
     }
 }
 

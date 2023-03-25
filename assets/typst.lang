@@ -1,0 +1,381 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+
+Copyright (c) 2022 Diego da Silva Lima (lima.ds@outlook.com). All rights reserved.
+
+This work is licensed under the terms of the GPL v3.0 License.  
+For a copy, see http://www.gnu.org/licenses.*/
+
+Credits: This file was based on the Rust language definition by the Rust developers 
+(https://github.com/rust-lang/gedit-config) and the Markdown language definition by Jean-Philippe Fleury. 
+
+Instructions:
+
+You can copy this file to the following paths to make the typst language highlighting 
+available to Gnome-based text editors (.typ file extension):
+
+/home/user/.local/share/gtksourceview-3/language-specs/typst.lang (Gedit, older versions)
+/home/user/.local/share/gtksourceview-4/language-specs/typst.lang (Gedit, newer versions)
+/home/user/.local/share/gtksourceview-5/language-specs/typst.lang (Text editor, Gnome 42 and up)
+-->
+
+<language id="typst" name="Typst" version="2.0" _section="Scientific">
+  <metadata>
+    <property name="mimetypes">text/plain</property>
+    <property name="globs">*.typ</property>
+    <property name="suggested-suffix">.typ</property>
+    <property name="line-comment-start">//</property>
+    <property name="block-comment-start">/*</property>
+    <property name="block-comment-end">*/</property>
+  </metadata>
+
+  <styles>
+    <style id="comment"    name="Comment"       map-to="def:comment"/>
+    <style id="string"     name="String"        map-to="def:string"/>
+    <style id="keyword"    name="Keyword"       map-to="def:keyword"/>
+    <style id="boolean"    name="Boolean value" map-to="def:boolean"/>
+    <style id="identifier" name="Identifier"    map-to="def:identifier"/>
+    <style id="number"     name="Number"        map-to="def:number"/>
+    
+    <style id="header" name="Header" map-to="def:heading"/>
+    <style id="list-marker" name="List Marker" map-to="def:list-marker"/>
+    <style id="code-span" name="Code Span" map-to="def:inline-code"/>
+    <style id="code-block" name="Code Block" map-to="def:preformatted-section"/>
+    <style id="emphasis" name="Emphasis" map-to="def:emphasis"/>
+    <style id="strong-emphasis" name="Strong Emphasis" map-to="def:strong-emphasis"/>
+    <style id="backslash-escape" name="Backslash Escape" map-to="def:special-char"/>
+    <style id="link-text" name="Link Text" map-to="def:link-text"/>
+    <style id="line-break" name="Line Break" map-to="def:note"/>
+    
+  </styles>
+
+  <definitions>
+
+    <context id="keywords" style-ref="keyword">
+      <keyword>let</keyword>
+      <keyword>set</keyword>
+      <keyword>show</keyword>
+      <keyword>if</keyword>
+      <keyword>else</keyword>
+      <keyword>for</keyword>
+      <keyword>in</keyword>
+      <keyword>while</keyword>
+      <keyword>break</keyword>
+      <keyword>continue</keyword>
+      <keyword>return</keyword>
+      <keyword>include</keyword>
+      <keyword>import</keyword>
+    </context>
+
+    <define-regex id="typst-keyword" extended="true">
+      (let|set|show|if|else|for|in|while|break|continue|return|include|import)
+    </define-regex>
+    
+    <context id="header" style-ref="strong-emphasis">
+      <match>^=+.+</match>
+    </context>
+    
+    <context id="raw" class="no-spell-check" style-ref="code-span">
+      <match>(?&lt;!`)`[^`]+(`{2,}[^`]+)*`(?!`)</match>
+    </context>
+    
+    <context id="code" class="no-spell-check" style-ref="code-span">
+      <start>```[[:alnum:]]</start>
+      <end>```</end>
+    </context>
+    
+    <context id="list" style-ref="list-marker">
+      <match extended="true">
+        ^[ ]{0,3}  
+        (\+|-)
+        [ \t]+     
+      </match>
+    </context>
+    
+    <context id="math" class="no-spell-check" style-ref="code-span">
+      <start>\$</start>
+      <end>\$</end>
+    </context>
+    
+    <context id="boolean" style-ref="boolean">
+      <keyword>true</keyword>
+      <keyword>false</keyword>
+    </context>
+
+    <define-regex id="exponent" extended="true">
+      ([eE][+-]?[0-9_]+)
+    </define-regex>
+
+    <define-regex id="bin-digit" extended="true">
+      [01]
+    </define-regex>
+
+    <define-regex id="hex-digit" extended="true">
+      [0-9a-fA-F]
+    </define-regex>
+
+    <define-regex id="oct-digit" extended="true">
+      [0-7]
+    </define-regex>
+    
+    <define-regex id="none" extended="true">
+      none
+    </define-regex>
+    
+    <define-regex id="bool" extended="true">
+      (true|false)
+    </define-regex>
+    
+    <define-regex id="num" extended="true">
+    ((?&lt;=\.\.)|(?&lt;![\w\.]))
+        ([0-9][0-9_]*(\.[0-9][0-9_]*)?(\%|deg|rad|pt|em|in|fr|cm|mm)?)
+        ((?![\w\.].)|(?=\.\.))
+    </define-regex>
+
+    <context id="none" style-ref="def:special-constant">
+      <match extended="true">none</match>
+    </context>
+    
+    <context id="number" style-ref="number">
+      <match extended="true">\%{num}</match>
+    </context>
+
+    <!-- Unlike Rust identifiers, typst allow hyphenation -->
+    <define-regex id="ident" extended="true">
+      ([^[:cntrl:][:space:][:punct:][:digit:]]|_)([^[:cntrl:][:punct:][:space:]]|_|-)*
+    </define-regex>
+
+    <define-regex id="common-escape" extended="true">
+      '|"|
+      \\|n|r|t|0|
+      x\%{hex-digit}{2}
+    </define-regex>
+
+    <define-regex id="unicode-escape" extended="true">
+      u{(\%{hex-digit}_*){1,6}}
+    </define-regex>
+
+    <define-regex id="str" extended="true">
+    "[^"\\]*(\\.[^"\\]*)*"
+    </define-regex>
+    
+    <context id="string-escape" style-ref="def:special-char">
+      <match>\\\%{common-escape}|\\\%{unicode-escape}</match>
+    </context>
+    
+    <context id="text-escape" class="no-spell-check" style-ref="def:special-char">
+      <match>\\([^[:space:]])*</match>
+    </context>
+
+    <context id="string" style-ref="string" class="string" class-disabled="no-spell-check">
+      <start>"</start>
+      <end>"</end>
+      <include>
+        <context ref="string-escape"/>
+        <context ref="def:line-continue"/>
+      </include>
+    </context>
+
+    <context id="comment-multiline-nested" style-ref="comment" class-disabled="no-spell-check" class="comment" >
+      <start>/\*</start>
+      <end>\*/</end>
+      <include>
+        <context ref="comment-multiline-nested"/>
+      </include>
+    </context>
+    
+    <!-- Matches array or dict or function call argument delimited by parenthesis inside code or expression.
+    Matching this guarantees expression lines can span multiple lines. Note this context is recursive. -->
+    <context id="paren" class="no-spell-check" >
+      <start>\(</start>
+      <end>\)</end>
+      <include>
+        <context ref="def:c-like-comment" style-ref="comment"/>
+        <context ref="comment-multiline-nested"/>
+        <context ref="paren"/>
+        <context ref="keywords"/>
+        <context ref="boolean"/>
+        <context ref="number"/>
+        <context ref="none"/>
+        <context ref="string"/>
+        <context ref="bracket"/>
+      </include>
+    </context>
+    
+    <context id="term" class="no-spell-check" style-ref="strong-emphasis" >
+      <match>\/([[:space:]]|[[:alpha:]]|[0-9])*\:</match>
+    </context>
+    
+    <context id="var-expr" class="no-spell-check" style-ref="strong-emphasis">
+      <match>\#\%{ident}</match>
+    </context>
+    
+    <context id="fn-expr" class="no-spell-check">
+      <start>(\#)(\%{ident})(\()</start>
+      <end>\)</end>
+      <include>
+        <context sub-pattern="1" where="start" class="no-spell-check" style-ref="strong-emphasis" />
+        <context sub-pattern="2" where="start" class="no-spell-check" style-ref="strong-emphasis" />
+        <context ref="def:c-like-comment" style-ref="comment"/>
+        <context ref="comment-multiline-nested"/>
+        <context ref="paren"/>
+        <context ref="keywords"/>
+        <context ref="boolean"/>
+        <context ref="number"/>
+        <context ref="none"/>
+        <context ref="string"/>
+        <context ref="bracket"/>
+        <context ref="curly"/>
+      </include>
+    </context>
+    
+    <context id="bool-expr" class="no-spell-check" style-ref="boolean">
+    <match>\#\%{bool}</match>
+    </context>
+    
+    <context id="num-expr" class="no-spell-check" style-ref="number">
+    <match>\#\%{num}</match>
+    </context>
+    
+    <context id="str-expr" class="no-spell-check" style-ref="string">
+    <match>\#\%{str}</match>
+    </context>
+    
+    <context id="none-expr" class="no-spell-check" style-ref="def:special-constant">
+    <match>\#\%{none}</match>
+    </context>
+    
+    <!-- The end point of keyword expressions is not clear (usually, it depends on the
+    end point of some inner element such as a curly brace or parenthesis), and cannot
+    be expressed simply with a regex (a full parser is required here). For example:
+    
+    #if true { lorem(1) } else { lorem(1) } let 
+    
+    Will interpret the let as part of the expression if the line end is taken as the 
+    terminator, although it is simply plain text outside the expression. 
+    The highlighter assumes the user will not usually insert text after a 
+    keyword expression, and will add a line break before continuing with the text.
+    
+    Variable expressions, value expressions and function expressions, however, have clear end
+    points that can be expressed with regex (end of identifier, end of literal and end closing
+    parenthesis of function call, respectively). -->
+    <context id="keyword-expr" class="no-spell-check">
+      <start>\#\%{typst-keyword}</start>
+      <end>$</end>
+      <include>
+        <context sub-pattern="0" where="start" class="no-spell-check" style-ref="strong-emphasis" />
+        <context ref="def:c-like-comment" style-ref="comment"/>
+        <context ref="comment-multiline-nested"/>
+        <context ref="paren"/>
+        <context ref="keywords"/>
+        <context ref="boolean"/>
+        <context ref="number"/>
+        <context ref="none"/>
+        <context ref="string"/>
+        <context ref="bracket"/>
+        <context ref="curly"/>
+      </include>
+    </context>
+    
+    <context id="curly" class="no-spell-check" >
+      <start>\{</start>
+      <end>\}</end>
+      <include>
+        <context ref="def:c-like-comment" style-ref="comment"/>
+        <context ref="comment-multiline-nested"/>
+        <context ref="paren"/>
+        <context ref="keywords"/>
+        <context ref="boolean"/>
+        <context ref="number"/>
+        <context ref="none"/>
+        <context ref="string"/>
+        <context ref="bracket"/>
+        <context ref="curly"/>
+      </include>
+    </context>
+    
+    <context id="citation" class="no-spell-check" style-ref="link-text">
+    <match>\@[^\s]*</match>
+    </context>
+    
+    <context id="label" class="no-spell-check" style-ref="link-text">
+    <start>&lt;</start>
+    <end>&gt;</end>
+    </context>
+    
+    <context id="inline-link" class="no-spell-check" style-ref="link-text">
+    <match>https:\/\/[^\s]*</match>
+    </context>
+    
+    <context id="underscores-emphasis" style-ref="emphasis">
+      <match>(?&lt;!_)_[^_ \t].*?(?&lt;!\\|_| |\t)_(?!_)</match>
+    </context>
+    
+    <context id="asterisks-emphasis" style-ref="strong-emphasis">
+      <match>(?&lt;!\*)\*[^\* \t].*?(?&lt;!\\|\*| |\t)\*(?!\*)</match>
+    </context>
+    
+    <!-- TODO expressions/code blocks nested on content block aren't highlighted - There
+    is no safe way to stop expression parsing? -->
+    <context id="bracket">
+      <start>\[</start>
+      <end>\]</end>
+      <include>
+      <context sub-pattern="0" where="start" class="no-spell-check" style-ref="strong-emphasis" />
+      <context sub-pattern="0" where="end" class="no-spell-check" style-ref="strong-emphasis" />
+      <context ref="term" />
+      <context ref="text-escape" />
+      <context ref="underscores-emphasis" />
+      <context ref="asterisks-emphasis" />
+      <context ref="inline-link" />
+      <context ref="code" />
+      <context ref="raw" />
+      <context ref="label" />
+      <context ref="citation" />
+      <context ref="math" />
+      <context ref="header" />
+      <context ref="list" />
+      
+      <!-- TODO keyword exprs not added inside brackets for now, 
+      because their end point is not clear from syntax (they usually
+      terminate based on some inner element, which can't be easily 
+      expressed with regexes. -->
+      <context ref="fn-expr" />
+      <context ref="bool-expr" />
+      <context ref="num-expr" />
+      <context ref="str-expr" />
+      <context ref="none-expr" />
+      <context ref="var-expr" />
+      
+      </include>
+    </context>
+    
+    <context id="typst">
+      <include>
+      <context ref="term" />
+      <context ref="text-escape" />
+      <context ref="underscores-emphasis" />
+      <context ref="asterisks-emphasis" />
+      <context ref="inline-link" />
+      <context ref="code" />
+      <context ref="raw" />
+      <context ref="label" />
+      <context ref="citation" />
+      <context ref="math" />
+      <context ref="keyword-expr" />
+      <context ref="fn-expr" />
+      <context ref="bool-expr" />
+      <context ref="num-expr" />
+      <context ref="str-expr" />
+      <context ref="none-expr" />
+      <context ref="var-expr" />
+      <context ref="header" />
+      <context ref="list" />
+      <context ref="curly" />
+      </include>
+    </context>
+
+  </definitions>
+
+</language>

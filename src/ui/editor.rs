@@ -116,8 +116,6 @@ impl PapersEditor {
         // });
 
         let popover = Popover::new();
-
-
         Self { scroll, view, overlay, /*paned,*/ sub_paned, ignore_file_save_action, buf_change_handler : Rc::new(RefCell::new(None)), curr_toast, pdf_viewer, popover }
     }
 }
@@ -197,7 +195,6 @@ fn insert_at_cursor(view : View, popover : Popover, txt : &str) {
     buffer.insert_at_cursor(&txt);
     popover.popdown();
     view.grab_focus();
-
     if txt.ends_with("{}") {
         let iter = buffer.iter_at_offset(buffer.cursor_position() - 1);
         buffer.place_cursor(&iter);
@@ -229,7 +226,24 @@ pub fn edit_or_insert_at_cursor(view : &View, txt : &str) {
     }
 }
 
-fn wrap_parameter_or_insert_at_cursor(view : View, popover : Popover, tag : &'static str) {
+fn wrap_parameter_or_insert_at_cursor(view : View, popover : Popover, tag_left : &'static str, tag_right : &'static str) {
+    let buffer = view.buffer();
+    let (txt, is_edit) = if let Some((start, end)) = buffer.selection_bounds() {
+        let prev = buffer.text(&start, &end, true).to_string();
+        (format!("{}{}{}", tag_left, prev, tag_right), true)
+    } else {
+        (format!("{}{}", tag_left, tag_right), false)
+    };
+    edit_or_insert_at_cursor(&view, &txt[..]);
+    popover.popdown();
+    view.grab_focus();
+    if !is_edit {
+        let iter = buffer.iter_at_offset(buffer.cursor_position() - tag_right.chars().count() as i32);
+        buffer.place_cursor(&iter);
+    }
+}
+
+/*fn wrap_parameter_or_insert_at_cursor_latex(view : View, popover : Popover, tag : &'static str) {
     let buffer = view.buffer();
     let txt = if let Some((start, end)) = buffer.selection_bounds() {
         let prev = buffer.text(&start, &end, true).to_string();
@@ -245,23 +259,23 @@ fn wrap_parameter_or_insert_at_cursor(view : View, popover : Popover, tag : &'st
         let iter = buffer.iter_at_offset(buffer.cursor_position() - 1);
         buffer.place_cursor(&iter);
     }
-}
+}*/
 
 /* Given a command tag such as \textbf{SomeText}, wrap the selected text as the argument to the given
 command, or just insert the empty command if no text is selected */
-pub fn wrap_parameter_or_insert_at_cursor_from_btn(btn : &Button, view : View, popover : Popover, tag : &'static str) {
+pub fn wrap_parameter_or_insert_at_cursor_from_btn(btn : &Button, view : View, popover : Popover, tag_left : &'static str, tag_right : &'static str) {
     btn.connect_clicked(move |_| {
-        wrap_parameter_or_insert_at_cursor(view.clone(), popover.clone(), tag);
+        wrap_parameter_or_insert_at_cursor(view.clone(), popover.clone(), tag_left, tag_right);
     });
 }
 
-pub fn wrap_parameter_or_insert_at_cursor_from_action(action : &gio::SimpleAction, view : View, popover : Popover, tag : &'static str) {
+pub fn wrap_parameter_or_insert_at_cursor_from_action(action : &gio::SimpleAction, view : View, popover : Popover, tag_left : &'static str, tag_right : &'static str) {
     action.connect_activate(move |_, _| {
-        wrap_parameter_or_insert_at_cursor(view.clone(), popover.clone(), tag);
+        wrap_parameter_or_insert_at_cursor(view.clone(), popover.clone(), tag_left, tag_right);
     });
 }
 
-/// Wraps a command that can be used as an environment if nothing is selected, but wraps the
+/*/// Wraps a command that can be used as an environment if nothing is selected, but wraps the
 /// text in a block if there is something selected.
 pub fn environment_or_wrap_at_block(btn : &Button, view : View, popover : Popover, tag : &'static str) {
     btn.connect_clicked(move |_| {
@@ -276,7 +290,7 @@ pub fn environment_or_wrap_at_block(btn : &Button, view : View, popover : Popove
         popover.popdown();
         view.grab_focus();
     });
-}
+}*/
 
 /* Given arbitrary characters, either insert them or, if there is some selected text,
 wrap the text between the two tags. */
@@ -295,144 +309,122 @@ pub fn enclose_or_insert_at_cursor(btn : &Button, view : View, popover : Popover
     });
 }
 
+const PT_PER_EM : f32 = 11.955168;
+
 impl React<Titlebar> for PapersEditor {
 
     fn react(&self, titlebar : &Titlebar) {
-        /*let hide_action = titlebar.sidebar_hide_action.clone();
-        let paned = self.paned.clone();
-        titlebar.sidebar_toggle.connect_toggled(move |btn| {
-            if btn.is_active() {
-                let sz = hide_action.state().unwrap().get::<i32>().unwrap();
-                if sz > 0 {
-                    paned.set_position(sz);
-                } else {
-                    paned.set_position(320);
-                }
-            } else {
-                hide_action.set_state(&paned.position().to_variant());
-                paned.set_position(0);
-            }
-        });*/
-
-        titlebar.sidebar_toggle.connect_toggled({
-            let popover = self.popover.clone();
-            move |btn| {
-                if btn.is_active() {
-                    popover.popup();
-                }
-            }
-        });
-        self.popover.connect_closed({
-            let toggle = titlebar.sidebar_toggle.clone();
-            move|_| {
-                if toggle.is_active() {
-                    toggle.set_active(false);
-                }
-            }
-        });
-
-        /*titlebar.pdf_btn.connect_clicked({
-            let sub_paned = self.sub_paned.clone();
-            move |btn| {
-                if !btn.is_active() {
-                    sub_paned.set_position(sub_paned.allocation().width());
-                }
-                // sub_paned.set_sensitive(false);
-            }
-        });*/
 
         let view = &self.view;
         let popover = &titlebar.fmt_popover.popover;
 
         let fmt = [
-            (&titlebar.fmt_popover.bold_btn, "textbf"),
-            (&titlebar.fmt_popover.underline_btn, "underline"),
-            (&titlebar.fmt_popover.italic_btn, "textit"),
-            (&titlebar.fmt_popover.strike_btn, "sout"),
-            (&titlebar.fmt_popover.sub_btn, "textsubscript"),
-            (&titlebar.fmt_popover.sup_btn, "textsuperscript"),
-            (&titlebar.fmt_popover.small_btn, "small"),
-            (&titlebar.fmt_popover.normal_btn, "normalsize"),
-            (&titlebar.fmt_popover.large_btn, "large"),
-            (&titlebar.fmt_popover.huge_btn, "huge")
+            (&titlebar.fmt_popover.bold_btn, "*", "*"),
+            (&titlebar.fmt_popover.italic_btn, "_", "_"),
+            (&titlebar.fmt_popover.underline_btn, "#underline[", "]"),
+            (&titlebar.fmt_popover.strike_btn, "#strike[", "]"),
+            (&titlebar.fmt_popover.sub_btn, "#sub[", "]"),
+            (&titlebar.fmt_popover.sup_btn, "#super[", "]")
         ];
-        for (btn, cmd) in fmt {
-            wrap_parameter_or_insert_at_cursor_from_btn(btn, view.clone(), popover.clone(), cmd);
+
+        for (btn, left_tag, right_tag) in fmt {
+            wrap_parameter_or_insert_at_cursor_from_btn(btn, view.clone(), popover.clone(), left_tag, right_tag);
         }
 
         let par = [
-            (&titlebar.fmt_popover.par_indent_10,"\\setlength{\\parindent}{10pt}"),
-            (&titlebar.fmt_popover.par_indent_15, "\\setlength{\\parindent}{15pt}"),
-            (&titlebar.fmt_popover.par_indent_20, "\\setlength{\\parindent}{20pt}"),
-            (&titlebar.fmt_popover.line_height_10, "\\linespread{1.0}"),
-            (&titlebar.fmt_popover.line_height_15, "\\linespread{1.5}"),
-            (&titlebar.fmt_popover.line_height_20, "\\linespread{2.0}"),
-            (&titlebar.fmt_popover.onecol_btn, "\\onecolumn"),
-            (&titlebar.fmt_popover.twocol_btn, "\\twocolumn")
+            (&titlebar.fmt_popover.par_indent_10,"#set par(first-line-indent = 10pt)"),
+            (&titlebar.fmt_popover.par_indent_15, "#set par(first-line-indent = 15pt)"),
+            (&titlebar.fmt_popover.par_indent_20, "#set par(first-line-indent = 20pt)"),
+            (&titlebar.fmt_popover.line_height_10, "#set par(leading = 0.65em)"),
+            (&titlebar.fmt_popover.line_height_15, "#set par(leading = 0.98em)"),
+            (&titlebar.fmt_popover.line_height_20, "#set par(leading = 1.3em)"),
+            (&titlebar.fmt_popover.onecol_btn, "#set page(columns : 1)"),
+            (&titlebar.fmt_popover.twocol_btn, "#set page(columns : 2)")
         ];
+
         for (btn, cmd) in par {
             insert_at_cursor_from_btn(btn, view.clone(), popover.clone(), cmd);
         }
 
         let align = [
-            (&titlebar.fmt_popover.center_btn, "center"),
-            (&titlebar.fmt_popover.left_btn, "flushleft"),
-            (&titlebar.fmt_popover.right_btn, "flushright")
+            (&titlebar.fmt_popover.center_btn, "#set align(center)"),
+            (&titlebar.fmt_popover.left_btn, "#set align(left)"),
+            (&titlebar.fmt_popover.right_btn, "#set align(right)"),
+            (&titlebar.fmt_popover.justify_btn, "#set par(justify: true)")
         ];
+
         for (btn, cmd) in align {
-            environment_or_wrap_at_block(btn, view.clone(), popover.clone(), cmd);
+            insert_at_cursor_from_btn(btn, view.clone(), popover.clone(), cmd);
         }
 
         let sectioning = [
-            (&titlebar.sectioning_actions.section, "section"),
-            (&titlebar.sectioning_actions.subsection, "subsection"),
-            (&titlebar.sectioning_actions.sub_subsection, "subsubsection"),
-            (&titlebar.sectioning_actions.chapter, "chapter")
+            (&titlebar.sectioning_actions.section, "=", ""),
+            (&titlebar.sectioning_actions.subsection, "==", ""),
+            (&titlebar.sectioning_actions.sub_subsection, "===", ""),
         ];
-        for (action, cmd) in sectioning {
-            wrap_parameter_or_insert_at_cursor_from_action(action, view.clone(), popover.clone(), cmd);
+
+        for (action, left_tag, right_tag) in sectioning {
+            wrap_parameter_or_insert_at_cursor_from_action(action, view.clone(), popover.clone(), left_tag, right_tag);
         }
 
         let block = [
-            (&titlebar.block_actions.list, "\\begin{itemize}\nitem a\n\\end{itemize}"),
-            (&titlebar.block_actions.verbatim, "\\begin{verbatim}\n\\end{verbatim}"),
-            (&titlebar.block_actions.eq, "$$\n$$"),
-            (&titlebar.block_actions.tbl, "\\begin{tabular}{ |c|c| }\\hline\na & b & \\\\ c & d \n\\end{tabular}"),
-            (&titlebar.block_actions.bib, "\\begin{filecontents}{references.bib}\n\\end{filecontents}\n\\bibliography{references}")
+            (&titlebar.block_actions.list, "-"),
+            (&titlebar.block_actions.listord, "+"),
+            (&titlebar.block_actions.eq, "$$"),
+            (&titlebar.block_actions.tbl, "#table(columns : (50%, 50%), rows : (50%, 50%), align: center, a, b, c, d)"),
+            (&titlebar.block_actions.code, "```\n\n```")
         ];
+
         for (action, cmd) in block {
             insert_at_cursor_from_action(action, view.clone(), popover.clone(), cmd);
         }
 
         let layout = [
-            (&titlebar.layout_actions.page_break, "\\clearpage"),
-            (&titlebar.layout_actions.line_break, "\\newline"),
-            (&titlebar.layout_actions.vertical_space, "\\vspace{1cm}"),
-            (&titlebar.layout_actions.horizontal_space, "\\hspace{1cm}"),
-            (&titlebar.layout_actions.vertical_fill, "\\vfill"),
-            (&titlebar.layout_actions.horizontal_fill, "\\hfill")
+            (&titlebar.layout_actions.page_break, "#pagebreak()"),
+            (&titlebar.layout_actions.line_break, "#linebreak()"),
+            (&titlebar.layout_actions.vertical_space, "#v(1cm)"),
+            (&titlebar.layout_actions.horizontal_space, "#h(1cm)"),
         ];
         for (action, cmd) in layout {
             insert_at_cursor_from_action(action, view.clone(), popover.clone(), cmd);
         }
 
-        let meta = [
+        titlebar.fmt_popover.font_btn.connect_font_set({
+            let view = view.clone();
+            let popover = popover.clone();
+            move|btn| {
+                if let Some(font) = btn.font().map(|f| f.to_string() ) {
+                    if let Some(data) = FontData::new_from_string(&font) {
+                        let font_txt = format!(
+                            "#set text(font : \"{}\", style : \"{}\", weight : \"{}\", size : {}pt)",
+                            data.family,
+                            data.style,
+                            data.weight,
+                            data.size
+                        );
+                        insert_at_cursor(view.clone(), popover.clone(), &font_txt);
+                    }
+                }
+            }
+        });
+
+        /*let meta = [
             (&titlebar.meta_actions.author, "author"),
             (&titlebar.meta_actions.date, "date"),
             (&titlebar.meta_actions.title, "title")
         ];
         for (action, cmd) in meta {
-            wrap_parameter_or_insert_at_cursor_from_action(action, view.clone(), popover.clone(), cmd);
-        }
+            wrap_parameter_or_insert_at_cursor_from_action(action, view.clone(), popover.clone(), cmd, "");
+        }*/
 
-        let indexing = [
+        /*let indexing = [
             (&titlebar.indexing_actions.toc, "\\tableofcontents"),
             (&titlebar.indexing_actions.lof, "\\listoffigures"),
             (&titlebar.indexing_actions.lot, "\\listoftables")
         ];
         for (action, cmd) in indexing {
             insert_at_cursor_from_action(action, view.clone(), popover.clone(), cmd);
-        }
+        }*/
 
         titlebar.paper_popover.update_btn.connect_clicked({
             let paper_combo = titlebar.paper_popover.paper_combo.clone();
@@ -444,22 +436,19 @@ impl React<Titlebar> for PapersEditor {
             let popover = titlebar.paper_popover.popover.clone();
             move |_| {
 
-                // TODO support
-                // \usepackage[a4paper, total={6in, 8in}, left=2cm, right=2cm, top=2cm, bottom=2cm]{geometry}
-                // \usepackage[legalpaper, landscape, margin=2in]{geometry}
-
                 let top = super::parse_int_or_float(&top_entry.buffer().text().to_string()).unwrap_or(2.);
                 let left = super::parse_int_or_float(&left_entry.buffer().text().to_string()).unwrap_or(2.);
                 let bottom = super::parse_int_or_float(&bottom_entry.buffer().text().to_string()).unwrap_or(2.);
                 let right = super::parse_int_or_float(&right_entry.buffer().text().to_string()).unwrap_or(2.);
                 let paper = paper_combo.active_id().map(|id| id.to_string().to_lowercase() ).unwrap_or(String::from("a4"));
+
                 let cmd = format!(
-                    "\\usepackage[{}paper, left={:.1}cm, right={:.1}cm, top={:.1}cm, bottom={:.1}cm]{{geometry}}",
+                    "#set page(paper: \"{}\", margin: (top: {:.2}cm, bottom : {:.2}cm, left : {:.2}cm, right: {:.2}cm))",
                     paper,
-                    left,
-                    right,
                     top,
-                    bottom
+                    bottom,
+                    left,
+                    right
                 );
                 insert_at_cursor(view.clone(), popover.clone(), &cmd);
             }
@@ -471,9 +460,13 @@ impl React<Analyzer> for PapersEditor {
 
     fn react(&self, analyzer : &Analyzer) {
         let view = self.view.clone();
+        let popover = self.popover.clone();
         analyzer.connect_line_selection(move |line| {
             let buffer = view.buffer();
             if let Some(mut iter) = buffer.iter_at_line(line as i32) {
+                // popover.hide();
+                popover.popdown();
+                println!("Popover hidden");
                 buffer.place_cursor(&iter);
                 view.scroll_to_iter(&mut iter, 0.0, true, 0.0, 0.5);
                 view.grab_focus();
@@ -561,7 +554,8 @@ impl React<BibPopover> for PapersEditor {
             };
             let key = ref_row.key();
             let buffer = view.buffer();
-            let replaced = match move_backwards_to_command_start(&buffer) {
+
+            /*let replaced = match move_backwards_to_command_start(&buffer) {
                 Some((mut start, mut end, start_txt)) => {
                     // println!("Start text = {}", start_txt);
                     match crate::tex::command(&start_txt[..]) {
@@ -610,7 +604,8 @@ impl React<BibPopover> for PapersEditor {
             };
             if !replaced {
                 edit_or_insert_at_cursor(&view, &format!("\\cite{{{}}}", key)[..]);
-            }
+            }*/
+            edit_or_insert_at_cursor(&view, &format!("@{}", key)[..]);
 
             /*let pos = buffer.cursor_position();
             let start = buffer.iter_at_offset(pos-1);
@@ -638,7 +633,8 @@ fn configure_view(view : &View) {
     let ctx = view.style_context();
     ctx.add_provider(&provider, 800);
     let lang_manager = sourceview5::LanguageManager::default();
-    let lang = lang_manager.language("latex").unwrap();
+    lang_manager.append_search_path("/home/diego/Software/drafts/assets");
+    let lang = lang_manager.language("typst").unwrap();
     buffer.set_language(Some(&lang));
     view.set_tab_width(4);
     view.set_indent_width(4);
@@ -659,4 +655,52 @@ fn configure_view(view : &View) {
     view.set_show_line_numbers(true);
 }
 
+#[derive(Debug, Clone)]
+pub struct FontData {
+    pub family : String,
+    pub weight : String,
+    pub style : String,
+    pub size : String
+}
 
+impl FontData {
+
+    pub fn new_from_string(font : &str) -> Option<Self> {
+        let digits_pattern = regex::Regex::new(r"\d{2}$|\d{2}$").unwrap();
+        let sz_match = digits_pattern.find(&font)?;
+        let sz_txt = sz_match.as_str();
+        let size = sz_txt.parse().ok()?;
+        let mut prefix = &font[0..sz_match.start()];
+        let slant_pattern = regex::Regex::new("Italic|Oblique").unwrap();
+        let slant_match = slant_pattern.find(prefix);
+        let style = match slant_match {
+            Some(m) => {
+                match m.as_str() {
+                    "Italic" => String::from("italic"),
+                    "Oblique" => String::from("oblique"),
+                    _ => String::from("normal")
+                }
+            },
+            None => String::from("normal")
+        };
+        if let Some(slant) = slant_match {
+            prefix = &font[0..slant.start()];
+        };
+        let weight_pattern = regex::Regex::new("Bold").unwrap();
+        let weight_match = weight_pattern.find(prefix);
+        let weight = match weight_match {
+            Some(_w) => String::from("bold"),
+            None => String::from("regular")
+        };
+        if let Some(weight) = weight_match {
+            prefix = &font[0..weight.start()];
+        };
+        let family = String::from(prefix.trim());
+        Some(Self {
+            family,
+            weight,
+            style,
+            size
+        })
+    }
+}

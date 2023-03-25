@@ -39,7 +39,7 @@ impl SingleArchiverImpl for FileManager { }
 impl React<MainMenu> for FileManager {
 
     fn react(&self, menu : &MainMenu) {
-        filecase::connect_manager_with_file_actions( /*self,*/ &menu.actions, self.sender(), &menu.open_dialog);
+        filecase::connect_manager_with_file_actions(&menu.actions, self.sender(), &menu.open_dialog);
     }
 
 }
@@ -73,6 +73,16 @@ impl React<PapersWindow> for FileManager {
 
     fn react(&self, win : &PapersWindow) {
         filecase::connect_manager_responds_window(self.sender(), &win.window);
+        win.start_screen.recent_list.list.connect_row_activated({
+            let send = self.sender().clone();
+            move |_, row| {
+                let child = row.child().unwrap().downcast::<Box>().unwrap();
+                let lbl = PackedImageLabel::extract(&child).unwrap();
+                let path = lbl.lbl.text().as_str().to_string();
+                send.send(SingleArchiverAction::OpenRequest(path)).unwrap();
+            }
+        });
     }
+
 }
 
