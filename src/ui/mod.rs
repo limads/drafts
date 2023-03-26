@@ -10,12 +10,10 @@ use sourceview5::*;
 use sourceview5::prelude::ViewExt;
 use sourceview5::prelude::BufferExt;
 use sourceview5::prelude::CompletionWordsExt;
-use tempfile;
 use std::rc::Rc;
 use std::cell::RefCell;
 use crate::manager::FileManager;
 use crate::typesetter::{Typesetter, TypesetterTarget};
-use gio::prelude::*;
 use glib::{types::Type, value::{Value, ToValue}};
 use gdk_pixbuf::Pixbuf;
 use std::path::{PathBuf, Path};
@@ -51,80 +49,17 @@ pub struct PapersWindow {
     pub import_src_dialog : OpenDialog,
 }
 
-// \usepackage[utf8]{ulem}
+const EMPTY_TEMPLATE : &'static str = r#""#;
 
-const ARTICLE_TEMPLATE : &'static str = r#"
-\documentclass[a4,11pt]{article}
+const ARTICLE_TEMPLATE : &'static str = r#""#;
 
-\usepackage[utf8]{inputenc}
+const MINIMAL_TEMPLATE : &'static str = r#""#;
 
-\begin{document}
-(Article)
-\end{document}"#;
+const REPORT_TEMPLATE : &'static str = r#""#;
 
-const REPORT_TEMPLATE : &'static str = r#"
-\documentclass[a4,11pt]{article}
+const BOOK_TEMPLATE : &'static str = r#""#;
 
-\usepackage[utf8]{inputenc}
-(Article)
-\begin{document}
-
-\end{document}"#;
-
-const BOOK_TEMPLATE : &'static str = r#"
-\begin{document}
-\frontmatter
-
-\maketitle
-
-\chapter{Preface}
-
-\mainmatter
-\chapter{First chapter}
-
-\appendix
-\chapter{First Appendix}
-
-\backmatter
-\chapter{Last note}
-"#;
-
-const LETTER_TEMPLATE : &'static str = r#"
-\documentclass{letter}
-\usepackage{hyperref}
-\signature{Joe Bloggs}
-\address{21 Bridge Street \\ Smallville \\ Dunwich DU3 4WE}
-\begin{document}
-
-\begin{letter}{Director \\ Doe \& Co \\ 35 Anthony Road
-\\ Newport \\ Ipswich IP3 5RT}
-\opening{Dear Sir or Madam:}
-
-\closing{Yours Faithfully,}
-
-\ps
-
-P.S. You can find the full text of GFDL license at
-\url{http://www.gnu.org/copyleft/fdl.html}.
-
-\encl{Copyright permission form}
-
-\end{letter}
-\end{document}
-"#;
-
-const PRESENTATION_TEMPLATE : &'static str = r#"
-grid(columns: (1fr, 1fr, 1fr))[
-  #set align(left)
-  ...
-][
-  #set align(center)
-  ...
-][
-  #set align(right)
-  ...
-]
-"#;
+const PRESENTATION_TEMPLATE : &'static str = r#""#;
 
 fn start_document(view : &View, stack : &Stack, titlebar : &Titlebar, template : &str) {
     view.buffer().set_text(template);
@@ -136,47 +71,32 @@ fn start_document(view : &View, stack : &Stack, titlebar : &Titlebar, template :
     titlebar.set_edit(true);
 }
 
+fn start_with_template(
+    btn : &Button,
+    view : sourceview5::View,
+    stack : Stack,
+    titlebar : Titlebar,
+    template : &'static str
+) {
+    btn.connect_clicked({
+        move |_| {
+            start_document(&view, &stack, &titlebar, template);
+        }
+    });
+}
+
 impl React<StartScreen> for PapersWindow {
 
     fn react(&self, start_screen : &StartScreen) {
-
-        start_screen.empty_btn.connect_clicked({
-            let (view, stack)  = (self.editor.view.clone(), self.stack.clone());
-            let titlebar = self.titlebar.clone();
-            move |_| {
-                start_document(&view, &stack, &titlebar, "");
-            }
-        });
-        start_screen.article_btn.connect_clicked({
-            let (view, stack)  = (self.editor.view.clone(), self.stack.clone());
-            let titlebar = self.titlebar.clone();
-            move |_| {
-                start_document(&view, &stack, &titlebar, ARTICLE_TEMPLATE);
-            }
-        });
-
-        /*start_screen.report_btn.connect_clicked({
-            let (view, stack)  = (self.editor.view.clone(), self.stack.clone());
-            let action_save = self.titlebar.main_menu.actions.save.clone();
-            let action_save_as = self.titlebar.main_menu.actions.save_as.clone();
-            move |_| {
-                view.buffer().set_text(REPORT_TEMPLATE);
-                stack.set_visible_child_name("editor");
-                action_save.set_enabled(true);
-                action_save_as.set_enabled(true);
-            }
-        });
-        start_screen.presentation_btn.connect_clicked({
-            let (view, stack)  = (self.editor.view.clone(), self.stack.clone());
-            let action_save = self.titlebar.main_menu.actions.save.clone();
-            let action_save_as = self.titlebar.main_menu.actions.save_as.clone();
-            move |_| {
-                view.buffer().set_text(PRESENTATION_TEMPLATE);
-                stack.set_visible_child_name("editor");
-                action_save.set_enabled(true);
-                action_save_as.set_enabled(true);
-            }
-        });*/
+        let view = &self.editor.view;
+        let stack = &self.stack;
+        let tbar = &self.titlebar;
+        start_with_template(&start_screen.empty_btn, view.clone(), stack.clone(), tbar.clone(), EMPTY_TEMPLATE);
+        start_with_template(&start_screen.minimal_btn, view.clone(), stack.clone(), tbar.clone(), MINIMAL_TEMPLATE);
+        start_with_template(&start_screen.article_btn, view.clone(), stack.clone(), tbar.clone(), ARTICLE_TEMPLATE);
+        start_with_template(&start_screen.report_btn, view.clone(), stack.clone(), tbar.clone(), REPORT_TEMPLATE);
+        start_with_template(&start_screen.book_btn, view.clone(), stack.clone(), tbar.clone(), BOOK_TEMPLATE);
+        start_with_template(&start_screen.present_btn, view.clone(), stack.clone(), tbar.clone(), PRESENTATION_TEMPLATE);
     }
 }
 
@@ -249,9 +169,11 @@ pub struct StartScreen {
     bx : Box,
     empty_btn : Button,
     article_btn : Button,
+    minimal_btn : Button,
+    report_btn : Button,
+    book_btn : Button,
+    present_btn : Button,
     pub recent_list : RecentList
-    //report_btn : Button,
-    //presentation_btn : Button
 }
 
 impl StartScreen {
@@ -292,7 +214,16 @@ impl StartScreen {
         bx.append(&recent_list.bx);
         bx.append(&new_bx);
 
-        Self { bx, empty_btn : empty_btn.btn.clone(), article_btn : article_btn.btn.clone(), recent_list }
+        Self {
+            bx,
+            empty_btn : empty_btn.btn.clone(),
+            article_btn : article_btn.btn.clone(),
+            recent_list,
+            report_btn : report_btn.btn.clone(),
+            book_btn : book_btn.btn.clone(),
+            present_btn : present_btn.btn.clone(),
+            minimal_btn : minimal_btn.btn.clone()
+        }
     }
 
 }

@@ -7,37 +7,18 @@ use super::*;
 use crate::analyzer::Analyzer;
 use glib::signal::SignalHandlerId;
 
-// TODO Study using https://crates.io/crates/dissimilar for review
-
 #[derive(Debug, Clone)]
 pub struct PapersEditor {
     pub view : View,
     pub scroll : ScrolledWindow,
     pub overlay : libadwaita::ToastOverlay,
-
-    // Holds overlay with overview + sub_paned
-    // pub paned : Paned,
-
-    // Holds Sourceview scroll + PDF viewer scroll
     pub sub_paned : Paned,
-
     pub ignore_file_save_action : gio::SimpleAction,
     pub buf_change_handler : Rc<RefCell<Option<SignalHandlerId>>>,
     pub curr_toast : Rc<RefCell<Option<libadwaita::Toast>>>,
-
     pub pdf_viewer : PdfViewer,
-
     pub popover : Popover
 }
-
-/*
-TODO configure set_enable_undo AND max_undo_levels
-*/
-
-// set_right_margin
-// set_top_margin
-// set_left_margin
-// set_bottom_margin
 
 const TEXT_WIDTH : i32 = 820;
 
@@ -49,28 +30,18 @@ impl PapersEditor {
         let view = View::new();
         view.set_hexpand(true);
 
-        // HAlign center : Guarantees the text is centered when we are
-        // in distraction-free mode, and the scrollbar is always visible.
-        // Halign fill: Avoids hiding the scrollbar when the pdf viewer and
-        // overview are both present.
         view.set_halign(Align::Center);
 
         configure_view(&view);
-
-        // The width request guarantees the text is not wrapped while the
-        // center paned is moved (it is simply hidden for very extreme positions).
-        // The align center guarantees the margins are aligned.
 
         let scroll = ScrolledWindow::new();
 
         view.set_margin_top(TEXT_VERTICAL_PADDING);
         view.set_margin_bottom(TEXT_VERTICAL_PADDING);
 
+        /* This makes the seamless transition between editor and background */
         let provider = CssProvider::new();
         provider.load_from_data("* { background-color : #ffffff; } ".as_bytes());
-
-        // scroll.set_kinetic_scrolling(false);
-
         scroll.style_context().add_provider(&provider, 800);
         scroll.set_child(Some(&view));
 
@@ -90,7 +61,6 @@ impl PapersEditor {
         let sub_paned = Paned::new(Orientation::Horizontal);
         sub_paned.set_shrink_start_child(false);
         sub_paned.set_resize_start_child(false);
-        // sub_paned.set_sensitive(false);
         let pdf_viewer = PdfViewer::new(zoom_action);
         sub_paned.set_start_child(Some(&scroll));
 
@@ -709,3 +679,7 @@ impl FontData {
         })
     }
 }
+
+
+// TODO Study using https://crates.io/crates/dissimilar for review
+
