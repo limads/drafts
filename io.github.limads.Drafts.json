@@ -1,95 +1,94 @@
 {
-    "app-id" : "io.github.limads.Drafts",
-    "runtime" : "org.gnome.Platform",
-    "runtime-version" : "43",
-    "sdk" : "org.gnome.Sdk",
-    "sdk-extensions" : [
-        "org.freedesktop.Sdk.Extension.rust-stable"
-    ],
-    "command" : "drafts",
-    "finish-args" : [
-        "--share=ipc",
-        "--socket=wayland",
-        "--socket=fallback-x11",
-        "--device=dri",
-        "--filesystem=home"
-    ],
-    "build-options" : {
-        "append-path" : "/usr/lib/sdk/rust-stable/bin",
+  "app-id": "io.github.limads.Drafts",
+  "runtime": "org.gnome.Platform",
+  "runtime-version": "43",
+  "sdk": "org.gnome.Sdk",
+  "sdk-extensions": [
+    "org.freedesktop.Sdk.Extension.rust-stable"
+  ],
+  "command": "drafts",
+  "finish-args": [
+    "--share=ipc",
+    "--socket=wayland",
+    "--socket=fallback-x11",
+    "--device=dri",
+    "--filesystem=home"
+  ],
+  "build-options": {
+    "append-path": "/usr/lib/sdk/rust-stable/bin"
+  },
+  "cleanup": [
+    "/include",
+    "/lib/pkgconfig",
+    "/man",
+    "/share/doc",
+    "/share/gtk-doc",
+    "/share/man",
+    "/share/pkgconfig",
+    "*.la",
+    "*.a"
+  ],
+  "modules": [
+    {
+      "name": "poppler",
+      "buildsystem": "cmake-ninja",
+      "config-opts": [
+        "-DENABLE_BOOST=OFF",
+        "-DENABLE_LIBOPENJPEG=none",
+        "-DBUILD_GTK_TESTS=OFF",
+        "-DENABLE_QT5=OFF",
+        "-DENABLE_QT6=OFF",
+        "-DBUILD_QT5_TESTS=OFF",
+        "-DBUILD_QT6_TESTS=OFF",
+        "-DBUILD_MANUAL_TESTS=OFF",
+        "-DENABLE_UTILS=OFF",
+        "-DENABLE_CPP=OFF",
+        "-DBUILD_CPP_TESTS=OFF",
+        "-DENABLE_GOBJECT_INTROSPECTION=OFF",
+        "-DENABLE_LIBCURL=OFF",
+        "-DENABLE_ZLIB=OFF"
+      ],
+      "sources": [
+        {
+          "type": "archive",
+          "url": "https://poppler.freedesktop.org/poppler-22.06.0.tar.xz",
+          "sha256": "a0f9aaa3918bad781039fc307a635652a14d1b391cd559b66edec4bedba3c5d7"
+        }
+      ]
     },
-    "cleanup" : [
-        "/include",
-        "/lib/pkgconfig",
-        "/man",
-        "/share/doc",
-        "/share/gtk-doc",
-        "/share/man",
-        "/share/pkgconfig",
-        "*.la",
-        "*.a"
-    ],
-    "modules" : [
+    {
+      "name": "Drafts",
+      "builddir": true,
+      "buildsystem": "simple",
+      "build-options": {
+        "env": {
+          "ICON_SRC": "data/icons/hicolor",
+          "ICON_DST": "/app/share/icons/hicolor",
+          "CARGO_TARGET_PATH": "/run/build/Drafts/target/release"
+        }
+      },
+      "build-commands": [
+        "sh ./scripts/build.sh"
+      ],
+      "sources": [
         {
-            "name": "poppler",
-            "buildsystem": "cmake-ninja",
-            "config-opts": [
-                "-DENABLE_BOOST=OFF",
-		        "-DENABLE_LIBOPENJPEG=none",
-		        "-DBUILD_GTK_TESTS=OFF",
-		        "-DENABLE_QT5=OFF",
-		        "-DENABLE_QT6=OFF",
-		        "-DBUILD_QT5_TESTS=OFF",
-		        "-DBUILD_QT6_TESTS=OFF",
-		        "-DBUILD_MANUAL_TESTS=OFF",
-		        "-DENABLE_UTILS=OFF",
-		        "-DENABLE_CPP=OFF",
-		        "-DBUILD_CPP_TESTS=OFF",
-		        "-DENABLE_GOBJECT_INTROSPECTION=OFF",
-		        "-DENABLE_LIBCURL=OFF",
-		        "-DENABLE_ZLIB=OFF"
-            ],
-            "sources": [
-                {
-                    "type": "archive",
-                    "url": "https://poppler.freedesktop.org/poppler-22.06.0.tar.xz",
-                    "sha256": "a0f9aaa3918bad781039fc307a635652a14d1b391cd559b66edec4bedba3c5d7"
-                }
-            ]
+          "type": "archive",
+          "url": "https://limads.sfo3.cdn.digitaloceanspaces.com/drafts-vendored%2Fv0.1.0%2Fvendored.tar.gz",
+          "sha256": "5ae66b3f6e072ce9e6ef1f7a3f617c7d9186388219efeced2944dd8765e71362"
         },
-
         {
-	    "name" : "Drafts",
-	    "builddir" : true,
-	    "buildsystem" : "simple",
-	    "build-options" : {
-		"env": {
-		    "ICON_SRC" : "data/icons/hicolor",
-            "ICON_DST" : "/app/share/icons/hicolor",
-            "CARGO_TARGET_PATH" : "/run/build/Drafts/target/release"
-		}
-	    },
-	    "build-commands" : [
-	    	"sh ./scripts/build.sh"
-	    ],
-	    "sources" : [
-		    {
-              "type" : "archive",
-              "url" : "https://limads.sfo3.cdn.digitaloceanspaces.com/queries-vendored/v0.1.5/vendored.tar.gz",
-              "sha256" : "e8c7c1408990633b40abf59e25097bbb08ff7362e4d0d4d3c39d5207c2e60967"
-            },
-            {
-                "type" : "git",
-                "url" : "https://github.com/limads/drafts.git",
-                "tag" : "v0.1.0"
-            }
-	    ],
-	    "post-install" : [
-	    	"install -D ${ICON_SRC}/scalable/apps/${FLATPAK_ID}.svg ${ICON_DST}/scalable/apps/${FLATPAK_ID}.svg",
-            "install -D ${ICON_SRC}/symbolic/apps/${FLATPAK_ID}-symbolic.svg ${ICON_DST}/symbolic/apps/${FLATPAK_ID}-symbolic.svg",
-            "install -Dm644 data/${FLATPAK_ID}.desktop -t ${FLATPAK_DEST}/share/applications",
-            "install -Dm644 data/${FLATPAK_ID}.appdata.xml -t ${FLATPAK_DEST}/share/metainfo",
-            "install -Dm755 ${CARGO_TARGET_PATH}/drafts -t ${FLATPAK_DEST}/bin"
-	    ]
-	}
-    ]
+          "type": "git",
+          "url": "https://github.com/limads/drafts.git",
+          "tag": "v0.1.0"
+        }
+      ],
+      "post-install": [
+        "install -D ${ICON_SRC}/scalable/apps/${FLATPAK_ID}.svg ${ICON_DST}/scalable/apps/${FLATPAK_ID}.svg",
+        "install -D ${ICON_SRC}/symbolic/apps/${FLATPAK_ID}-symbolic.svg ${ICON_DST}/symbolic/apps/${FLATPAK_ID}-symbolic.svg",
+        "install -Dm644 data/${FLATPAK_ID}.desktop -t ${FLATPAK_DEST}/share/applications",
+        "install -Dm644 data/${FLATPAK_ID}.appdata.xml -t ${FLATPAK_DEST}/share/metainfo",
+        "install -Dm755 ${CARGO_TARGET_PATH}/drafts -t ${FLATPAK_DEST}/bin"
+      ]
+    }
+  ]
 }
