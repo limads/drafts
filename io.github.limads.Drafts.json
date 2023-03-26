@@ -1,32 +1,21 @@
 {
-    "app-id" : "com.github.limads.Drafts",
+    "app-id" : "io.github.limads.Drafts",
     "runtime" : "org.gnome.Platform",
-    "runtime-version" : "42",
+    "runtime-version" : "43",
     "sdk" : "org.gnome.Sdk",
     "sdk-extensions" : [
         "org.freedesktop.Sdk.Extension.rust-stable"
     ],
     "command" : "drafts",
     "finish-args" : [
-        "--share=network",
         "--share=ipc",
         "--socket=wayland",
-        "--socket=x11",
         "--socket=fallback-x11",
         "--device=dri",
-        "--socket=system-bus",
-        "--socket=session-bus",
         "--filesystem=home"
     ],
     "build-options" : {
         "append-path" : "/usr/lib/sdk/rust-stable/bin",
-        "build-args" : [
-            "--share=network"
-        ],
-        "env" : {
-            "RUST_BACKTRACE" : "1",
-            "RUST_LOG" : "Drafts=debug"
-        }
     },
     "cleanup" : [
         "/include",
@@ -40,45 +29,24 @@
         "*.a"
     ],
     "modules" : [
-
-	{
-            "name" : "icu",
-            "builddir" : true,
-            "buildsystem" : "simple",
-            "sources" : [
-            	{
-            	    "type" : "archive",
-            	    "url" : "https://github.com/unicode-org/icu/releases/download/release-69-1/icu4c-69_1-src.tgz",
-            	    "sha256" : "4cba7b7acd1d3c42c44bb0c14be6637098c7faf2b330ce876bc5f3b915d09745"
-            	}
-            ],
-            "build-commands" : [
-            	"mkdir build",
-		"cd build",
-		"../icu/source/runConfigureICU Linux --prefix=/app",
-		"make check",
-		"make install"
-            ]
-        },
-
         {
             "name": "poppler",
             "buildsystem": "cmake-ninja",
             "config-opts": [
                 "-DENABLE_BOOST=OFF",
-		"-DENABLE_LIBOPENJPEG=none",
-		"-DBUILD_GTK_TESTS=OFF",
-		"-DENABLE_QT5=OFF",
-		"-DENABLE_QT6=OFF",
-		"-DBUILD_QT5_TESTS=OFF",
-		"-DBUILD_QT6_TESTS=OFF",
-		"-DBUILD_MANUAL_TESTS=OFF",
-		"-DENABLE_UTILS=OFF",
-		"-DENABLE_CPP=OFF",
-		"-DBUILD_CPP_TESTS=OFF",
-		"-DENABLE_GOBJECT_INTROSPECTION=OFF",
-		"-DENABLE_LIBCURL=OFF",
-		"-DENABLE_ZLIB=OFF"
+		        "-DENABLE_LIBOPENJPEG=none",
+		        "-DBUILD_GTK_TESTS=OFF",
+		        "-DENABLE_QT5=OFF",
+		        "-DENABLE_QT6=OFF",
+		        "-DBUILD_QT5_TESTS=OFF",
+		        "-DBUILD_QT6_TESTS=OFF",
+		        "-DBUILD_MANUAL_TESTS=OFF",
+		        "-DENABLE_UTILS=OFF",
+		        "-DENABLE_CPP=OFF",
+		        "-DBUILD_CPP_TESTS=OFF",
+		        "-DENABLE_GOBJECT_INTROSPECTION=OFF",
+		        "-DENABLE_LIBCURL=OFF",
+		        "-DENABLE_ZLIB=OFF"
             ],
             "sources": [
                 {
@@ -95,37 +63,32 @@
 	    "buildsystem" : "simple",
 	    "build-options" : {
 		"env": {
-		    "PKG_CONFIG_PATH" : "/app/lib:/app/lib/pkgconfig",
-		    "ICON_SRC" : "/run/build/Drafts/data/icons/hicolor",
-		    "ICON_DST" : "/app/share/icons/hicolor",
-		    "FLATPAK_ICON_DST" : "/app/share/app-info/icons/flatpak",
-		    "CARGO_TARGET_PATH" : "/run/build/Drafts/target/debug"
+		    "ICON_SRC" : "data/icons/hicolor",
+            "ICON_DST" : "/app/share/icons/hicolor",
+            "CARGO_TARGET_PATH" : "/run/build/Drafts/target/release"
 		}
 	    },
 	    "build-commands" : [
-	    	"cargo build --manifest-path=${FLATPAK_BUILDER_BUILDDIR}/Cargo.toml --verbose"
+	    	"sh ./scripts/build.sh"
 	    ],
 	    "sources" : [
-		{
-		    "type" : "git",
-		    "url" : "file:///home/diego/Software/gnome/drafts"
-		}
+		    {
+              "type" : "archive",
+              "url" : "https://limads.sfo3.cdn.digitaloceanspaces.com/queries-vendored/v0.1.5/vendored.tar.gz",
+              "sha256" : "e8c7c1408990633b40abf59e25097bbb08ff7362e4d0d4d3c39d5207c2e60967"
+            },
+            {
+                "type" : "git",
+                "url" : "https://github.com/limads/drafts.git",
+                "tag" : "v0.1.0"
+            }
 	    ],
 	    "post-install" : [
-	    	"mkdir -p ${ICON_DST}/scalable/apps ${ICON_DST}/symbolic/apps ${FLATPAK_ICON_DST}/64x64 ${FLATPAK_ICON_DST}/128x128",
-	    	"install -D ${ICON_SRC}/scalable/apps/${FLATPAK_ID}.svg ${ICON_DST}/scalable/apps",
-		    "install -D ${ICON_SRC}/symbolic/apps/${FLATPAK_ID}-symbolic.svg ${ICON_DST}/symbolic/apps",
-		    "install -D ${ICON_SRC}/64x64/apps/${FLATPAK_ID}.png ${FLATPAK_ICON_DST}/64x64",
-	    	"install -D ${ICON_SRC}/128x128/apps/${FLATPAK_ID}.png ${FLATPAK_ICON_DST}/128x128",
-	    	"mkdir -p ${FLATPAK_DEST}/share/applications ${FLATPAK_DEST}/share/glib-2.0/schemas",
-	    	"install -D ${FLATPAK_BUILDER_BUILDDIR}/data/${FLATPAK_ID}.desktop ${FLATPAK_DEST}/share/applications",
-	    	"install -D ${FLATPAK_BUILDER_BUILDDIR}/data/${FLATPAK_ID}.gschema.xml ${FLATPAK_DEST}/share/glib-2.0/schemas",
-	    	"mkdir -p ${FLATPAK_DEST}/share/appdata ${FLATPAK_DEST}/share/app-info/xmls",
-	    	"gzip ${FLATPAK_BUILDER_BUILDDIR}/data/${FLATPAK_ID}.appdata.xml --keep",
-	    	"install -D ${FLATPAK_BUILDER_BUILDDIR}/data/${FLATPAK_ID}.appdata.xml.gz ${FLATPAK_DEST}/share/app-info/xmls",
-	    	"mkdir -p ${FLATPAK_DEST}/bin",
-	    	"install -D ${CARGO_TARGET_PATH}/drafts ${FLATPAK_DEST}/bin",
-	    	"install -D ${CARGO_TARGET_PATH}/helper ${FLATPAK_DEST}/bin"
+	    	"install -D ${ICON_SRC}/scalable/apps/${FLATPAK_ID}.svg ${ICON_DST}/scalable/apps/${FLATPAK_ID}.svg",
+            "install -D ${ICON_SRC}/symbolic/apps/${FLATPAK_ID}-symbolic.svg ${ICON_DST}/symbolic/apps/${FLATPAK_ID}-symbolic.svg",
+            "install -Dm644 data/${FLATPAK_ID}.desktop -t ${FLATPAK_DEST}/share/applications",
+            "install -Dm644 data/${FLATPAK_ID}.appdata.xml -t ${FLATPAK_DEST}/share/metainfo",
+            "install -Dm755 ${CARGO_TARGET_PATH}/drafts -t ${FLATPAK_DEST}/bin"
 	    ]
 	}
     ]

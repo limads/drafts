@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <schemalist gettext-domain="Drafts">
-	<schema id="io.github.limads.Drafts" path="/io/github/limads/drafts/">
+	<schema id="io.github.limads.Drafts" path="/io/github/limads/Drafts/">
 	</schema>
 </schemalist>

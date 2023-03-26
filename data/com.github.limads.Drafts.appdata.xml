@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<component type="desktop">
+
+    <id>io.github.limads.Drafts.desktop</id>
+
+    <name>Drafts</name>
+
+    <metadata_license>CC0-1.0</metadata_license>
+
+    <project_license>GPL-3.0-or-later</project_license>
+
+    <summary>A self-contained document preparation system</summary>
+
+    <description>
+        <p>Drafts is an editor for technical writing that leverages the Typst typesetting system.</p>
+        <p>Features</p>
+        <ul>
+        <li>A lightweight editing experience with syntax highlighting and document navigation</li>
+        <li>PDF preview and export</li>
+        <li>Menu-based interactions for common tasks</li>
+        </ul>
+    </description>
+
+    <categories>
+        <category>Productivity</category>
+        <category>Office</category>
+    </categories>
+
+    <keywords>
+        <keyword translate="no">Writing</keyword>
+        <keyword translate="no">PDF</keyword>
+        <keyword translate="no">Markup</keyword>
+    </keywords>
+
+    <developer_name>Diego Lima</developer_name>
+
+    <url type="homepage">https://github.com/limads/drafts</url>
+    <url type="bugtracker">https://github.com/limads/drafts/issues</url>
+    <url type="donation">https://github.com/sponsors/limads</url>
+    <url type="help">https://github.com/limads/drafts/wiki</url>
+
+    <screenshots>
+      <screenshot>
+          <image>URL</image>
+        </screenshot>
+    </screenshots>
+
+    <releases>
+       <release version="0.1.0" date="2022-11-15">
+            <description>
+                <p></p>
+            </description>
+        </release>
+    </releases>
+
+    <content_rating type="oars-1.1" />
+
+</component>
+
+

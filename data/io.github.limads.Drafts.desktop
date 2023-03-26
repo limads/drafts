@@ -1,0 +1,12 @@
+[Desktop Entry]
+Name=Drafts
+GenericName=Drafts
+Comment=Tyst editor
+Categories=Development;Office
+Icon=io.github.limads.Drafts
+Exec=drafts
+Terminal=false
+Type=Application
+MimeType=text/plain
+Keywords=Writing;PDF;Markup
+

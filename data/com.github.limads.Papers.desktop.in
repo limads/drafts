@@ -1,8 +1,0 @@
-[Desktop Entry]
-Name=Papers
-Exec=papers
-Icon=com.github.limads.Papers
-Terminal=false
-Type=Application
-Categories=GTK;
-StartupNotify=true

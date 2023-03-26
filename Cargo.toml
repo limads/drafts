@@ -15,8 +15,8 @@ regex = "1.5.4"
 serde_json = "1.0.68"
 serde = { version="1.0.130", features=["derive"] }
 poppler-rs = "0.19.0"
-stateful = { path = "../stateful" }
-filecase = { path = "../filecase" }
+stateful = { git = "https://github.com/limads/stateful" }
+filecase = { git = "https://github.com/limads/filecase" }
 log = "0.4.17"
 systemd-journal-logger = "0.5.0"
 itertools = "0.10.3"

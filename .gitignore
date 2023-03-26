@@ -1,4 +1,8 @@
 /target
+.buildconfig
+.cargo
 /.flatpak-builder
-/builddir
-/data/resources/compiled.gresource
+/vendored
+/build
+vendored.tar.gz
+drafts.flatpak
