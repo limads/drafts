@@ -211,64 +211,6 @@ impl Analyzer {
                             }
                         }
 
-                        /*println!("Text init/changed");
-                        match Lexer::scan(&new_txt[..]).map(|tks| tks.to_owned() ) {
-                            Ok(new_info) => {
-                                // Update external file references
-                                // Tectonic always require that \bibliographystyle{plain} (or other desired style)
-                                // is always present at the document for references to be processed correctly.
-                                for tk in new_info.tokens() {
-                                    match tk {
-                                        Token::Command(Command { cmd : "bibliography", arg : Some(CommandArg::Text(f)), .. }, _) => {
-                                            println!("Bib cmd found");
-                                            if let Some(bib_file) = bib_file.as_mut() {
-                                                bib_file.filename = Some(f.to_string());
-                                                bib_send.send(Some(bib_file.clone()));
-                                            } else {
-                                                bib_file = Some(BibFile {
-                                                    filename : Some(f.to_string()),
-                                                    base_dir : None
-                                                });
-                                                bib_send.send(bib_file.clone());
-                                            }
-                                        },
-                                        _ => { }
-                                    }
-                                }
-
-                                tk_info = new_info;
-                                match Parser::from_tokens(tk_info.tokens()) {
-                                    Ok(new_doc) => {
-
-                                        // Always update after an error or if the token sequence changed.
-                                        // If the token sequence remains the same, there is no update to
-                                        // be processed.
-                                        if doc != new_doc || last_err.is_some() {
-                                            on_doc_changed.call(new_doc.clone());
-                                        }
-
-                                        last_err = None;
-                                        doc = new_doc;
-                                    }
-
-                                    Err(e) => {
-                                        last_err = Some(e.clone());
-                                        println!("{}", e);
-                                        doc = Document::default();
-                                        on_doc_cleared.call(());
-                                        on_doc_error.call(e.clone());
-                                    }
-                                }
-                            },
-                            Err(e) => {
-                                last_err = Some(e.clone());
-                                tk_info = TokenInfo::default();
-                                doc = Document::default();
-                                on_doc_cleared.call(());
-                                on_doc_error.call(e.clone());
-                                println!("{}", e);
-                            }
-                        }*/
                     },
                     AnalyzerAction::BibChanged(txt) => {
                         match BibParser::parse(&txt[..]) {
@@ -289,16 +231,7 @@ impl Analyzer {
                         on_doc_error.call(TexError { msg : e, line : 0 });
                     },
                     AnalyzerAction::ItemSelected(sel_ixs) => {
-                        /*if let Some(tk_ix) = doc.token_index_at(&sel_ixs[..]) {
-                            // Count \n at all tokens before tk_ix
-                            // let lines_before = tk_info.pos[0..tk_ix].iter().map(|pos| tk_info.txt[pos.clone()].chars().filter(|c| *c == '\n').count() ).sum::<usize>();
-                            let lines_before = tk_info.txt[..tk_info.pos[tk_ix].start].chars().filter(|c| *c == '\n').count();
 
-                            // Add one because we want one past the last line, add +1 because lines count from 1, not zero.
-                            on_line_selection.call(lines_before);
-                        } else {
-                            println!("No token at document index {:?}", sel_ixs);
-                        }*/
                         if let Some(line) = doc.get_line(&sel_ixs[..]) {
                             on_line_selection.call(line);
                         }
@@ -401,14 +334,7 @@ impl React<FileManager> for Analyzer {
 
         manager.connect_save({
             let send = self.send.clone();
-            // let is_new = is_new.clone();
             move |path| {
-
-                // let mut is_new = is_new.borrow_mut();
-                // Trigger a document analysis whenever doc is saved, because
-                // we might have gone from unknown path -> known path and now
-                // we might be able to parse the bibtex file.
-                // if *is_new {
                 let send = send.clone();
                 thread::spawn(move || {
                     match File::open(&path) {
@@ -424,26 +350,20 @@ impl React<FileManager> for Analyzer {
                         Err(_) => { }
                     }
                 });
-                // *is_new = false;
-                // }
             }
         });
         manager.connect_opened({
             let send = self.send.clone();
-            // let is_new = is_new.clone();
             move |(path, content)| {
                 send.send(AnalyzerAction::ChangeBaseDir(Some(path.into())));
                 send.send(AnalyzerAction::TextInit(content));
-                // *(is_new.borrow_mut()) = false;
             }
         });
         manager.connect_new({
             let send = self.send.clone();
-            // let is_new = is_new.clone();
             move |_| {
                 send.send(AnalyzerAction::ChangeBaseDir(None));
                 send.send(AnalyzerAction::TextInit(String::new()));
-                // *(is_new.borrow_mut()) = true;
             }
         });
     }

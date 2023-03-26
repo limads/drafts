@@ -90,7 +90,7 @@ impl PapersEditor {
         sub_paned.set_start_child(Some(&scroll));
 
         // sub_paned.set_end_child(&pdf_viewer.scroll);
-        sub_paned.set_end_child(Some(&pdf_viewer.scroll));
+        sub_paned.set_end_child(Some(&pdf_viewer.bx));
 
         /*sub_paned.connect_visible_notify(|sub_paned| {
             let w = sub_paned.parent().unwrap().allocation().width;
@@ -371,7 +371,7 @@ impl React<Titlebar> for PapersEditor {
             (&titlebar.block_actions.list, "-"),
             (&titlebar.block_actions.listord, "+"),
             (&titlebar.block_actions.eq, "$$"),
-            (&titlebar.block_actions.tbl, "#table(columns : (50%, 50%), rows : (50%, 50%), align: center, a, b, c, d)"),
+            (&titlebar.block_actions.tbl, "#table(columns : (50%, 50%), rows : (10%, 10%), align: center, \"a\", \"b\", \"c\", \"d\")"),
             (&titlebar.block_actions.code, "```\n\n```")
         ];
 
@@ -633,7 +633,7 @@ fn configure_view(view : &View) {
     let ctx = view.style_context();
     ctx.add_provider(&provider, 800);
     let lang_manager = sourceview5::LanguageManager::default();
-    lang_manager.append_search_path("/home/diego/Software/drafts/assets");
+    lang_manager.append_search_path("resource:///io/github/limads/drafts/language-specs");
     let lang = lang_manager.language("typst").unwrap();
     buffer.set_language(Some(&lang));
     view.set_tab_width(4);

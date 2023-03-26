@@ -32,8 +32,8 @@ impl MainMenu {
         menu.append(Some("Export"), Some("win.export"));
         let popover = PopoverMenu::from_model(Some(&menu));
         let actions = FileActions::new();
-        let open_dialog = OpenDialog::build("*.typ");
-        let save_dialog = SaveDialog::build("*.typ");
+        let open_dialog = OpenDialog::build(&["*.typ"]);
+        let save_dialog = SaveDialog::build(&["*.typ"]);
         // let export_dialog = SaveDialog::build("*.pdf");
         let export_action = gio::SimpleAction::new("export", None);
         // let action_close = gio::SimpleAction::new("close_file", None);
@@ -53,7 +53,7 @@ pub struct Titlebar {
     pub typeset_action : gio::SimpleAction,
     // pub editor_btn : ToggleButton,
     // pub explore_toggle : ToggleButton,
-    pub explore_toggle : MenuButton,
+
     pub sidebar_hide_action : gio::SimpleAction,
     pub sectioning_actions : SectioningActions,
     pub object_actions : ObjectActions,
@@ -64,6 +64,14 @@ pub struct Titlebar {
     pub fmt_popover : FormatPopover,
     pub bib_popover : BibPopover,
     pub symbol_btn : MenuButton,
+
+    pub explore_toggle : MenuButton,
+    pub add_btn : MenuButton,
+    pub bib_btn : MenuButton,
+    pub org_btn : MenuButton,
+    pub fmt_btn : MenuButton,
+    pub page_btn : MenuButton,
+
     pub paper_popover : PaperPopover,
     // pub refresh_btn : Button,
     pub zoom_in_btn : Button,
@@ -161,8 +169,7 @@ impl SectioningActions {
 pub struct ObjectActions {
     pub image : gio::SimpleAction,
     pub table : gio::SimpleAction,
-    pub link : gio::SimpleAction,
-    pub latex : gio::SimpleAction,
+    pub source : gio::SimpleAction,
     pub bibfile : gio::SimpleAction,
 }
 
@@ -170,15 +177,14 @@ impl ObjectActions {
 
     pub fn build() -> Self {
         let image = gio::SimpleAction::new("image", None);
-        let table = gio::SimpleAction::new("table", None);
-        let link = gio::SimpleAction::new("link", None);
+        let table = gio::SimpleAction::new("csv", None);
         let bibfile = gio::SimpleAction::new("bibfile", None);
-        let latex = gio::SimpleAction::new("latex", None);
-        Self { image, table, link, bibfile, latex }
+        let source = gio::SimpleAction::new("src", None);
+        Self { image, table, bibfile, source }
     }
 
     pub fn iter<'a>(&'a self) -> impl Iterator<Item=gio::SimpleAction> + 'a {
-        [self.image.clone(), self.table.clone(), self.link.clone(), self.bibfile.clone(), self.latex.clone()].into_iter()
+        [self.image.clone(), self.table.clone(), /*self.link.clone(),*/ self.bibfile.clone(), self.source.clone()].into_iter()
     }
 
 }
@@ -345,12 +351,12 @@ impl FormatPopover {
 
         let height_bx = Box::new(Orientation::Vertical, 0);
         let height_btn_bx = Box::new(Orientation::Horizontal, 0);
-        let (line_height_10, line_height_15, line_height_20) = (build_fmt_btn("1.0"), build_fmt_btn("1.5"), build_fmt_btn("2.0"));
+        let (line_height_10, line_height_15, line_height_20) = (build_fmt_btn("0.65"), build_fmt_btn("0.98"), build_fmt_btn("1.3"));
         for btn in [&line_height_10, &line_height_15, &line_height_20] {
             height_btn_bx.append(btn);
         }
         height_btn_bx.style_context().add_class("linked");
-        let height_title_bx = PackedImageLabel::build("line-height-symbolic", "Line height");
+        let height_title_bx = PackedImageLabel::build("line-height-symbolic", "Line height (em)");
         height_bx.append(&height_title_bx.bx);
         height_bx.append(&height_btn_bx);
         par_bx.append(&height_bx);
@@ -792,6 +798,16 @@ impl React<Analyzer> for Titlebar {
 
 impl Titlebar {
 
+    pub fn set_edit(&self, edit : bool) {
+        self.explore_toggle.set_sensitive(edit);
+        self.symbol_btn.set_sensitive(edit);
+        self.fmt_btn.set_sensitive(edit);
+        self.bib_btn.set_sensitive(edit);
+        self.page_btn.set_sensitive(edit);
+        self.add_btn.set_sensitive(edit);
+        self.org_btn.set_sensitive(edit);
+    }
+
     pub fn set_prepared(&self, prepared : bool) {
         self.main_menu.actions.save.set_enabled(prepared);
         self.main_menu.actions.save_as.set_enabled(prepared);
@@ -819,12 +835,7 @@ impl Titlebar {
     pub fn build() -> Self {
         let header = HeaderBar::new();
         let menu_button = MenuButton::builder().icon_name("open-menu-symbolic").build();
-
-        // let editor_btn = ToggleButton::builder().icon_name("gedit-symbolic").build();
         let pdf_btn = Button::builder().icon_name("ink-tool-symbolic").build();
-
-        // view_pdf_btn.set_group(Some(&editor_btn));
-        // editor_btn.style_context().add_class("flat");
         pdf_btn.style_context().add_class("flat");
         pdf_btn.set_sensitive(false);
 
@@ -832,27 +843,7 @@ impl Titlebar {
         view_pdf_btn.set_active(false);
         view_pdf_btn.set_sensitive(false);
 
-        // editor_btn.set_active(true);
-        // let toggle_bx = Box::new(Orientation::Horizontal, 0);
-        // toggle_bx.style_context().add_class("linked");
-        // toggle_bx.append(&editor_btn);
-        // toggle_bx.append(&view_pdf_btn);
-
-        // let hide_pdf_btn = Button::builder().icon_name("user-trash-symbolic").build();
-        // let export_pdf_btn = Button::builder().icon_name("folder-download-symbolic").build();
         let explore_toggle = MenuButton::builder().icon_name("explore-symbolic").build();
-        // hide_pdf_btn.set_sensitive(false);
-
-        // export_pdf_btn.set_sensitive(false);
-        // \noindent - inline command that applies to current paragarph
-        // \setlength{\parindent}{20pt} - At document config.
-
-        /*
-        \usepackage{multicol}
-        \begin{multicols}{2}
-
-        \end{multicols}
-        */
 
         let fmt_popover = FormatPopover::build();
         let fmt_btn = MenuButton::new();
@@ -891,17 +882,11 @@ impl Titlebar {
 
         page_entry.set_sensitive(false);
 
-        // let bx = Box::new(Orientation::Vertical, 0);
-        /*let section_btn = Button::with_label("Section");
-        for btn in [&section_btn] {
-            btn.style_context().add_class("flat");
-            bx.append(btn);
-        }*/
-
         let obj_menu = gio::Menu::new();
         obj_menu.append_item(&gio::MenuItem::new(Some("Image"), Some("win.image")));
-        obj_menu.append_item(&gio::MenuItem::new(Some("Table (csv)"), Some("win.table")));
-        obj_menu.append_item(&gio::MenuItem::new(Some("Bibliography (bib)"), Some("win.bibfile")));
+        obj_menu.append_item(&gio::MenuItem::new(Some("Table"), Some("win.csv")));
+        obj_menu.append_item(&gio::MenuItem::new(Some("Source"), Some("win.src")));
+        obj_menu.append_item(&gio::MenuItem::new(Some("Bibliography"), Some("win.bibfile")));
 
         // let struct_submenu = gio::Menu::new();
 
@@ -953,10 +938,10 @@ impl Titlebar {
 
         let sectioning_submenu = gio::Menu::new();
         // sectioning_submenu.append_item(&gio::MenuItem::new(Some("Chapter"), Some("win.chapter")));
-        sectioning_submenu.append_item(&gio::MenuItem::new(Some("Heading (1st level)"), Some("win.section")));
-        sectioning_submenu.append_item(&gio::MenuItem::new(Some("Heading (2nd level)"), Some("win.subsection")));
-        sectioning_submenu.append_item(&gio::MenuItem::new(Some("Heading (3rd level)"), Some("win.sub_subsection")));
-        org_menu.append_item(&gio::MenuItem::new_submenu(Some("Sectioning"), &sectioning_submenu));
+        sectioning_submenu.append_item(&gio::MenuItem::new(Some("First level"), Some("win.section")));
+        sectioning_submenu.append_item(&gio::MenuItem::new(Some("Second level"), Some("win.subsection")));
+        sectioning_submenu.append_item(&gio::MenuItem::new(Some("Third level"), Some("win.sub_subsection")));
+        org_menu.append_item(&gio::MenuItem::new_submenu(Some("Heading"), &sectioning_submenu));
 
         //\clearpage
         let layout_submenu = gio::Menu::new();
@@ -977,11 +962,12 @@ impl Titlebar {
         // \pagebreak[0]
         // \newline
 
-        let block_submenu = gio::Menu::new();
-        block_submenu.append_item(&gio::MenuItem::new(Some("Equation"), Some("win.eq")));
-        block_submenu.append_item(&gio::MenuItem::new(Some("Code listing"), Some("win.code")));
-        block_submenu.append_item(&gio::MenuItem::new(Some("Unordered List"), Some("win.list")));
-        block_submenu.append_item(&gio::MenuItem::new(Some("Ordered List"), Some("win.listord")));
+        // let block_submenu = gio::Menu::new();
+        org_menu.append_item(&gio::MenuItem::new(Some("Equation"), Some("win.eq")));
+        org_menu.append_item(&gio::MenuItem::new(Some("Code listing"), Some("win.code")));
+        org_menu.append_item(&gio::MenuItem::new(Some("Table"), Some("win.tbl")));
+        org_menu.append_item(&gio::MenuItem::new(Some("Unordered List"), Some("win.list")));
+        org_menu.append_item(&gio::MenuItem::new(Some("Ordered List"), Some("win.listord")));
 
         // \quote{}
         // block_submenu.append_item(&gio::MenuItem::new(Some("Quote (simple)"), Some("win.function")));
@@ -994,7 +980,7 @@ impl Titlebar {
         // block_submenu.append_item(&gio::MenuItem::new(Some("Code listing"), Some("win.code")));
         // block_submenu.append_item(&gio::MenuItem::new(Some("Table (embedded)"), Some("win.tbl")));
         // block_submenu.append_item(&gio::MenuItem::new(Some("Bibliography (embedded)"), Some("win.bib")));
-        org_menu.append_item(&gio::MenuItem::new_submenu(Some("Block"), &block_submenu));
+        // org_menu.append_item(&gio::MenuItem::new_submenu(Some("Block"), &block_submenu));
 
         /*let meta_submenu = gio::Menu::new();
         meta_submenu.append_item(&gio::MenuItem::new(Some("Author"), Some("win.author")));
@@ -1149,6 +1135,12 @@ impl Titlebar {
         Self {
             typeset_action,
             symbol_btn,
+            fmt_btn,
+            bib_btn,
+            page_btn,
+            add_btn,
+            org_btn,
+
             main_menu,
             header,
             menu_button,

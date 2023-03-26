@@ -11,7 +11,6 @@ tempfile = "3.3.0"
 nom = "7.1.0"
 either = "1.6.1"
 anyhow = "^1"
-tectonic = "0.11.0"
 regex = "1.5.4"
 serde_json = "1.0.68"
 serde = { version="1.0.130", features=["derive"] }
@@ -34,6 +33,7 @@ same-file = "1"
 siphasher = "0.3"
 codespan-reporting = "0.11"
 elsa = "1.8.0"
+csv = "1.1.6"
 
 [build-dependencies]
 glib-build-tools = "0.16.0"
@@ -41,8 +41,3 @@ glib-build-tools = "0.16.0"
 [[bin]]
 name="drafts"
 path="src/main.rs"
-
-# [[bin]]
-# name = "helper"
-# path = "src/helper.rs"
-

@@ -8,30 +8,14 @@ use gtk4::gio;
 use stateful::React;
 use stateful::PersistentState;
 use drafts::state::PapersState;
+use drafts::typst_tools::Fonts;
+use std::rc::Rc;
 
-// TODO error messages must escape &
-
-// TODO (papers:6764): Gdk-CRITICAL **: 22:03:37.455: gdk_popup_present: assertion 'width > 0' failed
-
-// flatpak remote-add --if-not-exists gnome-nightly https://nightly.gnome.org/gnome-nightly.flatpakrepo
-// flatpak install gnome-nightly org.gnome.Sdk master
-// flatpak install gnome-nightly org.gnome.Platform master
-// flatpak install flathub org.freedesktop.Sdk.Extension.rust-stable
-// To install locally, pass the --install flag without any arguments.
-// flatpak-builder --force-clean --install /home/diego/Downloads/papers-build com.github.limads.Papers.json
-
-/*
-At flatpak builds, the application can always read/write from (which will be resolved to the corresponding subdir of ~/.var/<appid>:
-XDG_DATA_HOME
-XDG_CONFIG_HOME
-XDG_CACHE_HOME
-XDG_STATE_HOME
-*/
-
-fn register_resource() {
+fn register_resource() -> gio::Resource {
     let bytes = glib::Bytes::from_static(include_bytes!(concat!(env!("OUT_DIR"), "/", "compiled.gresource")));
     let resource = gio::Resource::from_data(&bytes).unwrap();
     gio::resources_register(&resource);
+    resource
 }
 
 fn main() {
@@ -44,7 +28,8 @@ fn main() {
     systemd_journal_logger::init();
     log::set_max_level(log::LevelFilter::Info);
 
-    register_resource();
+    let resource = register_resource();
+    let fonts = Fonts::new(&resource);
 
     // let resource = gio::Resource::load("resources/compiled.gresource");
 
@@ -129,7 +114,7 @@ fn main() {
 
             papers_win.start_screen.recent_list.react(&manager);
 
-            let typesetter = Typesetter::new();
+            let typesetter = Typesetter::new(fonts.clone());
             typesetter.react(&papers_win);
             typesetter.react(&manager);
 

@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <gresources>
+
   <gresource prefix="/io/github/limads/drafts">
+
+    <!-- Symbolic icons -->
     <file preprocess="xml-stripblanks" alias="icons/scalable/actions/break-point-symbolic.svg">../icons/hicolor/symbolic/actions/break-point-symbolic.svg</file>
     <file preprocess="xml-stripblanks" alias="icons/scalable/actions/dialog-error-symbolic.svg">../icons/hicolor/symbolic/actions/dialog-error-symbolic.svg</file>
     <file preprocess="xml-stripblanks" alias="icons/scalable/actions/equation-symbolic.svg">../icons/hicolor/symbolic/actions/equation-symbolic.svg</file>
@@ -23,6 +26,7 @@
     <file preprocess="xml-stripblanks" alias="icons/scalable/actions/two-columns-symbolic.svg">../icons/hicolor/symbolic/actions/two-columns-symbolic.svg</file>
     <file preprocess="xml-stripblanks" alias="icons/scalable/actions/user-bookmarks-symbolic.svg">../icons/hicolor/symbolic/actions/user-bookmarks-symbolic.svg</file>
 
+    <!-- Document pictures -->
     <file preprocess="xml-stripblanks" alias="icons/scalable/actions/article.svg">../icons/hicolor/scalable/actions/article.svg</file>
     <file preprocess="xml-stripblanks" alias="icons/scalable/actions/book.svg">../icons/hicolor/scalable/actions/book.svg</file>
     <file preprocess="xml-stripblanks" alias="icons/scalable/actions/empty.svg">../icons/hicolor/scalable/actions/empty.svg</file>
@@ -30,7 +34,19 @@
     <file preprocess="xml-stripblanks" alias="icons/scalable/actions/minimal.svg">../icons/hicolor/scalable/actions/minimal.svg</file>
     <file preprocess="xml-stripblanks" alias="icons/scalable/actions/presentation.svg">../icons/hicolor/scalable/actions/presentation.svg</file>
     <file preprocess="xml-stripblanks" alias="icons/scalable/actions/report.svg">../icons/hicolor/scalable/actions/report.svg</file>
-    <file alias="style.css">../style.css</file>
+
+    <!-- Fonts -->
+    <file alias="fonts/LinLibertine_R.ttf">../fonts/LinLibertine_R.ttf</file>
+    <file alias="fonts/LinLibertine_RB.ttf">../fonts/LinLibertine_RB.ttf</file>
+    <file alias="fonts/LinLibertine_RBI.ttf">../fonts/LinLibertine_RBI.ttf</file>
+    <file alias="fonts/LinLibertine_RI.ttf">../fonts/LinLibertine_RI.ttf</file>
+    <file alias="fonts/NewCMMath-Book.otf">../fonts/NewCMMath-Book.otf</file>
+    <file alias="fonts/NewCMMath-Regular.otf">../fonts/NewCMMath-Regular.otf</file>
+    <file alias="fonts/DejaVuSansMono.ttf">../fonts/DejaVuSansMono.ttf</file>
+    <file alias="fonts/DejaVuSansMono-Bold.ttf">../fonts/DejaVuSansMono-Bold.ttf</file>
+
+    <!-- Syntax files -->
+    <file alias="language-specs/typst.lang">../language-specs/typst.lang</file>
 
   </gresource>
 </gresources>

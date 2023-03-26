@@ -13,13 +13,11 @@ use crate::typesetter::{Typesetter, TypesetterTarget};
 use gio::prelude::*;
 use glib::{types::Type, value::{Value, ToValue}};
 use gdk_pixbuf::Pixbuf;
-use std::path::Path;
+use std::path::{PathBuf, Path};
 use filecase::SingleArchiverImpl;
 use filecase::{OpenDialog, SaveDialog};
 use poppler::Document;
-
-// TODO replace existing file is not working when saving it.
-// (No current document to export)
+use either::Either;
 
 mod doctree;
 
@@ -42,6 +40,10 @@ pub struct PapersWindow {
     pub stack : Stack,
     pub start_screen : StartScreen,
     pub export_pdf_dialog : SaveDialog,
+    pub import_csv_dialog : OpenDialog,
+    pub import_img_dialog : OpenDialog,
+    pub import_bib_dialog : OpenDialog,
+    pub import_src_dialog : OpenDialog,
 }
 
 // \usepackage[utf8]{ulem}
@@ -106,19 +108,17 @@ P.S. You can find the full text of GFDL license at
 \end{document}
 "#;
 
-const PRESENTATION_TEMPLATE : &'static str = r#"\documentclass{beamer}
-\begin{document}
-  \begin{frame}
-    \frametitle{This is the first slide}
-    %Content goes here
-  \end{frame}
-  \begin{frame}
-    \frametitle{This is the second slide}
-    \framesubtitle{A bit more information about this}
-    %More content goes here
-  \end{frame}
-% etc
-\end{document}
+const PRESENTATION_TEMPLATE : &'static str = r#"
+grid(columns: (1fr, 1fr, 1fr))[
+  #set align(left)
+  ...
+][
+  #set align(center)
+  ...
+][
+  #set align(right)
+  ...
+]
 "#;
 
 fn start_document(view : &View, stack : &Stack, titlebar : &Titlebar, template : &str) {
@@ -128,6 +128,7 @@ fn start_document(view : &View, stack : &Stack, titlebar : &Titlebar, template :
     titlebar.main_menu.actions.save_as.set_enabled(true);
     titlebar.view_pdf_btn.set_active(false);
     titlebar.view_pdf_btn.set_sensitive(true);
+    titlebar.set_edit(true);
 }
 
 impl React<StartScreen> for PapersWindow {
@@ -174,28 +175,6 @@ impl React<StartScreen> for PapersWindow {
     }
 }
 
-// Create tectonic workspace
-// tectonic -X new myfirstdoc
-
-// Compile document in on-off fashion
-// tectonic -X compile myfile.tex
-
-// Compile workspace
-// tectonic -X build
-
-// tectonic -X compile geometrical-notes.odt --outfmt html
-
-/* Add at the preamble to support Unicode/HTML
-\usepackage{fontspec}
-\setmainfont{texgyrepagella}[
-  Extension = .otf,
-  UprightFont = *-regular,
-  BoldFont = *-bold,
-  ItalicFont = *-italic,
-  BoldItalicFont = *-bolditalic,
-]
-*/
-
 pub struct DocBtn {
     pub btn : Button
 }
@@ -204,7 +183,6 @@ impl DocBtn {
 
     pub fn build(image : &str, title : &str, sub : &str) -> Self {
         let btn = Button::new();
-        //let img = Picture::for_filename(image);
         let img = Picture::for_resource(&format!("io/github/limads/drafts/icons/scalable/actions/{}.svg", image));
         img.set_can_shrink(false);
         let lbl_bx = Box::new(Orientation::Vertical, 12);
@@ -231,19 +209,6 @@ impl DocBtn {
 
 }
 
-// \url{http://www.uni.edu/~myname/best-website-ever.html}
-/*
-\begin{comment}
-rather stupid,
-but helpful
-\end{comment}
-
-\textcolor[rgb]{0,1,0}{This text will appear green-colored}
-
-\setmainfont{Georgia}
-\setsansfont{Arial}
-
-*/
 const PAPERS_PRELUDE : &'static str = r"
     \usepackage{url}
     \usepackage{comment}
@@ -260,20 +225,19 @@ const MINIMAL_DESCRIPTION : &'static str = r#"
 Useful for notes, drafts and other generic text"#;
 
 const ARTICLE_DESCRIPTION : &'static str = r#"
-Short document divided into sections and
-subsections. Aimed at journal articles."#;
+Short document divided into sections,
+aimed at specialized journals."#;
 
 const REPORT_DESCRIPTION : &'static str = r#"
-Longer document aimed at technical reports,
-dissertations and thesis."#;
+A template for technical reports, dissertations
+and thesis."#;
 
 const BOOK_DESCRIPTION : &'static str = r#"
-Long document divided into chapters
-and with front, main and back matter."#;
+Long document divided into chapters."#;
 
 const PRESENTATION_DESCRIPTION : &'static str = r#"
-A document focusing on visual communication.
-Separated into slides."#;
+A document focusing on visual communication,
+organized as a slideshow."#;
 
 #[derive(Debug, Clone)]
 pub struct StartScreen {
@@ -298,11 +262,6 @@ impl StartScreen {
         let book_btn = DocBtn::build("book", "Book", BOOK_DESCRIPTION);
         let present_btn = DocBtn::build("presentation", "Presentation", PRESENTATION_DESCRIPTION);
 
-        // let report_btn = Button::builder().label("Report").build();
-        // let presentation_btn = Button::builder().label("Presentation").build();
-        // letter
-        // book
-
         let new_bx = Box::new(Orientation::Vertical, 16);
         doc_upper_bx.append(&empty_btn.btn);
         doc_upper_bx.append(&minimal_btn.btn);
@@ -318,14 +277,11 @@ impl StartScreen {
         new_bx.append(&doc_middle_bx);
         new_bx.append(&doc_lower_bx);
         new_bx.set_margin_end(128);
-        //set_margins(&center_bx, 128, 0);
 
         new_bx.set_vexpand(true);
         new_bx.set_valign(Align::Center);
         new_bx.set_hexpand(true);
         new_bx.set_halign(Align::End);
-
-        // bx.append(&report_btn);
 
         let recent_list = RecentList::build();
         bx.append(&recent_list.bx);
@@ -337,110 +293,115 @@ impl StartScreen {
 }
 
 const GREEK_SMALL : [(&'static str, &'static str); 24] = [
-    ("α", "\\alpha"),
-    ("β", "\\beta"),
-    ("γ", "\\gamma"),
-    ("δ", "\\delta"),
-    ("ε", "\\epsilon"),
-    ("ζ", "\\zeta"),
-    ("η", "\\eta"),
-    ("θ", "\\theta"),
-    ("ι", "\\iota"),
-    ("κ", "\\kappa"),
-    ("λ", "\\lambda"),
-    ("μ", "\\mu"),
-    ("ν", "\\nu"),
-    ("ξ", "\\xi"),
-    ("ο", "\\omicron"),
-    ("π", "\\pi"),
-    ("ρ", "\\rho"),
-    ("σ", "\\sigma"),
-    ("τ", "\\tau"),
-    ("υ", "\\upsilon"),
-    ("φ", "\\phi"),
-    ("χ", "\\chi"),
-    ("ψ", "\\psi"),
-    ("ω", "\\omega")
+    ("α", "alpha"),
+    ("β", "beta"),
+    ("γ", "gamma"),
+    ("δ", "delta"),
+    ("ε", "epsilon"),
+    ("ζ", "zeta"),
+    ("η", "eta"),
+    ("θ", "theta"),
+    ("ι", "iota"),
+    ("κ", "kappa"),
+    ("λ", "lambda"),
+    ("μ", "mu"),
+    ("ν", "nu"),
+    ("ξ", "xi"),
+    ("ο", "omicron"),
+    ("π", "pi"),
+    ("ρ", "rho"),
+    ("σ", "sigma"),
+    ("τ", "tau"),
+    ("υ", "upsilon"),
+    ("φ", "phi"),
+    ("χ", "chi"),
+    ("ψ", "psi"),
+    ("ω", "omega")
 ];
 
 const GREEK_CAPITAL : [(&'static str, &'static str); 24] = [
-    ("Α", "\\Alpha"),
-    ("Β", "\\Beta"),
-    ("Γ", "\\Gamma"),
-    ("Δ", "\\Delta"),
-    ("Ε", "\\Epsilon"),
-    ("Ζ", "\\Zeta"),
-    ("Η", "\\Eta"),
-    ("Θ", "\\Theta"),
-    ("Ι", "\\Iota"),
-    ("Κ", "\\Kappa"),
-    ("Λ", "\\Lambda"),
-    ("Μ", "\\Mu"),
-    ("Ν", "\\Nu"),
-    ("Ξ", "\\Xi"),
-    ("Ο", "\\Omicron"),
-    ("Π", "\\Pi"),
-    ("Ρ", "\\Rho"),
-    ("Σ", "\\Sigma"),
-    ("Τ", "\\Tau"),
-    ("Υ", "\\Upsilon"),
-    ("Φ", "\\Phi"),
-    ("Χ", "\\Chi"),
-    ("Ψ", "\\Psi"),
-    ("Ω", "\\Omega")
+    ("Α", "Alpha"),
+    ("Β", "Beta"),
+    ("Γ", "Gamma"),
+    ("Δ", "Delta"),
+    ("Ε", "Epsilon"),
+    ("Ζ", "Zeta"),
+    ("Η", "Eta"),
+    ("Θ", "Theta"),
+    ("Ι", "Iota"),
+    ("Κ", "Kappa"),
+    ("Λ", "Lambda"),
+    ("Μ", "Mu"),
+    ("Ν", "Nu"),
+    ("Ξ", "Xi"),
+    ("Ο", "Omicron"),
+    ("Π", "Pi"),
+    ("Ρ", "Rho"),
+    ("Σ", "Sigma"),
+    ("Τ", "Tau"),
+    ("Υ", "Upsilon"),
+    ("Φ", "Phi"),
+    ("Χ", "Chi"),
+    ("Ψ", "Psi"),
+    ("Ω", "Omega")
 ];
 
 // https://en.wikipedia.org/wiki/Mathematical_operators_and_symbols_in_Unicode
-const OPERATORS : [(&'static str, &'static str); 48] = [
-    ("=", "\\eq"),
-    ("⋜", "\\leq"),
-    ("⋝", "\\geq"),
-    ("≠", "\\neq"),
-    ("√", "\\sqrt"),
+const OPERATORS : [(&'static str, &'static str); 36] = [
+    ("=", "="),
+    ("≠", "!="),
+    ("≈", "approx"),
     (">", ">"),
     ("<", "<"),
-    ("×", "\\times"),
-    ("÷", "\\div"),
-    ("±",  "\\pm"),
-    ("∫", "\\int"),
-    ("∑", "\\sum"),
-    ("⨅", "\\prod"),
-    ("→", "\\to"),
-    ("↦", "\\mapsto"),
-    ("∂", "\\partial"),
-    ("∇", "\\nabla"),
-    ("∼", "\\tilde"),
-    ("∣", "\\vert"),
-    ("∘", "\\circ"),
-    ("∗", "\\ast"),
-    ("∠", "\\angle"),
-    ("∀", "\\forall"),
-    ("∃", "\\exists"),
-    ("∄", "\\nexists"),
-    ("∈", "\\in"),
-    ("∈/", "\\notin"),
-    ("∧", "\\land"),
-    ("∨", "\\lor"),
-    ("a^", "\\hat"),
-    ("△", "\\triangle"),
-    ("∴",  "\\therefore"),
-    ("∵",  "\\because"),
-    ("⋆", "\\star"),
-    ("½", "\\frac{}{}"),
-    ("∅", "\\emptyset"),
-    ("∪", "\\cup"),
-    ("∩", "\\cap"),
-    ("⋃", "\\bigcup"),
-    ("⋂ ", "\\bigcap"),
-    ("∖", "\\setminus"),
-    ("⊂", "\\sub"),
-    ("⊆", "\\sube"),
-    ("⊃", "\\supset"),
-    ("⊇", "\\supe"),
-    ("…",  "\\dots"),
-    ("⋱", "\\ddots"),
-    ("⋮", "\\vdots"),
+    ("⋝", ">="),
+    ("⋜", "<="),
+    ("√", "sqrt()"),
+    ("×", "times"),
+    ("÷", "div"),
+    ("∑", "sum"),
+    ("⨅", "product"),
+    ("∂", "diff"),
+    ("∇", "nabla"),
+    ("∫", "integral"),
+    ("∼", "tilde"),
+    ("⋆", "star"),
+    ("⟂", "perp"),
+    ("∥", "parallel"),
+    ("½", "frac()"),
+    ("∣", "divides"),
+    ("∘", "compose"),
+    // ("∗", "ast"),
+    ("∧", "and"),
+    ("∨", "or"),
+    ("∀", "forall"),
+    ("∃", "exists"),
+    ("∄", "exists.not"),
+    ("△", "triangle"),
+    ("∴",  "therefore"),
+    ("∵",  "because"),
+    ("∈", "in"),
+    ("∈/", "in.not"),
+    ("∪", "union"),
+    ("∩", "sect"),
+    ("⊂", "subset"),
+    ("⊃", "supset"),
+
+    // ("…",  "dots"),
+    // ("⋱", "dots.down"),
+    // ("⋮", "dots.v"),
+    // ("∠", "angle"),
+    // ("a^", "hat()"),
 ];
+
+// ("⋃", "\\bigcup"),
+// ("⋂ ", "\\bigcap"),
+// ("∖", "\\setminus"),
+// ("⊆", "\\sube"),
+// ("⊇", "\\supe"),
+// ("∅", "\\emptyset"),
+// ("±",  "\\pm"),
+// ("→", "\\to"),
+// ("↦", "\\mapsto"),
 
 #[derive(Debug, Clone)]
 pub struct SymbolGrid {
@@ -511,6 +472,8 @@ impl PapersWindow {
     pub fn from(window : ApplicationWindow) -> Self {
 
         let titlebar = Titlebar::build();
+        titlebar.set_edit(false);
+
         window.set_titlebar(Some(&titlebar.header));
         window.set_decorated(true);
         let doc_tree = DocTree::build();
@@ -523,15 +486,26 @@ impl PapersWindow {
             }
         });
 
-        let export_pdf_dialog = filecase::SaveDialog::build("*.pdf");
+        let export_pdf_dialog = filecase::SaveDialog::build(&["*.pdf"]);
         export_pdf_dialog.dialog.set_transient_for(Some(&window));
 
-        titlebar.main_menu.export_action.connect_activate({
-            let export_pdf_dialog = export_pdf_dialog.clone();
-            move |_,_| {
-                export_pdf_dialog.dialog.show();
-            }
-        });
+        let import_csv_dialog = filecase::OpenDialog::build(&["*.csv"]);
+        import_csv_dialog.dialog.set_transient_for(Some(&window));
+
+        let import_src_dialog = filecase::OpenDialog::build(&["*.typ"]);
+        import_src_dialog.dialog.set_transient_for(Some(&window));
+
+        let import_img_dialog = filecase::OpenDialog::build(&["*.png", "*.jpg", "*.jpeg", "*.gif", "*.svg"]);
+        import_img_dialog.dialog.set_transient_for(Some(&window));
+
+        let import_bib_dialog = filecase::OpenDialog::build(&["*.bib"]);
+        import_bib_dialog.dialog.set_transient_for(Some(&window));
+
+        show_on_action(&titlebar.object_actions.image, &import_img_dialog.dialog);
+        show_on_action(&titlebar.object_actions.source, &import_src_dialog.dialog);
+        show_on_action(&titlebar.object_actions.table, &import_csv_dialog.dialog);
+        show_on_action(&titlebar.object_actions.bibfile, &import_bib_dialog.dialog);
+        show_on_action(&titlebar.main_menu.export_action, &export_pdf_dialog.dialog);
 
         export_pdf_dialog.dialog.connect_response({
             let doc = editor.pdf_viewer.doc.clone();
@@ -666,11 +640,6 @@ impl PapersWindow {
         let symbol_popover = SymbolPopover::build(&editor);
         titlebar.symbol_btn.set_popover(Some(&symbol_popover.popover));
 
-        // symbol_dialog.set_child(Some(&symbol_bx));
-        // titlebar.math_actions.symbol.connect_activate(move |_, _| {
-        //    symbol_dialog.show();
-        // });
-
         let titlebar_actions = titlebar.object_actions.iter()
             .chain(titlebar.layout_actions.iter())
             .chain(titlebar.sectioning_actions.iter())
@@ -681,9 +650,93 @@ impl PapersWindow {
             window.add_action(&action);
         }
 
-        Self { window, titlebar, editor, doc_tree, stack, start_screen, export_pdf_dialog }
+        Self {
+            window,
+            titlebar,
+            editor,
+            doc_tree,
+            stack,
+            start_screen,
+            export_pdf_dialog,
+            import_csv_dialog,
+            import_img_dialog,
+            import_bib_dialog,
+            import_src_dialog
+        }
     }
 
+}
+
+fn show_on_action(action : &gio::SimpleAction, dialog : &FileChooserDialog) {
+    action.connect_activate({
+        let dialog = dialog.clone();
+        move |_,_| {
+            dialog.show();
+        }
+    });
+}
+
+fn write_on_import(
+    view : sourceview5::View,
+    dialog : &OpenDialog,
+    manager : &FileManager,
+    prefix : Either<&'static str, Rc<dyn Fn(&Path)->String + 'static>>,
+    suffix : Either<&'static str, Rc<dyn Fn(&Path)->String + 'static>>
+) {
+    let curr_path = Rc::new(RefCell::new(None));
+    manager.connect_new({
+        let curr_path = curr_path.clone();
+        move |_| {
+            *curr_path.borrow_mut() = None;
+        }
+    });
+    manager.connect_opened({
+        let curr_path = curr_path.clone();
+        move |(path, _)| {
+            *curr_path.borrow_mut() = Some(PathBuf::from(path));
+        }
+    });
+    manager.connect_save({
+        let curr_path = curr_path.clone();
+        move |path| {
+            *curr_path.borrow_mut() = Some(PathBuf::from(path));
+        }
+    });
+    dialog.dialog.connect_response({
+        let curr_path = curr_path.clone();
+        move |dialog, resp| {
+            match resp {
+                ResponseType::Accept => {
+                    let Some(path) = dialog.file().and_then(|f| f.path() ) else { return };
+                    let res_path = if let Some(src_parent) = curr_path.borrow().as_ref()
+                        .and_then(|src_path| src_path.parent().to_owned() )
+                    {
+                        if let Ok(stripped) = path.strip_prefix(src_parent) {
+                            stripped.to_owned()
+                        } else {
+                            path.to_owned()
+                        }
+                    } else {
+                        path.to_owned()
+                    };
+
+                    let prefix = match prefix.clone() {
+                        Either::Left(pre) => pre.to_string(),
+                        Either::Right(f) => f(&path)
+                    };
+                    let suffix = match suffix.clone() {
+                        Either::Left(suff) => suff.to_string(),
+                        Either::Right(f) => f(&path)
+                    };
+                    let txt = format!("{}\"{}\"{}", prefix, res_path.to_str().unwrap(), suffix);
+                    let buffer = view.buffer();
+                    buffer.insert_at_cursor(&txt);
+                    view.grab_focus();
+                },
+                _ => { }
+            }
+        }
+    });
 }
 
 impl React<FileManager> for PapersWindow {
@@ -704,6 +757,9 @@ impl React<FileManager> for PapersWindow {
                 titlebar.clear_pages();
                 titlebar::clear_list(&bib_list);
                 titlebar::create_init_row(&bib_list);
+
+                // Remember: The new document is still behind the stack at this point.
+                titlebar.set_edit(false);
             }
         });
         manager.connect_opened({
@@ -717,14 +773,36 @@ impl React<FileManager> for PapersWindow {
                 titlebar.set_prepared(true);
                 titlebar.clear_pages();
                 init_export_path(&export_pdf_dialog.dialog, path);
+                titlebar.set_edit(true);
+            }
+        });
+        manager.connect_file_changed({
+            let bar = self.editor.pdf_viewer.bar.clone();
+            move |_| {
+                bar.set_revealed(true);
             }
         });
         manager.connect_save({
             let export_pdf_dialog = self.export_pdf_dialog.clone();
+            let bar = self.editor.pdf_viewer.bar.clone();
             move |path| {
+                bar.set_revealed(false);
                 init_export_path(&export_pdf_dialog.dialog, path);
             }
         });
+
+        let csv_func = Rc::new(|path : &Path| -> String {
+            let ncols = csv::Reader::from_path(path).ok()
+                .and_then(|mut rdr| rdr.records().next() )
+                .and_then(|res_rec| res_rec.ok() )
+                .map(|rec| rec.len() )
+                .unwrap_or(1);
+            format!("#table(columns:{},..csv(", ncols)
+        });
+        write_on_import(self.editor.view.clone(), &self.import_csv_dialog, manager, Either::Right(csv_func), Either::Left(").flatten())"));
+        write_on_import(self.editor.view.clone(), &self.import_img_dialog, manager, Either::Left("#image("), Either::Left(")"));
+        write_on_import(self.editor.view.clone(), &self.import_bib_dialog, manager, Either::Left("#bibliography("), Either::Left(")"));
+        write_on_import(self.editor.view.clone(), &self.import_src_dialog, manager, Either::Left("#import"), Either::Left(": *"));
     }
 
 }
@@ -948,8 +1026,8 @@ impl React<Typesetter> for PapersWindow {
                 },
                 TypesetterTarget::PDFContent(bytes) => {
                     use std::io::Write;
-                    let mut f = std::fs::File::create("/home/diego/Downloads/out.pdf").unwrap();
-                    f.write_all(&bytes).unwrap();
+                    // let mut f = std::fs::File::create("/tmp/out.pdf").unwrap();
+                    // f.write_all(&bytes).unwrap();
                     match poppler::Document::from_data(&bytes[..], None) {
                         Ok(doc) => {
                             editor.pdf_viewer.update(&doc, &titlebar.zoom_action);
@@ -997,7 +1075,10 @@ pub struct PdfViewer {
     da2 : DrawingArea,
     curr_page : Rc<RefCell<usize>>,
     stack : Stack,
-    turn_action : gio::SimpleAction
+    turn_action : gio::SimpleAction,
+    bar : ActionBar,
+    bar_lbl : Label,
+    bx : Box
 }
 
 impl React<Titlebar> for PdfViewer {
@@ -1199,6 +1280,7 @@ impl PdfViewer {
         let da1 = DrawingArea::new();
         let da2 = DrawingArea::new();
         let stack = Stack::new();
+        stack.set_vexpand(true);
         let click = GestureClick::new();
         let curr_page = Rc::new(RefCell::new(0));
         let doc = Rc::new(RefCell::new(None));
@@ -1340,9 +1422,39 @@ impl PdfViewer {
 
         crate::configure_da_for_doc(&da1);
         crate::configure_da_for_doc(&da2);
-        scroll.set_child(Some(&stack));
 
-        Self { scroll, das, pages_bx, doc, da1, da2, curr_page, stack, turn_action }
+        scroll.set_child(Some(&stack));
+        let bar = ActionBar::new();
+        bar.set_height_request(48);
+        bar.set_revealed(true);
+        let bar_lbl = Label::new(Some("Unsaved changes must be committed to file before typesetting"));
+        let bar_bx = Box::new(Orientation::Horizontal, 0);
+        bar_bx.append(&bar_lbl);
+        bar_bx.set_hexpand(true);
+        bar_bx.set_halign(Align::Fill);
+        let close_btn = Button::from_icon_name("window-close-symbolic");
+        close_btn.connect_clicked({
+            let bar = bar.clone();
+            move |_| {
+                if bar.is_revealed() {
+                    bar.set_revealed(false);
+                }
+            }
+        });
+        bar_bx.append(&close_btn);
+        close_btn.style_context().add_class("flat");
+        close_btn.set_hexpand(true);
+        close_btn.set_halign(Align::End);
+        bar_lbl.set_hexpand(true);
+        bar_lbl.set_justify(Justification::Left);
+        bar_lbl.set_halign(Align::Start);
+
+        bar.set_center_widget(Some(&bar_bx));
+        let bx = Box::new(Orientation::Vertical, 0);
+        bx.append(&scroll);
+        bx.append(&bar);
+
+        Self { scroll, das, pages_bx, doc, da1, da2, curr_page, stack, turn_action, bar, bar_lbl, bx }
     }
 
     pub fn update_contiguous(&self, doc : &poppler::Document, zoom_action : &gio::SimpleAction) {
@@ -1378,6 +1490,25 @@ impl PdfViewer {
         self.stack.set_visible_child_name("left");
     }
 
+}
+
+const BAR_WHITE_CSS : &str = r#"
+infobar { background-color : #EBEBEB; border-top : 1px solid #F0F0F0; }
+"#;
+
+const BAR_DARK_CSS : &str = r#"
+infobar { background-color : #303030; border-top : 1px solid #454545; }
+"#;
+
+fn add_bar_css(bar : &InfoBar) {
+    let provider = CssProvider::new();
+    if libadwaita::StyleManager::default().is_dark() {
+        provider.load_from_data(BAR_DARK_CSS.as_bytes());
+    } else {
+        provider.load_from_data(BAR_WHITE_CSS.as_bytes());
+    }
+    let ctx = bar.style_context();
+    ctx.add_provider(&provider,800);
 }
 
 /*// #[cfg(feature="poppler")]

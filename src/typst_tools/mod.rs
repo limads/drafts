@@ -25,6 +25,9 @@ use elsa::FrozenVec;
 use typst::syntax::{ast::{Expr, Markup, Arg, AstNode}};
 use crate::tex::{Section, Subsection, Item};
 use typst::diag::{FileError, FileResult, SourceError, StrResult};
+use std::rc::Rc;
+use gtk4::gio;
+use std::sync::Arc;
 
 fn first_text(mark : &Markup) -> String {
     for e in mark.exprs() {
@@ -187,6 +190,24 @@ type CodespanResult<T> = Result<T, CodespanError>;
 
 type CodespanError = codespan_reporting::files::Error;
 
+#[derive(Clone)]
+pub struct Fonts {
+    pub book : Arc<Prehashed<FontBook>>,
+    pub fonts : Arc<[FontSlot]>
+}
+
+impl Fonts {
+
+    pub fn new(res : &gio::Resource) -> Self {
+        let searcher = FontSearcher::new(res);
+        Self {
+            fonts : searcher.fonts.into(),
+            book : Arc::new(Prehashed::new(searcher.book)),
+        }
+    }
+
+}
+
 /// Searches for fonts.
 struct FontSearcher {
     book: FontBook,
@@ -195,9 +216,13 @@ struct FontSearcher {
 
 impl FontSearcher {
 
-    fn add_embedded(&mut self) {
-        let mut add = |bytes: &'static [u8]| {
-            let buffer = Buffer::from_static(bytes);
+    fn add_embedded(&mut self, resource : &gio::Resource) {
+        let mut add = |bytes: &[u8]| {
+
+            // Unsafe required because the returned gio::Bytes doesn't have 'static lifetime.
+            // (although it is, the resource is embedded in the binary).
+            let buffer = Buffer::from_static(unsafe { std::slice::from_raw_parts(bytes.as_ptr(), bytes.len()) });
+
             for (i, font) in Font::iter(buffer).enumerate() {
                 self.book.push(font.info().clone());
                 self.fonts.push(FontSlot {
@@ -208,20 +233,29 @@ impl FontSearcher {
             }
         };
 
-        // Embed default fonts.
-        add(include_bytes!("../../assets/fonts/LinLibertine_R.ttf"));
-        add(include_bytes!("../../assets/fonts/LinLibertine_RB.ttf"));
-        add(include_bytes!("../../assets/fonts/LinLibertine_RBI.ttf"));
-        add(include_bytes!("../../assets/fonts/LinLibertine_RI.ttf"));
-        add(include_bytes!("../../assets/fonts/NewCMMath-Book.otf"));
-        add(include_bytes!("../../assets/fonts/NewCMMath-Regular.otf"));
-        add(include_bytes!("../../assets/fonts/DejaVuSansMono.ttf"));
-        add(include_bytes!("../../assets/fonts/DejaVuSansMono-Bold.ttf"));
+        let font_prefix = "/io/github/limads/drafts/fonts/";
+        let fonts = [
+            "LinLibertine_R.ttf",
+            "LinLibertine_RB.ttf",
+            "LinLibertine_RBI.ttf",
+            "LinLibertine_RI.ttf",
+            "NewCMMath-Book.otf",
+            "NewCMMath-Regular.otf",
+            "DejaVuSansMono.ttf",
+            "DejaVuSansMono-Bold.ttf"
+        ];
+        for font in fonts {
+            let font_path = format!("{}{}", font_prefix, font);
+            add(resource.lookup_data(&font_path, gio::ResourceLookupFlags::empty()).unwrap().as_ref());
+        }
     }
 
     /// Create a new, empty system searcher.
-    fn new() -> Self {
-        Self { book: FontBook::new(), fonts: vec![] }
+    fn new(res : &gio::Resource) -> Self {
+        let mut searcher = Self { book: FontBook::new(), fonts: vec![] };
+        searcher.search_system();
+        searcher.add_embedded(res);
+        searcher
     }
 
     /// Search for fonts in the linux system font directories.
@@ -273,8 +307,8 @@ impl FontSearcher {
 struct SystemWorld {
     root: PathBuf,
     library: Prehashed<Library>,
-    book: Prehashed<FontBook>,
-    fonts: Vec<FontSlot>,
+    book: Arc<Prehashed<FontBook>>,
+    fonts: Arc<[FontSlot]>,
     hashes: RefCell<HashMap<PathBuf, FileResult<PathHash>>>,
     paths: RefCell<HashMap<PathHash, PathSlot>>,
     sources: FrozenVec<Box<Source>>,
@@ -282,7 +316,7 @@ struct SystemWorld {
 }
 
 /// Holds details about the location of a font and lazily the font itself.
-struct FontSlot {
+pub struct FontSlot {
     path: PathBuf,
     index: u32,
     font: OnceCell<Option<Font>>,
@@ -296,15 +330,12 @@ struct PathSlot {
 }
 
 impl SystemWorld {
-    fn new(root: PathBuf) -> Self {
-        let mut searcher = FontSearcher::new();
-        searcher.search_system();
-        searcher.add_embedded();
+    fn new(root: PathBuf, fonts : Fonts) -> Self {
         Self {
             root,
             library: Prehashed::new(typst_library::build()),
-            book: Prehashed::new(searcher.book),
-            fonts: searcher.fonts,
+            book: fonts.book.clone(),
+            fonts: fonts.fonts.clone(),
             hashes: RefCell::default(),
             paths: RefCell::default(),
             sources: FrozenVec::new(),
@@ -422,12 +453,12 @@ impl SystemWorld {
     }
 }
 
-pub fn compile(path : &Path) -> Result<Vec<u8>, Vec<(usize, String)>> {
+pub fn compile(path : &Path, fonts : Fonts) -> Result<Vec<u8>, Vec<(usize, String)>> {
     let parent_path = path.parent()
         // .ok_or(vec![String::from("Missing parent directory"))?
         .unwrap()
         .to_owned();
-    let mut world = SystemWorld::new(parent_path);
+    let mut world = SystemWorld::new(parent_path, fonts);
 
     world.reset();
     world.main = world.resolve(&path).unwrap();

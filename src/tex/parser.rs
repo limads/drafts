@@ -843,8 +843,6 @@ fn bib_parser() {
 
     use std::io::Read;
     use std::fs::File;
-    //let mut content = String::new();
-    //File::open("/home/diego/Downloads/references.bib").unwrap().read_to_string(&mut content).unwrap();
     println!("{:#?}", BibParser::parse(&content));
 }
 

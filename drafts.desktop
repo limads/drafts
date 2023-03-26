@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=Drafts
+GenericName=Drafts
+Comment=LaTex editor
+Categories=Productivity;GTK
+Icon=papers
+Exec=papers
+Terminal=false
+Type=Application
+MimeType=application/x-tex
