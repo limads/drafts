@@ -1,3 +1,20 @@
+/*Copyright (c) 2022 Diego da Silva Lima. All rights reserved.
+
+This work is licensed under the terms of the GPL v3.0 License.
+For a copy, see http://www.gnu.org/licenses.*/
+
+/* This module contains code that is a modified version of the typst command line tool,
+originally licensed under MIT (Copyright © 2022-2023, Typst).
+The original version of the file can be found at the repository
+https://github.com/typst/typst (source file cli/src/main.rs).
+
+Code re-used from the CLI is restricted to the "imported"
+module. The main changes are:
+
+- Use of use shared memory semantics for FontBook and Vec<FontSlot>
+- Use the glib resource loader for fonts instead of the built-in include_bytes.
+- Use of public access modifiers. */
+
 use comemo::Prehashed;
 use typst::eval::Library;
 use typst::font::{Font, FontBook, FontInfo, FontVariant};
@@ -28,6 +45,36 @@ use typst::diag::{FileError, FileResult, SourceError, StrResult};
 use std::rc::Rc;
 use gtk4::gio;
 use std::sync::Arc;
+
+pub fn compile(path : &Path, fonts : Fonts) -> Result<Vec<u8>, Vec<(usize, String)>> {
+    let parent_path = path.parent()
+        // .ok_or(vec![String::from("Missing parent directory"))?
+        .unwrap()
+        .to_owned();
+    let mut world = SystemWorld::new(parent_path, fonts);
+
+    world.reset();
+    world.main = world.resolve(&path).unwrap();
+        //.map_err(|err| err.to_string())?;
+
+    match typst::compile(&world) {
+        Ok(doc) => {
+            Ok(typst::export::pdf(&doc))
+        },
+        Err(errs) => {
+            let mut out_errs = Vec::new();
+            for e in errs.iter() {
+                if let Some(src) = world.sources.iter().find(|s| s.id() == e.span.source() ) {
+                    let line = src.byte_to_line(src.range(e.span).start).unwrap_or(0);
+                    let msg = e.message.to_string();
+                    out_errs.push((line, msg));
+                }
+            }
+            Err(out_errs)
+        }
+    }
+
+}
 
 fn first_text(mark : &Markup) -> String {
     for e in mark.exprs() {
@@ -186,10 +233,6 @@ pub fn parse_doc(path : &Path, txt : String) -> Result<crate::tex::Document, Vec
     Ok(crate::tex::Document { items })
 }
 
-type CodespanResult<T> = Result<T, CodespanError>;
-
-type CodespanError = codespan_reporting::files::Error;
-
 #[derive(Clone)]
 pub struct Fonts {
     pub book : Arc<Prehashed<FontBook>>,
@@ -208,357 +251,339 @@ impl Fonts {
 
 }
 
-/// Searches for fonts.
-struct FontSearcher {
-    book: FontBook,
-    fonts: Vec<FontSlot>,
-}
+pub use imported::*;
 
-impl FontSearcher {
+mod imported {
 
-    fn add_embedded(&mut self, resource : &gio::Resource) {
-        let mut add = |bytes: &[u8]| {
+    use super::*;
 
-            // Unsafe required because the returned gio::Bytes doesn't have 'static lifetime.
-            // (although it is, the resource is embedded in the binary).
-            let buffer = Buffer::from_static(unsafe { std::slice::from_raw_parts(bytes.as_ptr(), bytes.len()) });
+    type CodespanResult<T> = Result<T, CodespanError>;
 
-            for (i, font) in Font::iter(buffer).enumerate() {
-                self.book.push(font.info().clone());
-                self.fonts.push(FontSlot {
-                    path: PathBuf::new(),
-                    index: i as u32,
-                    font: OnceCell::from(Some(font)),
-                });
-            }
-        };
+    type CodespanError = codespan_reporting::files::Error;
 
-        let font_prefix = "/io/github/limads/drafts/fonts/";
-        let fonts = [
-            "LinLibertine_R.ttf",
-            "LinLibertine_RB.ttf",
-            "LinLibertine_RBI.ttf",
-            "LinLibertine_RI.ttf",
-            "NewCMMath-Book.otf",
-            "NewCMMath-Regular.otf",
-            "DejaVuSansMono.ttf",
-            "DejaVuSansMono-Bold.ttf"
-        ];
-        for font in fonts {
-            let font_path = format!("{}{}", font_prefix, font);
-            add(resource.lookup_data(&font_path, gio::ResourceLookupFlags::empty()).unwrap().as_ref());
-        }
+    /// Searches for fonts.
+    pub struct FontSearcher {
+        pub book: FontBook,
+        pub fonts: Vec<FontSlot>,
     }
 
-    /// Create a new, empty system searcher.
-    fn new(res : &gio::Resource) -> Self {
-        let mut searcher = Self { book: FontBook::new(), fonts: vec![] };
-        searcher.search_system();
-        searcher.add_embedded(res);
-        searcher
-    }
+    impl FontSearcher {
 
-    /// Search for fonts in the linux system font directories.
-    fn search_system(&mut self) {
-        self.search_dir("/usr/share/fonts");
-        self.search_dir("/usr/local/share/fonts");
-        if let Some(dir) = dirs::font_dir() {
-            self.search_dir(dir);
-        }
-    }
+        fn add_embedded(&mut self, resource : &gio::Resource) {
+            let mut add = |bytes: &[u8]| {
 
-    /// Search for all fonts in a directory recursively.
-    fn search_dir(&mut self, path: impl AsRef<Path>) {
-        for entry in WalkDir::new(path)
-            .follow_links(true)
-            .sort_by(|a, b| a.file_name().cmp(b.file_name()))
-            .into_iter()
-            .filter_map(|e| e.ok())
-        {
-            let path = entry.path();
-            if matches!(
-                path.extension().and_then(|s| s.to_str()),
-                Some("ttf" | "otf" | "TTF" | "OTF" | "ttc" | "otc" | "TTC" | "OTC"),
-            ) {
-                self.search_file(path);
-            }
-        }
-    }
+                // Unsafe required because the returned gio::Bytes doesn't have 'static lifetime.
+                // (although it is, the resource is embedded in the binary).
+                let buffer = Buffer::from_static(unsafe { std::slice::from_raw_parts(bytes.as_ptr(), bytes.len()) });
 
-    /// Index the fonts in the file at the given path.
-    fn search_file(&mut self, path: impl AsRef<Path>) {
-        let path = path.as_ref();
-        if let Ok(file) = File::open(path) {
-            if let Ok(mmap) = unsafe { Mmap::map(&file) } {
-                for (i, info) in FontInfo::iter(&mmap).enumerate() {
-                    self.book.push(info);
+                for (i, font) in Font::iter(buffer).enumerate() {
+                    self.book.push(font.info().clone());
                     self.fonts.push(FontSlot {
-                        path: path.into(),
+                        path: PathBuf::new(),
                         index: i as u32,
-                        font: OnceCell::new(),
+                        font: OnceCell::from(Some(font)),
                     });
                 }
+            };
+
+            let font_prefix = "/io/github/limads/drafts/fonts/";
+            let fonts = [
+                "LinLibertine_R.ttf",
+                "LinLibertine_RB.ttf",
+                "LinLibertine_RBI.ttf",
+                "LinLibertine_RI.ttf",
+                "NewCMMath-Book.otf",
+                "NewCMMath-Regular.otf",
+                "DejaVuSansMono.ttf",
+                "DejaVuSansMono-Bold.ttf"
+            ];
+            for font in fonts {
+                let font_path = format!("{}{}", font_prefix, font);
+                add(resource.lookup_data(&font_path, gio::ResourceLookupFlags::empty()).unwrap().as_ref());
             }
         }
-    }
-}
 
-/// A world that provides access to the operating system.
-struct SystemWorld {
-    root: PathBuf,
-    library: Prehashed<Library>,
-    book: Arc<Prehashed<FontBook>>,
-    fonts: Arc<[FontSlot]>,
-    hashes: RefCell<HashMap<PathBuf, FileResult<PathHash>>>,
-    paths: RefCell<HashMap<PathHash, PathSlot>>,
-    sources: FrozenVec<Box<Source>>,
-    main: SourceId,
-}
-
-/// Holds details about the location of a font and lazily the font itself.
-pub struct FontSlot {
-    path: PathBuf,
-    index: u32,
-    font: OnceCell<Option<Font>>,
-}
-
-/// Holds canonical data for all paths pointing to the same entity.
-#[derive(Default)]
-struct PathSlot {
-    source: OnceCell<FileResult<SourceId>>,
-    buffer: OnceCell<FileResult<Buffer>>,
-}
-
-impl SystemWorld {
-    fn new(root: PathBuf, fonts : Fonts) -> Self {
-        Self {
-            root,
-            library: Prehashed::new(typst_library::build()),
-            book: fonts.book.clone(),
-            fonts: fonts.fonts.clone(),
-            hashes: RefCell::default(),
-            paths: RefCell::default(),
-            sources: FrozenVec::new(),
-            main: SourceId::detached(),
+        /// Create a new, empty system searcher.
+        pub fn new(res : &gio::Resource) -> Self {
+            let mut searcher = Self { book: FontBook::new(), fonts: vec![] };
+            searcher.search_system();
+            searcher.add_embedded(res);
+            searcher
         }
-    }
-}
 
-impl World for SystemWorld {
-    fn root(&self) -> &Path {
-        &self.root
-    }
-
-    fn library(&self) -> &Prehashed<Library> {
-        &self.library
-    }
-
-    fn main(&self) -> &Source {
-        self.source(self.main)
-    }
-
-    fn resolve(&self, path: &Path) -> FileResult<SourceId> {
-        self.slot(path)?
-            .source
-            .get_or_init(|| {
-                let buf = read(path)?;
-                let text = String::from_utf8(buf)?;
-                Ok(self.insert(path, text))
-            })
-            .clone()
-    }
-
-    fn source(&self, id: SourceId) -> &Source {
-        &self.sources[id.into_u16() as usize]
-    }
-
-    fn book(&self) -> &Prehashed<FontBook> {
-        &self.book
-    }
-
-    fn font(&self, id: usize) -> Option<Font> {
-        let slot = &self.fonts[id];
-        slot.font
-            .get_or_init(|| {
-                let data = self.file(&slot.path).ok()?;
-                Font::new(data, slot.index)
-            })
-            .clone()
-    }
-
-    fn file(&self, path: &Path) -> FileResult<Buffer> {
-        self.slot(path)?
-            .buffer
-            .get_or_init(|| read(path).map(Buffer::from))
-            .clone()
-    }
-}
-
-impl SystemWorld {
-    fn slot(&self, path: &Path) -> FileResult<RefMut<PathSlot>> {
-        let mut hashes = self.hashes.borrow_mut();
-        let hash = match hashes.get(path).cloned() {
-            Some(hash) => hash,
-            None => {
-                let hash = PathHash::new(path);
-                if let Ok(canon) = path.canonicalize() {
-                    hashes.insert(canon.normalize(), hash.clone());
-                }
-                hashes.insert(path.into(), hash.clone());
-                hash
+        /// Search for fonts in the linux system font directories.
+        fn search_system(&mut self) {
+            self.search_dir("/usr/share/fonts");
+            self.search_dir("/usr/local/share/fonts");
+            if let Some(dir) = dirs::font_dir() {
+                self.search_dir(dir);
             }
-        }?;
-
-        Ok(std::cell::RefMut::map(self.paths.borrow_mut(), |paths| {
-            paths.entry(hash).or_default()
-        }))
-    }
-
-    fn insert(&self, path: &Path, text: String) -> SourceId {
-        let id = SourceId::from_u16(self.sources.len() as u16);
-        let source = Source::new(id, path, text);
-        self.sources.push(Box::new(source));
-        id
-    }
-
-    fn relevant(&mut self, event: &notify::Event) -> bool {
-        match &event.kind {
-            notify::EventKind::Any => {}
-            notify::EventKind::Access(_) => return false,
-            notify::EventKind::Create(_) => return true,
-            notify::EventKind::Modify(kind) => match kind {
-                notify::event::ModifyKind::Any => {}
-                notify::event::ModifyKind::Data(_) => {}
-                notify::event::ModifyKind::Metadata(_) => return false,
-                notify::event::ModifyKind::Name(_) => return true,
-                notify::event::ModifyKind::Other => return false,
-            },
-            notify::EventKind::Remove(_) => {}
-            notify::EventKind::Other => return false,
         }
 
-        event.paths.iter().any(|path| self.dependant(path))
-    }
-
-    fn dependant(&self, path: &Path) -> bool {
-        self.hashes.borrow().contains_key(&path.normalize())
-            || PathHash::new(path)
-                .map_or(false, |hash| self.paths.borrow().contains_key(&hash))
-    }
-
-    fn reset(&mut self) {
-        self.sources.as_mut().clear();
-        self.hashes.borrow_mut().clear();
-        self.paths.borrow_mut().clear();
-    }
-}
-
-pub fn compile(path : &Path, fonts : Fonts) -> Result<Vec<u8>, Vec<(usize, String)>> {
-    let parent_path = path.parent()
-        // .ok_or(vec![String::from("Missing parent directory"))?
-        .unwrap()
-        .to_owned();
-    let mut world = SystemWorld::new(parent_path, fonts);
-
-    world.reset();
-    world.main = world.resolve(&path).unwrap();
-        //.map_err(|err| err.to_string())?;
-
-    match typst::compile(&world) {
-        Ok(doc) => {
-            Ok(typst::export::pdf(&doc))
-        },
-        Err(errs) => {
-            let mut out_errs = Vec::new();
-            for e in errs.iter() {
-                if let Some(src) = world.sources.iter().find(|s| s.id() == e.span.source() ) {
-                    let line = src.byte_to_line(src.range(e.span).start).unwrap_or(0);
-                    let msg = e.message.to_string();
-                    out_errs.push((line, msg));
+        /// Search for all fonts in a directory recursively.
+        fn search_dir(&mut self, path: impl AsRef<Path>) {
+            for entry in WalkDir::new(path)
+                .follow_links(true)
+                .sort_by(|a, b| a.file_name().cmp(b.file_name()))
+                .into_iter()
+                .filter_map(|e| e.ok())
+            {
+                let path = entry.path();
+                if matches!(
+                    path.extension().and_then(|s| s.to_str()),
+                    Some("ttf" | "otf" | "TTF" | "OTF" | "ttc" | "otc" | "TTC" | "OTC"),
+                ) {
+                    self.search_file(path);
                 }
             }
-            Err(out_errs)
+        }
+
+        /// Index the fonts in the file at the given path.
+        fn search_file(&mut self, path: impl AsRef<Path>) {
+            let path = path.as_ref();
+            if let Ok(file) = File::open(path) {
+                if let Ok(mmap) = unsafe { Mmap::map(&file) } {
+                    for (i, info) in FontInfo::iter(&mmap).enumerate() {
+                        self.book.push(info);
+                        self.fonts.push(FontSlot {
+                            path: path.into(),
+                            index: i as u32,
+                            font: OnceCell::new(),
+                        });
+                    }
+                }
+            }
         }
     }
 
-}
+    /// A world that provides access to the operating system.
+    pub struct SystemWorld {
+        root: PathBuf,
+        library: Prehashed<Library>,
+        book: Arc<Prehashed<FontBook>>,
+        fonts: Arc<[FontSlot]>,
+        hashes: RefCell<HashMap<PathBuf, FileResult<PathHash>>>,
+        paths: RefCell<HashMap<PathHash, PathSlot>>,
+        pub sources: FrozenVec<Box<Source>>,
+        pub main: SourceId,
+    }
 
-/// A hash that is the same for all paths pointing to the same entity.
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
-struct PathHash(u128);
+    /// Holds details about the location of a font and lazily the font itself.
+    pub struct FontSlot {
+        path: PathBuf,
+        index: u32,
+        font: OnceCell<Option<Font>>,
+    }
 
-impl PathHash {
-    fn new(path: &Path) -> FileResult<Self> {
+    /// Holds canonical data for all paths pointing to the same entity.
+    #[derive(Default)]
+    struct PathSlot {
+        source: OnceCell<FileResult<SourceId>>,
+        buffer: OnceCell<FileResult<Buffer>>,
+    }
+
+    impl SystemWorld {
+        pub fn new(root: PathBuf, fonts : Fonts) -> Self {
+            Self {
+                root,
+                library: Prehashed::new(typst_library::build()),
+                book: fonts.book.clone(),
+                fonts: fonts.fonts.clone(),
+                hashes: RefCell::default(),
+                paths: RefCell::default(),
+                sources: FrozenVec::new(),
+                main: SourceId::detached(),
+            }
+        }
+    }
+
+    impl World for SystemWorld {
+        fn root(&self) -> &Path {
+            &self.root
+        }
+
+        fn library(&self) -> &Prehashed<Library> {
+            &self.library
+        }
+
+        fn main(&self) -> &Source {
+            self.source(self.main)
+        }
+
+        fn resolve(&self, path: &Path) -> FileResult<SourceId> {
+            self.slot(path)?
+                .source
+                .get_or_init(|| {
+                    let buf = read(path)?;
+                    let text = String::from_utf8(buf)?;
+                    Ok(self.insert(path, text))
+                })
+                .clone()
+        }
+
+        fn source(&self, id: SourceId) -> &Source {
+            &self.sources[id.into_u16() as usize]
+        }
+
+        fn book(&self) -> &Prehashed<FontBook> {
+            &self.book
+        }
+
+        fn font(&self, id: usize) -> Option<Font> {
+            let slot = &self.fonts[id];
+            slot.font
+                .get_or_init(|| {
+                    let data = self.file(&slot.path).ok()?;
+                    Font::new(data, slot.index)
+                })
+                .clone()
+        }
+
+        fn file(&self, path: &Path) -> FileResult<Buffer> {
+            self.slot(path)?
+                .buffer
+                .get_or_init(|| read(path).map(Buffer::from))
+                .clone()
+        }
+    }
+
+    impl SystemWorld {
+        fn slot(&self, path: &Path) -> FileResult<RefMut<PathSlot>> {
+            let mut hashes = self.hashes.borrow_mut();
+            let hash = match hashes.get(path).cloned() {
+                Some(hash) => hash,
+                None => {
+                    let hash = PathHash::new(path);
+                    if let Ok(canon) = path.canonicalize() {
+                        hashes.insert(canon.normalize(), hash.clone());
+                    }
+                    hashes.insert(path.into(), hash.clone());
+                    hash
+                }
+            }?;
+
+            Ok(std::cell::RefMut::map(self.paths.borrow_mut(), |paths| {
+                paths.entry(hash).or_default()
+            }))
+        }
+
+        fn insert(&self, path: &Path, text: String) -> SourceId {
+            let id = SourceId::from_u16(self.sources.len() as u16);
+            let source = Source::new(id, path, text);
+            self.sources.push(Box::new(source));
+            id
+        }
+
+        fn relevant(&mut self, event: &notify::Event) -> bool {
+            match &event.kind {
+                notify::EventKind::Any => {}
+                notify::EventKind::Access(_) => return false,
+                notify::EventKind::Create(_) => return true,
+                notify::EventKind::Modify(kind) => match kind {
+                    notify::event::ModifyKind::Any => {}
+                    notify::event::ModifyKind::Data(_) => {}
+                    notify::event::ModifyKind::Metadata(_) => return false,
+                    notify::event::ModifyKind::Name(_) => return true,
+                    notify::event::ModifyKind::Other => return false,
+                },
+                notify::EventKind::Remove(_) => {}
+                notify::EventKind::Other => return false,
+            }
+
+            event.paths.iter().any(|path| self.dependant(path))
+        }
+
+        fn dependant(&self, path: &Path) -> bool {
+            self.hashes.borrow().contains_key(&path.normalize())
+                || PathHash::new(path)
+                    .map_or(false, |hash| self.paths.borrow().contains_key(&hash))
+        }
+
+        pub fn reset(&mut self) {
+            self.sources.as_mut().clear();
+            self.hashes.borrow_mut().clear();
+            self.paths.borrow_mut().clear();
+        }
+    }
+
+    /// A hash that is the same for all paths pointing to the same entity.
+    #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+    struct PathHash(u128);
+
+    impl PathHash {
+        fn new(path: &Path) -> FileResult<Self> {
+            let f = |e| FileError::from_io(e, path);
+            let handle = Handle::from_path(path).map_err(f)?;
+            let mut state = SipHasher::new();
+            handle.hash(&mut state);
+            Ok(Self(state.finish128().as_u128()))
+        }
+    }
+
+    /// Read a file.
+    fn read(path: &Path) -> FileResult<Vec<u8>> {
         let f = |e| FileError::from_io(e, path);
-        let handle = Handle::from_path(path).map_err(f)?;
-        let mut state = SipHasher::new();
-        handle.hash(&mut state);
-        Ok(Self(state.finish128().as_u128()))
-    }
-}
-
-/// Read a file.
-fn read(path: &Path) -> FileResult<Vec<u8>> {
-    let f = |e| FileError::from_io(e, path);
-    let mut file = File::open(path).map_err(f)?;
-    if file.metadata().map_err(f)?.is_file() {
-        let mut data = vec![];
-        file.read_to_end(&mut data).map_err(f)?;
-        Ok(data)
-    } else {
-        Err(FileError::IsDirectory)
-    }
-}
-
-impl<'a> codespan_reporting::files::Files<'a> for SystemWorld {
-    type FileId = SourceId;
-    type Name = std::path::Display<'a>;
-    type Source = &'a str;
-
-    fn name(&'a self, id: SourceId) -> CodespanResult<Self::Name> {
-        Ok(World::source(self, id).path().display())
+        let mut file = File::open(path).map_err(f)?;
+        if file.metadata().map_err(f)?.is_file() {
+            let mut data = vec![];
+            file.read_to_end(&mut data).map_err(f)?;
+            Ok(data)
+        } else {
+            Err(FileError::IsDirectory)
+        }
     }
 
-    fn source(&'a self, id: SourceId) -> CodespanResult<Self::Source> {
-        Ok(World::source(self, id).text())
-    }
+    impl<'a> codespan_reporting::files::Files<'a> for SystemWorld {
+        type FileId = SourceId;
+        type Name = std::path::Display<'a>;
+        type Source = &'a str;
 
-    fn line_index(&'a self, id: SourceId, given: usize) -> CodespanResult<usize> {
-        let source = World::source(self, id);
-        source
-            .byte_to_line(given)
-            .ok_or_else(|| CodespanError::IndexTooLarge {
-                given,
-                max: source.len_bytes(),
+        fn name(&'a self, id: SourceId) -> CodespanResult<Self::Name> {
+            Ok(World::source(self, id).path().display())
+        }
+
+        fn source(&'a self, id: SourceId) -> CodespanResult<Self::Source> {
+            Ok(World::source(self, id).text())
+        }
+
+        fn line_index(&'a self, id: SourceId, given: usize) -> CodespanResult<usize> {
+            let source = World::source(self, id);
+            source
+                .byte_to_line(given)
+                .ok_or_else(|| CodespanError::IndexTooLarge {
+                    given,
+                    max: source.len_bytes(),
+                })
+        }
+
+        fn line_range(
+            &'a self,
+            id: SourceId,
+            given: usize,
+        ) -> CodespanResult<std::ops::Range<usize>> {
+            let source = World::source(self, id);
+            source
+                .line_to_range(given)
+                .ok_or_else(|| CodespanError::LineTooLarge { given, max: source.len_lines() })
+        }
+
+        fn column_number(
+            &'a self,
+            id: SourceId,
+            _: usize,
+            given: usize,
+        ) -> CodespanResult<usize> {
+            let source = World::source(self, id);
+            source.byte_to_column(given).ok_or_else(|| {
+                let max = source.len_bytes();
+                if given <= max {
+                    CodespanError::InvalidCharBoundary { given }
+                } else {
+                    CodespanError::IndexTooLarge { given, max }
+                }
             })
+        }
     }
 
-    fn line_range(
-        &'a self,
-        id: SourceId,
-        given: usize,
-    ) -> CodespanResult<std::ops::Range<usize>> {
-        let source = World::source(self, id);
-        source
-            .line_to_range(given)
-            .ok_or_else(|| CodespanError::LineTooLarge { given, max: source.len_lines() })
-    }
-
-    fn column_number(
-        &'a self,
-        id: SourceId,
-        _: usize,
-        given: usize,
-    ) -> CodespanResult<usize> {
-        let source = World::source(self, id);
-        source.byte_to_column(given).ok_or_else(|| {
-            let max = source.len_bytes();
-            if given <= max {
-                CodespanError::InvalidCharBoundary { given }
-            } else {
-                CodespanError::IndexTooLarge { given, max }
-            }
-        })
-    }
 }
 
