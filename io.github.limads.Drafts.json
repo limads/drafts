@@ -78,7 +78,7 @@
         },
         {
           "type": "git",
-          "url": "https://github.com/limads/drafts.git",
+          "path": "/home/diego/Software/drafts",
           "tag": "v0.1.0"
         }
       ],
