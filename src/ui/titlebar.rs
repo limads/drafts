@@ -790,14 +790,12 @@ pub const ZOOM_SCALE_INCREMENT : f64 = 0.5;
 
 impl React<Analyzer> for Titlebar {
     fn react(&self, analyzer : &Analyzer) {
-        let explore_toggle = self.explore_toggle.clone();
+        /*let explore_toggle = self.explore_toggle.clone();
         analyzer.connect_line_selection(move |_line| {
             // if explore_toggle.is_active() {
             //    explore_toggle.set_active(false);
             // }
-            println!("explore toggle set to active false");
-            // println!("is active = {:?}", explore_toggle.is_active());
-        });
+        });*/
     }
 }
 
@@ -828,7 +826,6 @@ impl Titlebar {
 
     pub fn set_typeset_mode(&self, active : bool) {
         self.view_pdf_btn.set_active(active);
-        println!("view is true");
         self.zoom_in_btn.set_sensitive(active);
         self.zoom_out_btn.set_sensitive(active);
         self.left_btn.set_sensitive(active);
@@ -1250,7 +1247,6 @@ fn replace_groups(s : &str) -> Cow<str> {
     if let Ok((_, list)) = many0(alt((is_not("{"), crate::tex::group_str)))(s) {
         for seg in list {
             if seg.starts_with("{") {
-                println!("{}", seg);
                 repls = Cow::from(repls.replace(seg, "?"));
             }
         }
@@ -1284,7 +1280,6 @@ impl ReferenceRow {
     }
 
     pub fn update(&self, entry : &BibEntry) {
-        // println!("{:?}", entry);
         let key = format!("<b>{}</b>", entry.key());
         let full_title = trim_braces(entry.title().unwrap_or("(Untitled)").trim()).to_string();
 
@@ -1325,15 +1320,8 @@ impl ReferenceRow {
             }
         };
 
-        /*let mut broken_authors = String::new();
-        if authors.chars().count() > 60 {
-            broken_authors = authors.chars().take(60).collect();
-            broken_authors += "(...)";
-        }*/
-
         let year = trim_braces(entry.year().unwrap_or("No date").trim());
 
-        // println!("authors = {}; title = {}; key = {}", authors, title, key);
         self.key_label.set_markup(&key);
         self.authors_label.set_text(&format!("{} ({})", authors_str, year));
         self.title_label.set_text(&title);
@@ -1431,8 +1419,8 @@ impl React<Analyzer> for BibPopover {
                             let row = ReferenceRow::build(&bib_entry);
                             bib_list.insert(&row.row, pos as i32);
                         },
-                        other => {
-                            println!("Invalid reference: {:?}", other);
+                        _other => {
+
                         }
                     }
                 },

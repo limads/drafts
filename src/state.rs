@@ -23,14 +23,17 @@ pub struct InnerState {
 
 impl InnerState {
 
-    pub fn push_if_not_present(&mut self, path : &str) {
+    pub fn push_if_not_present(&mut self, path : &str) -> bool {
         if self.recent_files.iter().position(|f| &f[..] == path ).is_none() {
             self.recent_files.insert(0, path.to_string());
+            true
+        } else {
+            false
         }
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct PapersState(Rc<RefCell<InnerState>>);
 
 impl Deref for PapersState {
@@ -69,12 +72,12 @@ impl React<crate::ui::PapersWindow> for PapersState {
 }
 
 
-impl React<crate::manager::FileManager> for PapersState {
+/*impl React<crate::manager::FileManager> for PapersState {
 
     fn react(&self, manager : &crate::manager::FileManager) {
         let state = self.clone();
         manager.connect_opened(move |(path, _)| {
-            state.borrow_mut().push_if_not_present(&path);
+
         });
         let state = self.clone();
         manager.connect_save(move |path| {
@@ -82,7 +85,7 @@ impl React<crate::manager::FileManager> for PapersState {
         });
     }
 
-}
+}*/
 
 impl PersistentState<PapersWindow> for PapersState {
 

@@ -237,7 +237,7 @@ impl<'a> Token<'a> {
     pub fn from_str(s : &str) -> Result<Token<'_>, String> {
         let (rem, tk) = eval_next_token(s).map_err(|e| format!("{}", e) )?;
         if !rem.is_empty() {
-            // println!("Still not evaluated = '{}'", rem);
+
         }
         Ok(tk)
     }
@@ -898,7 +898,6 @@ fn bib_cmd() {
     println!("{:?}", command(r"\check{s}"));
     println!("{:?}", many0(command)(r"\ifmmode\check{s}"));
     println!("{:?}", many0(command)(r"\ifmmode\check{s}\else\v{s}\fi"));
-    // println!("{:?}", bib_command(r"{\ifmmode\check{s}\else\v{s}\fi}"));
 }
 
 #[test]
@@ -1001,7 +1000,7 @@ fn bib_key(s : &str) -> IResult<&str, &str> {
 }
 
 #[test]
-fn bf() {
+fn bib_field() {
     println!("{:?}", bib_field("\n\t\n\n\tauthor = {Guestrin, E. D. and Eizenman, M.}"));
     println!("{:?}", bib_field("title = {{General theory of remote gaze estimation using the pupil center and corneal reflections}}"));
     println!("{:?}", bib_field("journal = {IEEE Trans. Biomed. Eng.}"));

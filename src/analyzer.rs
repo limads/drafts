@@ -110,29 +110,22 @@ impl Analyzer {
                     loop {
                         match bib_recv.recv() {
                             Ok(Some(bib)) => {
-                                // println!("received {:?}", bib);
                                 if let (Some(fname), Some(base_path)) = (bib.filename, bib.base_dir) {
-
-                                    // let path = format!("{}/{}.bib", base_path, fname);
                                     let path = format!("{}/{}", base_path, fname);
-
                                     if Path::new(&path).exists() {
                                         if let Ok(mut f) = File::open(&path) {
                                             let mut content = String::new();
                                             if let Ok(_) = f.read_to_string(&mut content) {
-                                                println!("Bib file read");
                                                 send.send(AnalyzerAction::BibChanged(content));
                                             } else {
-                                                println!("could not read file");
+                                                eprintln!("could not read file");
                                             }
                                         } else {
-                                            println!("could not open file");
+                                            eprintln!("could not open file");
                                         }
                                     } else {
                                         send.send(AnalyzerAction::BibError(format!("Path {} does not exist", path)));
                                     }
-                                } else {
-                                    println!("Bibliography: No filename or base path available");
                                 }
                             },
                             Ok(None) => { },
@@ -145,9 +138,6 @@ impl Analyzer {
             });
 
             move |action| {
-
-                // println!("{}: {:?}", ix, action);
-                // ix += 1;
 
                 match action {
                     AnalyzerAction::ChangeBaseDir(opt_path) => {
@@ -173,7 +163,6 @@ impl Analyzer {
 
                         match crate::typst_tools::parse_doc(Path::new(""), new_txt) {
                             Ok(new_doc) => {
-                                println!("Doc parsed");
                                 if doc != new_doc || last_err.is_some() {
                                     on_doc_changed.call(new_doc.clone());
                                 }
@@ -206,10 +195,8 @@ impl Analyzer {
                                 }
                             },
                             Err(errs) => {
-                                println!("Doc parsing error");
                                 let fst_err = errs.get(0).map(|e| e.1.clone() )
                                     .unwrap_or(String::from("Unknown error"));
-                                println!("{}", fst_err);
                                 doc = Document::default();
                                 on_doc_cleared.call(());
                                 on_doc_error.call(TexError { msg : fst_err, line : 0 });
@@ -222,7 +209,6 @@ impl Analyzer {
                             Ok(refs) =>  {
                                 on_refs_cleared.call(());
                                 let n = refs.as_ref().len();
-                                println!("Have {} refs", n);
                                 for (ix, r) in refs.as_ref().iter().enumerate() {
                                     on_reference_changed.call(Difference::Added(ix, r.to_string()));
                                 }

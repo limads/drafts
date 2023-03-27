@@ -64,19 +64,7 @@ impl PapersEditor {
         let pdf_viewer = PdfViewer::new(zoom_action);
         sub_paned.set_start_child(Some(&scroll));
 
-        // sub_paned.set_end_child(&pdf_viewer.scroll);
         sub_paned.set_end_child(Some(&pdf_viewer.bx));
-
-        /*sub_paned.connect_visible_notify(|sub_paned| {
-            let w = sub_paned.parent().unwrap().allocation().width;
-            println!("{}", w);
-            sub_paned.set_position(w);
-        });*/
-
-        //sub_paned.connect_accept_position(move |paned| {
-        //    println!("Paned position accept");
-        //    false
-        //});
 
         sub_paned.set_position(i32::MAX);
         overlay.set_child(Some(&sub_paned));
@@ -84,14 +72,8 @@ impl PapersEditor {
         let ignore_file_save_action = gio::SimpleAction::new("ignore_file_save", None);
         let curr_toast : Rc<RefCell<Option<libadwaita::Toast>>> = Rc::new(RefCell::new(None));
 
-        // let paned = Paned::new(Orientation::Horizontal);
-
-        // paned.connect_position_set_notify(move |paned| {
-        // Move other paned by the same ammount.
-        // });
-
         let popover = Popover::new();
-        Self { scroll, view, overlay, /*paned,*/ sub_paned, ignore_file_save_action, buf_change_handler : Rc::new(RefCell::new(None)), curr_toast, pdf_viewer, popover }
+        Self { scroll, view, overlay, sub_paned, ignore_file_save_action, buf_change_handler : Rc::new(RefCell::new(None)), curr_toast, pdf_viewer, popover }
     }
 }
 
@@ -439,15 +421,12 @@ impl React<Analyzer> for PapersEditor {
         analyzer.connect_line_selection(move |line| {
             let buffer = view.buffer();
             if let Some(mut iter) = buffer.iter_at_line(line as i32) {
-                // popover.hide();
                 popover.popdown();
-                println!("Popover hidden");
                 buffer.place_cursor(&iter);
                 view.scroll_to_iter(&mut iter, 0.0, true, 0.0, 0.5);
                 view.grab_focus();
-                println!("Cursor placed");
             } else {
-                println!("No iter at line {}", line);
+                eprintln!("No iter at line {}", line);
             }
 
             // view.buffer().place_cursor(&iter);
@@ -465,7 +444,6 @@ fn move_backwards_to_command_start(buffer : &TextBuffer) -> Option<(TextIter, Te
     loop {
         ix += 1;
         start = buffer.iter_at_offset(pos-ix);
-        println!("Backward = {}", s);
         s = buffer.text(&start, &pos_iter, true).to_string();
         if ix == 1 && (s.starts_with(' ') || s.starts_with('\t') || s.starts_with('\n')) {
             return None;
@@ -477,7 +455,6 @@ fn move_backwards_to_command_start(buffer : &TextBuffer) -> Option<(TextIter, Te
     if s.starts_with("\\") {
         Some((start, pos_iter, s))
     } else {
-        println!("Cmd does not start with \\ but with {:?}", s.chars().next());
         None
     }
 }
@@ -492,7 +469,6 @@ fn move_forward_to_command_end(buffer : &TextBuffer) -> Option<(TextIter, TextIt
         ix += 1;
         end = buffer.iter_at_offset(pos+ix);
         s = buffer.text(&pos_iter, &end, true).to_string();
-        println!("Forward = {}", s);
         if s.ends_with('\n') || s.ends_with("}") || pos - ix == 0 {
             break;
         }

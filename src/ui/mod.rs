@@ -21,6 +21,7 @@ use filecase::SingleArchiverImpl;
 use filecase::{OpenDialog, SaveDialog};
 use poppler::Document;
 use either::Either;
+use crate::state::PapersState;
 
 mod doctree;
 
@@ -178,7 +179,7 @@ pub struct StartScreen {
 
 impl StartScreen {
 
-    pub fn build() -> Self {
+    pub fn build(state : PapersState) -> Self {
         let doc_upper_bx = Box::new(Orientation::Horizontal, 0);
         let doc_middle_bx = Box::new(Orientation::Horizontal, 0);
         let doc_lower_bx = Box::new(Orientation::Horizontal, 0);
@@ -210,7 +211,7 @@ impl StartScreen {
         new_bx.set_hexpand(true);
         new_bx.set_halign(Align::End);
 
-        let recent_list = RecentList::build();
+        let recent_list = RecentList::build(state);
         bx.append(&recent_list.bx);
         bx.append(&new_bx);
 
@@ -405,7 +406,7 @@ impl SymbolPopover {
 
 impl PapersWindow {
 
-    pub fn from(window : ApplicationWindow) -> Self {
+    pub fn new(window : ApplicationWindow, state : PapersState) -> Self {
 
         let titlebar = Titlebar::build();
         titlebar.set_edit(false);
@@ -414,7 +415,7 @@ impl PapersWindow {
         window.set_decorated(true);
         let doc_tree = DocTree::build();
         let editor = PapersEditor::build(&titlebar.zoom_action);
-        let start_screen = StartScreen::build();
+        let start_screen = StartScreen::build(state);
         start_screen.recent_list.open_btn.connect_clicked({
             let open_action = titlebar.main_menu.actions.open.clone();
             move|_| {
@@ -451,13 +452,13 @@ impl PapersWindow {
                         if let Some(path) = dialog.file().and_then(|f| f.path() ) {
                             if let Some(doc) = &*doc.borrow() {
                                 if let Err(e) = doc.save(&format!("file://{}", path.to_str().unwrap())) {
-                                    println!("Document save error: {}", e);
+                                    eprintln!("Document save error: {}", e);
                                 }
                             } else {
-                                println!("No current document to export");
+                                eprintln!("No current document to export");
                             }
                         } else {
-                            println!("No path available");
+                            eprintln!("No path available");
                         }
                     },
                     _ => { }
@@ -700,16 +701,16 @@ impl React<FileManager> for PapersWindow {
         });
         manager.connect_opened({
             let stack = self.stack.clone();
-            // let paned = self.editor.sub_paned.clone();
             let titlebar = self.titlebar.clone();
             let export_pdf_dialog = self.export_pdf_dialog.clone();
-            // let view_pdf_btn = self.titlebar.view_pdf_btn.clone();
+            let bar = self.editor.pdf_viewer.bar.clone();
             move |(path, _)| {
                 stack.set_visible_child_name("editor");
                 titlebar.set_prepared(true);
                 titlebar.clear_pages();
                 init_export_path(&export_pdf_dialog.dialog, path);
                 titlebar.set_edit(true);
+                bar.set_revealed(false);
             }
         });
         manager.connect_file_changed({
@@ -865,7 +866,6 @@ fn set_position_as_ratio(win : &ApplicationWindow, paned : &Paned, ratio : f32) 
         Orientation::Vertical => h as f32,
         _ => { return; }
     };
-    println!("({:?})", dim);
     paned.set_position((dim * ratio) as i32);
 }
 
@@ -896,12 +896,11 @@ fn preserve_ratio_on_resize(win : &ApplicationWindow, paned : &Paned, ratio : &R
             update_paned_from_allocation(&win, &paned, &ratio);
         }
     });
-    win.connect_resizable_notify({
-
+    /*win.connect_resizable_notify({
         move |win| {
-            println!("Resizable");
+
         }
-    });
+    });*/
     let ratio = ratio.clone();
     let win = win.clone();
     /*paned.connect_accept_position(move |paned| {
@@ -957,7 +956,6 @@ impl React<Typesetter> for PapersWindow {
                 TypesetterTarget::File(path) => {
                     let doc = poppler::Document::from_file(&format!("file://{}", path), None).unwrap();
                     editor.pdf_viewer.update(&doc, &titlebar.zoom_action);
-                    println!("Showing with poppler");
                     update_titlebar(&titlebar, &editor.pdf_viewer);
                 },
                 TypesetterTarget::PDFContent(bytes) => {
@@ -970,12 +968,12 @@ impl React<Typesetter> for PapersWindow {
                             update_titlebar(&titlebar, &editor.pdf_viewer);
                         },
                         Err(e) => {
-                            println!("Poppler error: {}", e);
+                            eprintln!("Poppler error: {}", e);
                         }
                     }
                 },
                 _ => {
-                    println!("Unimplemented typesetting target");
+                    eprintln!("Unimplemented typesetting target");
                 }
             }
         });
@@ -1173,7 +1171,7 @@ fn turn_page(
     if (*cp == n_pages-1 && !left) {
         return;
     }
-    println!("curr page = {:?}; left = {:?}", *cp, left);
+
     if left {
         *cp -= 1;
         stack.set_transition_type(StackTransitionType::SlideRight);
@@ -1186,11 +1184,6 @@ fn turn_page(
 
     turn_action.set_state(&(*cp as i32).to_variant());
     turn_action.activate(None);
-
-    // da1.queue_draw();
-    // da2.queue_draw();
-    // stack.queue_draw();
-    println!("Draw queued");
 }
 
 impl PdfViewer {
@@ -1225,14 +1218,12 @@ impl PdfViewer {
             let stack = stack.clone();
             move|_, _, _, _| {
                 stack.grab_focus();
-                println!("Click");
             }
         });
         stack.add_controller(&click);
         let controller = EventControllerKey::new();
         stack.add_controller(&controller);
         controller.connect_key_pressed(|ev, key, code, modifier| {
-            println!("key press {:?} {:?}", key, code);
             glib::signal::Inhibit(false)
         });
         let scroll_ev = EventControllerScroll::new(EventControllerScrollFlags::HORIZONTAL);
@@ -1245,8 +1236,6 @@ impl PdfViewer {
             let (da1, da2) = (da1.clone(), da2.clone());
             let turn_action = turn_action.clone();
             move|ev, a, b| {
-                // println!("Scroll {:?}: {} {}", ev, a, b);
-                // trajx.borrow_mut().push(a);
 
                 // Automatically handled at edge_overshoot in this case. When we have
                 // a horizontal bar, we should not move the page!
@@ -1336,22 +1325,18 @@ impl PdfViewer {
                 let doc = doc.clone();
                 let curr_page = curr_page.clone();
                 move |da, ctx, _, _| {
-                    // println!("Drawing {}", da_pos);
                     let cp = curr_page.borrow();
-                    //if *cp % 2 == da_pos {
                     let doc = doc.borrow();
                     if let Some(doc) = &*doc {
                         if let Some(page) = doc.page(*cp as i32) {
                             crate::adjust_dimension_for_page(da, zoom_action.clone(), &page);
                             crate::draw_page_content(da, ctx, &zoom_action.clone(), &page, true);
-                            // println!("Just drawed {}", *cp);
                         } else {
-                            println!("No page {} at draw", *cp);
+                            eprintln!("No page {} at draw", *cp);
                         }
                     } else {
-                        println!("No doc at draw");
+                        eprintln!("No doc at draw");
                     }
-                    //}
                 }
             });
         }
@@ -1540,12 +1525,13 @@ impl React<FileManager> for SaveDialog {
 pub struct RecentList {
     pub open_btn : Button,
     pub list : ListBox,
-    pub bx : Box
+    pub bx : Box,
+    state : PapersState
 }
 
 impl RecentList {
 
-    pub fn build() -> Self {
+    pub fn build(state : PapersState) -> Self {
         let open_btn = Button::from_icon_name("document-open-symbolic");
         open_btn.style_context().add_class("flat");
         let list = ListBox::new();
@@ -1573,7 +1559,7 @@ impl RecentList {
         bx.set_valign(Align::Center);
         bx.set_hexpand(true);
         bx.set_margin_start(128);
-        Self { open_btn, list, bx }
+        Self { open_btn, list, bx, state }
     }
 
     pub fn add_row(&self, path : &str, begin : bool) {
@@ -1596,13 +1582,20 @@ impl React<FileManager> for RecentList {
 
     fn react(&self, manager : &FileManager) {
         let recent = self.clone();
+        let state = self.state.clone();
         manager.connect_opened(move |(path, _)| {
-            recent.add_row(&path, true);
+            if state.borrow_mut().push_if_not_present(&path) {
+                recent.add_row(&path, true);
+            }
         });
         let recent = self.clone();
+        let state = self.state.clone();
         manager.connect_save(move |path| {
-            recent.add_row(&path, true);
+            if state.borrow_mut().push_if_not_present(&path) {
+                recent.add_row(&path, true);
+            }
         });
     }
+
 }
 

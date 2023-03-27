@@ -388,8 +388,6 @@ impl Document {
 
     pub fn token_index_at(&self, ixs : &[usize]) -> Option<usize> {
 
-        // println!("Requesting position at {:?}", ixs);
-
         for ix in ixs.iter() {
             if self.items.len() <= *ix {
                 return None;
@@ -534,7 +532,6 @@ impl Parser {
         let mut all_tks = Vec::new();
         blocked_tokens(Vec::new(), &mut tks, &mut all_tks)
             .map_err(|e| TexError { msg : e, line : 0 })?;
-        // println!("{:#?}", all_tks);
         let mut doc_items : Option<Vec<Item>> = None;
 
         let mut tk_ix : usize = 0;
@@ -742,7 +739,6 @@ impl BibParser {
             separated_list0(multispace1, super::bib_entry),
             multispace0
         )(txt).map_err(|e| e.to_string() )?;
-        // println!("out = {:?}", out);
         Ok(References(out))
 
         /*let (rem, _) = (many0(multispace1))(txt).map_err(|e| e.to_string() )?;

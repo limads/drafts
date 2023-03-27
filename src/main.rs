@@ -90,19 +90,9 @@ fn main() {
                 .default_height(768)
                 .build();
 
-            // println!("{:?}", app.resource_base_path());
-            // let icon = gio::resources_lookup_data("/com/github/limads/papers/icons/symbolic/actions/equation-symbolic.svg", gio::ResourceLookupFlags::empty()).unwrap();
-            // println!("{:?}", String::from_utf8(icon.as_ref().to_owned()).unwrap());
-
-            let papers_win = PapersWindow::from(window);
+            let papers_win = PapersWindow::new(window, user_state.clone());
             user_state.update(&papers_win);
-
-            // let s = { user_state.borrow().window.width };
-            // papers_win.editor.sub_paned.set_position(s);
-
             papers_win.react(&papers_win.start_screen);
-
-            // drafts::ui::setup_position_as_ratio(&papers_win.window, &papers_win.editor.sub_paned, 0.5);
 
             let manager = FileManager::new();
             manager.react(&papers_win.titlebar.main_menu.open_dialog);
@@ -112,8 +102,6 @@ fn main() {
             manager.react(&papers_win.editor);
 
             user_state.react(&papers_win);
-            user_state.react(&manager);
-
             papers_win.titlebar.main_menu.save_dialog.react(&manager);
             papers_win.titlebar.main_menu.open_dialog.react(&manager);
 
@@ -124,7 +112,6 @@ fn main() {
             typesetter.react(&manager);
 
             papers_win.titlebar.react(&typesetter);
-            // papers_win.titlebar.bib_popover.react(&manager);
 
             papers_win.editor.react(&typesetter);
             papers_win.editor.pdf_viewer.react(&papers_win.titlebar);
@@ -146,14 +133,6 @@ fn main() {
             papers_win.window.show();
         }
     });
-
-    // segfault.
-    // application.connect_window_added(move |app, win| {
-    //    win.destroy();
-    // });
-
-    // application.connect_window_added()
-    // application.connect_window_removed()
 
     application.run();
 
