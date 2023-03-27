@@ -3,6 +3,7 @@
 .cargo
 /.flatpak-builder
 /vendored
+/deps
 /build
 vendored.tar.gz
 drafts.flatpak

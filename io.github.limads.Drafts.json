@@ -1,10 +1,10 @@
 {
   "app-id": "io.github.limads.Drafts",
   "runtime": "org.gnome.Platform",
-  "runtime-version": "43",
+  "runtime-version": "44",
   "sdk": "org.gnome.Sdk",
   "sdk-extensions": [
-    "org.freedesktop.Sdk.Extension.rust-stable"
+    "org.freedesktop.Sdk.Extension.rust-nightly"
   ],
   "command": "drafts",
   "finish-args": [
@@ -78,7 +78,7 @@
         },
         {
           "type": "git",
-          "path": "/home/diego/Software/drafts",
+          "url": "https://github.com/limads/drafts.git",
           "tag": "v0.1.0"
         }
       ],
