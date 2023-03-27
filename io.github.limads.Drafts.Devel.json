@@ -4,7 +4,7 @@
   "runtime-version": "44",
   "sdk": "org.gnome.Sdk",
   "sdk-extensions": [
-    "org.freedesktop.Sdk.Extension.rust-stable"
+    "org.freedesktop.Sdk.Extension.rust-nightly"
   ],
   "command": "drafts",
   "finish-args": [
@@ -65,21 +65,16 @@
           "ICON_SRC": "data/icons/hicolor",
           "ICON_DST": "/app/share/icons/hicolor",
           "CARGO_TARGET_PATH": "/run/build/Drafts/target/release"
-        }
+        },
+        "build-args": [ "--share=network" ]
       },
       "build-commands": [
-        "sh ./scripts/build.sh"
+        "cargo build --release"
       ],
       "sources": [
         {
-          "type": "archive",
-          "url": "https://limads.sfo3.cdn.digitaloceanspaces.com/drafts-vendored%2Fv0.1.0%2Fvendored.tar.gz",
-          "sha256": "5ae66b3f6e072ce9e6ef1f7a3f617c7d9186388219efeced2944dd8765e71362"
-        },
-        {
           "type": "git",
-          "url": "https://github.com/limads/drafts.git",
-          "tag": "v0.1.0"
+          "url": "file:///home/diego/Downloads/drafts"
         }
       ],
       "post-install": [
