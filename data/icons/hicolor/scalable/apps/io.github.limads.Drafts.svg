@@ -26,22 +26,17 @@
      showgrid="false"
      units="px"
      width="256px"
-     inkscape:zoom="6.4889379"
-     inkscape:cx="36.677805"
-     inkscape:cy="72.816231"
+     inkscape:zoom="1.2372755"
+     inkscape:cx="-162.45372"
+     inkscape:cy="46.473078"
      inkscape:window-width="1920"
      inkscape:window-height="1016"
      inkscape:window-x="0"
      inkscape:window-y="0"
      inkscape:window-maximized="1"
-     inkscape:current-layer="g1307"
+     inkscape:current-layer="g17959"
      showguides="true"
-     inkscape:guide-bbox="true">
-    <sodipodi:guide
-       position="40.733746,-1.2809705"
-       orientation="0,-1"
-       id="guide929" />
-  </sodipodi:namedview>
+     inkscape:guide-bbox="true" />
   <defs
      id="defs876">
     <linearGradient
@@ -197,8 +192,8 @@
                        style="opacity:1;fill:url(#linearGradient21512);fill-opacity:1"
                        sodipodi:nodetypes="cccsscccc" />
                     <path
-                       style="fill:#f9f9f9;fill-opacity:1;stroke:#b3b3b3;stroke-width:0.251203;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
-                       d="m 161.77323,2.0155947 c -0.1355,8.9949283 0.14202,7.1204108 11.87612,7.4167253"
+                       style="fill:#b3b3b3;fill-opacity:1;stroke:#b3b3b3;stroke-width:0.251203;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+                       d="m 161.77323,2.0155947 c -0.1355,8.9949283 0.30409,7.1185957 12.03819,7.4149102"
                        id="path15549"
                        sodipodi:nodetypes="cc" />
                   </g>

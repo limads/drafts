@@ -52,15 +52,94 @@ pub struct PapersWindow {
 
 const EMPTY_TEMPLATE : &'static str = r#""#;
 
-const ARTICLE_TEMPLATE : &'static str = r#""#;
+const ARTICLE_TEMPLATE : &'static str = r#"
+#let title = "Title"
+#let authors = "Bob, A. and Alice, B."
+#let abstract = lorem(100)
 
-const MINIMAL_TEMPLATE : &'static str = r#""#;
+#set document(title: title, author: authors)
+#set page(
+    paper: "a4",
+    numbering : "1"
+)
+#set cite(style: "author-date")
+#set bibliography(style: "apa", title: "References")
+#set align(center)
+#text(size: 24pt, weight: 700, title)
+
+#text(authors)
+
+#block(width : 75%)[
+    #set par(justify: true, leading : 0.32em)
+    #set pad(left : 20pt, right : 20pt)
+= Abstract
+#abstract
+]
+
+*Keywords* #lorem(4)
+
+#set align(left)
+
+#show: columns
+
+= Introduction
+
+#lorem(500)
+
+= Methods
+
+#lorem(500)
+
+= Results
+
+#lorem(500)
+
+= Conclusion
+
+#lorem(1000)
+"#;
+
+const MINIMAL_TEMPLATE : &'static str = r#"
+#set page(paper: "a4", margin: 2.0cm)
+#set par(leading : 0.98em, first-line-indent : 15pt)
+#set text(font : "Liberation Sans", style : "normal", weight : "regular", size : 12pt)
+"#;
 
 const REPORT_TEMPLATE : &'static str = r#""#;
 
 const BOOK_TEMPLATE : &'static str = r#""#;
 
-const PRESENTATION_TEMPLATE : &'static str = r#""#;
+const PRESENTATION_TEMPLATE : &'static str = r#"
+#set page(paper: "presentation-16-9", margin: 2.0cm, numbering : "1", number-align : right)
+#set text(size : 18pt)
+
+#let slide(title : "", hz : true, end : false, ..content) = {
+    [#heading(title)]
+    [#linebreak()]
+    let half = (50%, 50%);
+    let third = (33%, 33%);
+    if content.pos().len() == 4 {
+        grid(rows : third, columns : half, gutter : 5%, ..content)
+    } else if content.pos().len() == 2 and hz {
+        grid(rows : 1, columns : half, gutter : 5%, ..content)
+    } else if content.pos().len() == 2 and (not hz) {
+        grid(rows : third, columns : 1, gutter : 5%, ..content)
+    } else {
+        content.pos().at(0)
+    }
+    if not(end) {
+        [#pagebreak()]
+    }
+};
+
+#slide(title : "First slide")[#lorem(10)]
+
+#slide(title : "Second slide", hz : true)[#lorem(10)][#lorem(10)]
+
+#slide(title : "Third slide", hz : false)[#lorem(10)][#lorem(10)]
+
+#slide(title : "Fourth slide", end : true)[#lorem(10)][#lorem(10)][#lorem(10)][#lorem(10)]
+"#;
 
 fn start_document(view : &View, stack : &Stack, titlebar : &Titlebar, template : &str) {
     view.buffer().set_text(template);

@@ -39,7 +39,6 @@ pub fn adjust_dimension_for_page(da : &DrawingArea, zoom_action : gio::SimpleAct
     let (w, h) = page.size();
     let page_w = (w * z) as i32;
     let page_h = (h * z) as i32;
-    println!("page dims = {:?}", (page_w, page_h));
     da.set_width_request(page_w);
     da.set_height_request(page_h);
 }
@@ -119,6 +118,5 @@ pub fn draw_page_at_area(doc : &poppler::Document, page_ix : i32, da : &DrawingA
         }
     });
 
-    // add_page_gestures(da);
     da.queue_draw();
 }

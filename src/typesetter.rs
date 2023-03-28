@@ -154,7 +154,6 @@ impl Typesetter {
             let send = send.clone();
             move || {
                 let mut ws = Workspace::new();
-                println!("Outdir: {}", ws.outdir.path().display());
                 loop {
                     match content_recv.recv() {
                         Ok(TypesettingRequest { content, base_path, file }) => {

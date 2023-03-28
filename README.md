@@ -2,17 +2,17 @@
 
 # Drafts
 
-A self-contained document preparation system.
-
 Drafts is an editor for technical writing that leverages the [Typst](https://typst.app/docs/reference/) typesetting system.
 
 ## Features
 
 - A lightweight editing experience with syntax highlighting and document navigation
         
-- Lightning-fast PDF preview and export
+- Lightning-fast PDF preview and export (thanks to the newly open sourced [Typst compiler](https://github.com/typst/typst).
 
 - Menu-based interactions for common tasks (math symbol input, document formatting)
+
+- Provides a few generic templates to help you get started.
 
 # Installation
 

@@ -60,6 +60,9 @@ available to Gnome-based text editors (.typ file extension):
       <keyword>else</keyword>
       <keyword>for</keyword>
       <keyword>in</keyword>
+      <keyword>not</keyword>
+      <keyword>and</keyword>
+      <keyword>or</keyword>
       <keyword>while</keyword>
       <keyword>break</keyword>
       <keyword>continue</keyword>
