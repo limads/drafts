@@ -141,6 +141,15 @@ impl React<Typesetter> for PapersEditor {
                     .build();
                 connect_toast_dismissed(&toast, &curr_toast);
                 overlay.add_toast(&toast);
+                *last_toast = Some(toast);
+            }
+        });
+        typesetter.connect_done({
+            let curr_toast = self.curr_toast.clone();
+            move |_| {
+                if let Some(toast) = &*curr_toast.borrow() {
+                    toast.dismiss();
+                }
             }
         });
     }

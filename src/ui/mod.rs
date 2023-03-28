@@ -66,7 +66,7 @@ const ARTICLE_TEMPLATE : &'static str = r#"
 #set bibliography(style: "apa", title: "References")
 #set align(center)
 #text(size: 24pt, weight: 700, title)
-
+#linebreak()
 #text(authors)
 
 #block(width : 75%)[
@@ -102,7 +102,7 @@ const ARTICLE_TEMPLATE : &'static str = r#"
 const MINIMAL_TEMPLATE : &'static str = r#"
 #set page(paper: "a4", margin: 2.0cm)
 #set par(leading : 0.98em, first-line-indent : 15pt)
-#set text(font : "Liberation Sans", style : "normal", weight : "regular", size : 12pt)
+#set text(font : "Liberation Serif", style : "normal", weight : "regular", size : 12pt)
 "#;
 
 const REPORT_TEMPLATE : &'static str = r#""#;
@@ -110,35 +110,36 @@ const REPORT_TEMPLATE : &'static str = r#""#;
 const BOOK_TEMPLATE : &'static str = r#""#;
 
 const PRESENTATION_TEMPLATE : &'static str = r#"
-#set page(paper: "presentation-16-9", margin: 2.0cm, numbering : "1", number-align : right)
-#set text(size : 18pt)
+#let title = "Presentation Title"
+#let author = "Bob, A. and Alice, B."
+#set page(
+    paper: "presentation-16-9",
+    margin: 2.0cm,
+    numbering : "1",
+    number-align:right
+)
+#set text(size : 18pt, font : "Liberation Sans")
+#show heading.where(level : 1) : head => {
+    pagebreak();
+    head
+    linebreak();
+}
 
-#let slide(title : "", hz : true, end : false, ..content) = {
-    [#heading(title)]
-    [#linebreak()]
-    let half = (50%, 50%);
-    let third = (33%, 33%);
-    if content.pos().len() == 4 {
-        grid(rows : third, columns : half, gutter : 5%, ..content)
-    } else if content.pos().len() == 2 and hz {
-        grid(rows : 1, columns : half, gutter : 5%, ..content)
-    } else if content.pos().len() == 2 and (not hz) {
-        grid(rows : third, columns : 1, gutter : 5%, ..content)
-    } else {
-        content.pos().at(0)
-    }
-    if not(end) {
-        [#pagebreak()]
-    }
-};
+#set align(center + horizon)
 
-#slide(title : "First slide")[#lorem(10)]
+#text(size : 26pt, weight : "bold", title)
 
-#slide(title : "Second slide", hz : true)[#lorem(10)][#lorem(10)]
+#author
 
-#slide(title : "Third slide", hz : false)[#lorem(10)][#lorem(10)]
+#set align(left + top)
 
-#slide(title : "Fourth slide", end : true)[#lorem(10)][#lorem(10)][#lorem(10)][#lorem(10)]
+= First slide
+
+#lorem(20)
+
+= Second slide
+
+#lorem(20)
 "#;
 
 fn start_document(view : &View, stack : &Stack, titlebar : &Titlebar, template : &str) {
@@ -273,9 +274,11 @@ impl StartScreen {
         doc_upper_bx.append(&empty_btn.btn);
         doc_upper_bx.append(&minimal_btn.btn);
         doc_middle_bx.append(&article_btn.btn);
-        doc_middle_bx.append(&report_btn.btn);
+        doc_middle_bx.append(&present_btn.btn);
+        doc_lower_bx.append(&report_btn.btn);
         doc_lower_bx.append(&book_btn.btn);
-        doc_lower_bx.append(&present_btn.btn);
+        report_btn.btn.set_sensitive(false);
+        book_btn.btn.set_sensitive(false);
 
         let bx = Box::new(Orientation::Horizontal, 0);
         let title = title_label("New");
