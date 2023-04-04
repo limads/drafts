@@ -585,6 +585,7 @@ fn draw_paper(da : &DrawingArea, ctx : &cairo::Context, dim : &PaperDimension) {
     ctx.restore();
 }
 
+#[derive(Debug, Clone)]
 struct PaperDimension {
     x_offset : f64,
     y_offset : f64,
@@ -623,23 +624,35 @@ fn draw_margins(ctx : &cairo::Context, dim : &PaperDimension) {
 
 const PX_PER_MM : f64 = 0.5;
 
-fn update_margin(old_v : &mut f64, entry : &Entry, page_da : &DrawingArea, update_btn : &Button) {
+pub const DEFAULT_MARGIN_CM : f64 = 2.0;
+
+pub fn default_margin_px() -> f64 {
+    DEFAULT_MARGIN_CM * PX_PER_MM
+}
+
+fn update_margin(
+    old_v : &mut f64,
+    dim : f64,
+    entry : &Entry,
+    page_da : &DrawingArea,
+    update_btn : &Button
+) {
     let txt = entry.buffer().text().to_string();
     if txt.is_empty() {
-        *old_v = 20. * PX_PER_MM;
-        update_btn.set_sensitive(true);
+        *old_v = default_margin_px();
+        // update_btn.set_sensitive(true);
     } else {
         if let Some(v) = super::parse_int_or_float(&txt) {
-            if v > super::MARGIN_MIN && v < super::MARGIN_MAX {
+            if v > 0.0 && v < (dim / 2.0) / 10.0 {
                 *old_v = PX_PER_MM * 10. * v;
-                update_btn.set_sensitive(true);
+                // update_btn.set_sensitive(true);
             } else {
-                *old_v = 20. * PX_PER_MM;
-                update_btn.set_sensitive(false);
+                *old_v = default_margin_px();
+                // update_btn.set_sensitive(false);
             }
         } else {
-            *old_v = 20. * PX_PER_MM;
-            update_btn.set_sensitive(false);
+            *old_v = default_margin_px();
+            // update_btn.set_sensitive(false);
         }
     }
     page_da.queue_draw();
@@ -652,10 +665,15 @@ impl PaperPopover {
         let page_bx = Box::new(Orientation::Horizontal, 1);
 
         let page_da = DrawingArea::new();
-        //page_da.set_width_request(172);
-        //page_da.set_height_request(144);
-        page_da.set_width_request(180);
-        page_da.set_height_request(200);
+
+        // page_da.set_width_request(180);
+        // page_da.set_height_request(200);
+
+        let paper_area_width = 240;
+        let paper_area_height = 240;
+        page_da.set_width_request(paper_area_width);
+        page_da.set_height_request(paper_area_height);
+
         let update_btn = Button::new();
 
         let dim = Rc::new(RefCell::new(PaperDimension {
@@ -683,7 +701,9 @@ impl PaperPopover {
             let dim = dim.clone();
             let update_btn = update_btn.clone();
             move |entry| {
-                update_margin(&mut dim.borrow_mut().margin_top, &entry, &page_da, &update_btn);
+                let mut dim = dim.borrow_mut();
+                let d = dim.height / PX_PER_MM;
+                update_margin(&mut dim.margin_top, d, &entry, &page_da, &update_btn);
 
             }
         });
@@ -696,7 +716,9 @@ impl PaperPopover {
             let dim = dim.clone();
             let update_btn = update_btn.clone();
             move |entry| {
-                update_margin(&mut dim.borrow_mut().margin_right, &entry, &page_da, &update_btn);
+                let mut dim = dim.borrow_mut();
+                let d = dim.width / PX_PER_MM;
+                update_margin(&mut dim.margin_right, d, &entry, &page_da, &update_btn);
             }
         });
 
@@ -708,7 +730,9 @@ impl PaperPopover {
             let dim = dim.clone();
             let update_btn = update_btn.clone();
             move |entry| {
-                update_margin(&mut dim.borrow_mut().margin_bottom, &entry, &page_da, &update_btn);
+                let mut dim = dim.borrow_mut();
+                let d = dim.height / PX_PER_MM;
+                update_margin(&mut dim.margin_bottom, d, &entry, &page_da, &update_btn);
             }
         });
 
@@ -720,7 +744,9 @@ impl PaperPopover {
             let dim = dim.clone();
             let update_btn = update_btn.clone();
             move |entry| {
-                update_margin(&mut dim.borrow_mut().margin_left, &entry, &page_da, &update_btn);
+                let mut dim = dim.borrow_mut();
+                let d = dim.width / PX_PER_MM;
+                update_margin(&mut dim.margin_left, d, &entry, &page_da, &update_btn);
             }
         });
 
@@ -731,8 +757,8 @@ impl PaperPopover {
         margin_bx.set_valign(Align::Center);
 
         let paper_combo = ComboBoxText::new();
-        paper_combo.append(Some("A3"), "A3");
         paper_combo.append(Some("A4"), "A4");
+        paper_combo.append(Some("A3"), "A3");
         paper_combo.append(Some("US-Letter"), "US-Letter");
         paper_combo.append(Some("US-Legal"), "US-Legal");
         paper_combo.append(Some("Presentation-4-3"), "Presentation-4-3");
@@ -745,18 +771,25 @@ impl PaperPopover {
             move |combo| {
                 if let Some(id) = combo.active_id() {
                     let dims_mm = match &id.to_string()[..] {
+                        "A3" => super::A3,
                         "A4" => super::A4,
-                        "Letter" => super::LETTER,
-                        "Legal" => super::LEGAL,
+                        "US-Letter" => super::LETTER,
+                        "US-Legal" => super::LEGAL,
+                        "Presentation-4-3" => super::PRESENT_4_3,
+                        "Presentation-16-9" => super::PRESENT_16_9,
                         _ => super::A4
                     };
                     let mut dim = dim.borrow_mut();
                     dim.width = dims_mm.0 * PX_PER_MM;
                     dim.height = dims_mm.1 * PX_PER_MM;
+                    dim.x_offset = paper_area_width as f64 / 2.0 - (dim.width / 2.0);
+                    dim.y_offset = paper_area_height as f64 / 2.0 - (dim.height / 2.0);
+                    // println!("{:?}", dim);
                     page_da.queue_draw();
                 }
             }
         });
+        paper_combo.set_active_id(Some("A4"));
 
         margin_bx.style_context().add_class("linked");
         for entry in [&top_entry, &bottom_entry, &left_entry, &right_entry] {

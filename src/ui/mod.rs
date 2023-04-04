@@ -94,7 +94,7 @@ const ARTICLE_TEMPLATE : &'static str = r#"
 
 #lorem(500)
 
-= Conclusion
+= Discussion
 
 #lorem(1000)
 "#;
@@ -583,7 +583,7 @@ impl PapersWindow {
         });*/
         window.connect_fullscreened_notify({
             move |win| {
-                println!("Fullscreened changed");
+                // println!("Fullscreened changed");
             }
         });
 
@@ -997,11 +997,17 @@ fn preserve_ratio_on_resize(win : &ApplicationWindow, paned : &Paned, ratio : &R
     });*/
 }
 
+const A3 : (f64, f64) = (297.0, 420.0);
+
 const A4 : (f64, f64) = (210.0, 297.4);
 
 const LETTER : (f64, f64) = (215.9, 279.4);
 
 const LEGAL : (f64, f64) = (215.9, 355.6);
+
+const PRESENT_4_3 : (f64, f64) = (300.0, 255.0);
+
+const PRESENT_16_9 : (f64, f64) = (300.0, 168.75);
 
 // const PX_PER_MM : f64 = 3.0;
 

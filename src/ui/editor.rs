@@ -275,6 +275,11 @@ pub fn enclose_or_insert_at_cursor(btn : &Button, view : View, popover : Popover
     });
 }
 
+fn get_margin(entry : &Entry) -> f64 {
+    super::parse_int_or_float(&entry.buffer().text().to_string())
+        .unwrap_or(crate::ui::titlebar::DEFAULT_MARGIN_CM)
+}
+
 const PT_PER_EM : f32 = 11.955168;
 
 impl React<Titlebar> for PapersEditor {
@@ -298,12 +303,12 @@ impl React<Titlebar> for PapersEditor {
         }
 
         let par = [
-            (&titlebar.fmt_popover.par_indent_10,"#set par(first-line-indent = 10pt)"),
-            (&titlebar.fmt_popover.par_indent_15, "#set par(first-line-indent = 15pt)"),
-            (&titlebar.fmt_popover.par_indent_20, "#set par(first-line-indent = 20pt)"),
-            (&titlebar.fmt_popover.line_height_10, "#set par(leading = 0.65em)"),
-            (&titlebar.fmt_popover.line_height_15, "#set par(leading = 0.98em)"),
-            (&titlebar.fmt_popover.line_height_20, "#set par(leading = 1.3em)"),
+            (&titlebar.fmt_popover.par_indent_10,"#set par(first-line-indent : 10pt)"),
+            (&titlebar.fmt_popover.par_indent_15, "#set par(first-line-indent : 15pt)"),
+            (&titlebar.fmt_popover.par_indent_20, "#set par(first-line-indent : 20pt)"),
+            (&titlebar.fmt_popover.line_height_10, "#set par(leading : 0.65em)"),
+            (&titlebar.fmt_popover.line_height_15, "#set par(leading : 0.98em)"),
+            (&titlebar.fmt_popover.line_height_20, "#set par(leading : 1.3em)"),
             (&titlebar.fmt_popover.onecol_btn, "#set page(columns : 1)"),
             (&titlebar.fmt_popover.twocol_btn, "#set page(columns : 2)")
         ];
@@ -401,21 +406,22 @@ impl React<Titlebar> for PapersEditor {
             let view = view.clone();
             let popover = titlebar.paper_popover.popover.clone();
             move |_| {
-
-                let top = super::parse_int_or_float(&top_entry.buffer().text().to_string()).unwrap_or(2.);
-                let left = super::parse_int_or_float(&left_entry.buffer().text().to_string()).unwrap_or(2.);
-                let bottom = super::parse_int_or_float(&bottom_entry.buffer().text().to_string()).unwrap_or(2.);
-                let right = super::parse_int_or_float(&right_entry.buffer().text().to_string()).unwrap_or(2.);
+                let top = super::parse_int_or_float(&top_entry.buffer().text().to_string());
+                let left = super::parse_int_or_float(&left_entry.buffer().text().to_string());
+                let bottom = super::parse_int_or_float(&bottom_entry.buffer().text().to_string());
+                let right = super::parse_int_or_float(&right_entry.buffer().text().to_string());
                 let paper = paper_combo.active_id().map(|id| id.to_string().to_lowercase() ).unwrap_or(String::from("a4"));
-
-                let cmd = format!(
-                    "#set page(paper: \"{}\", margin: (top: {:.2}cm, bottom : {:.2}cm, left : {:.2}cm, right: {:.2}cm))",
-                    paper,
-                    top,
-                    bottom,
-                    left,
-                    right
-                );
+                let mut margin = Vec::new();
+                for (m, v) in [("top", top), ("left", left), ("bottom", bottom), ("right", right)] {
+                    if let Some(v) = v {
+                        margin.push(format!("{} : {:.2}cm", m, v));
+                    }
+                }
+                let cmd = if margin.len() == 0 {
+                    format!("#set page(paper: \"{}\"", paper)
+                } else {
+                    format!("#set page(paper: \"{}\", margin : ({}))", paper, margin.join(", "))
+                };
                 insert_at_cursor(view.clone(), popover.clone(), &cmd);
             }
         });
